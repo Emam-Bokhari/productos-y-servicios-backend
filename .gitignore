@@ -1,0 +1,10 @@
+node_modules
+# uploads
+/winston
+.env
+dist
+practice.yaml
+practice
+*.drawio
+docs/erd/**/*.pdf
+docs/erd/**/*.svg
