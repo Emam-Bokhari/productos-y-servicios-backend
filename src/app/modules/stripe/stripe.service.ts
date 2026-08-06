@@ -50,12 +50,12 @@ class StripeService {
             product_data: {
               name:
                 metadata.type === "wallet_topup"
-                  ? "Alygo Wallet Top-up"
+                  ? "Productos Y Servicios Wallet Top-up"
                   : metadata.type === "cancellation_fee"
-                    ? "Alygo Ride Cancellation Fee"
+                    ? "Productos Y Servicios Ride Cancellation Fee"
                     : metadata.type === "driver_appreciation"
-                      ? "Alygo Driver Appreciation"
-                      : "Alygo Ride Payment",
+                      ? "Productos Y Servicios Driver Appreciation"
+                      : "Productos Y Servicios Ride Payment",
             },
             unit_amount: Math.round(amount * 100),
           },

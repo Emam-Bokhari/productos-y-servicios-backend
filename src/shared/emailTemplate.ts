@@ -1,16 +1,16 @@
 import { ICreateAccount, IResetPassword } from "../types/emailTemplate";
 
 const COLORS = {
-  background: "#0A0A0F",
-  surface: "#16161D",
-  border: "#27272A",
-  primary: "#EA580C",
-  text: "#FEFEFE",
-  secondary: "#A1A1AA",
+  background: "#FAFAF7",
+  surface: "#FFFFFF",
+  border: "#E5E5E5",
+  primary: "#22813E",
+  text: "#1A1D24",
+  secondary: "#6B7280",
 };
 
 const LOGO =
-  "https://res.cloudinary.com/dphkhbunv/image/upload/v1783484451/Group_1707478169_toeljh.png";
+  "https://res.cloudinary.com/dphkhbunv/image/upload/v1785990667/Frame_2147226136_cyu9kb.png";
 
 const baseLayout = (title: string, content: string) => `
 <!DOCTYPE html>
@@ -72,7 +72,7 @@ style="padding:45px 36px 28px;"
 <img
 src="${LOGO}"
 width="74"
-alt="Alygo"
+alt="Productos Y Servicios"
 style="
 display:block;
 margin-bottom:18px;
@@ -87,7 +87,7 @@ color:${COLORS.text};
 font-weight:700;
 "
 >
-Alygo
+Productos Y Servicios
 </h1>
 
 </td>
@@ -128,7 +128,7 @@ ${content}
 align="center"
 style="
 padding:28px;
-background:#101015;
+background:${COLORS.background};
 border-top:1px solid ${COLORS.border};
 "
 >
@@ -141,7 +141,7 @@ color:${COLORS.secondary};
 "
 >
 
-This is an automated email from Alygo.
+This is an automated email from Productos Y Servicios.
 
 </p>
 
@@ -153,7 +153,7 @@ color:#6B7280;
 "
 >
 
-© ${new Date().getFullYear()} Alygo.
+© ${new Date().getFullYear()} Productos Y Servicios.
 All rights reserved.
 
 </p>
@@ -218,7 +218,7 @@ cellpadding="0"
 cellspacing="0"
 style="
 margin-top:34px;
-background:#111118;
+background:${COLORS.background};
 border:1px solid ${COLORS.border};
 border-radius:12px;
 ">
@@ -253,7 +253,7 @@ Security Tips
 
 <br>
 
-• Alygo will never ask for your OTP.
+• Productos Y Servicios will never ask for your OTP.
 
 </td>
 
@@ -283,7 +283,7 @@ line-height:1.8;
 color:${COLORS.secondary};
 "
 >
-Welcome to <b style="color:${COLORS.text};">Alygo</b>.
+Welcome to <b style="color:${COLORS.text};">Productos Y Servicios</b>.
 
 Thank you for creating your account.
 
@@ -303,15 +303,15 @@ line-height:1.8;
 color:${COLORS.secondary};
 "
 >
-If you didn't create an Alygo account, you can safely ignore this email.
+If you didn't create a Productos Y Servicios account, you can safely ignore this email.
 No further action is required.
 </p>
 `;
 
   return {
     to: values.email,
-    subject: "Verify your Alygo account",
-    html: baseLayout("Verify your Alygo account", content),
+    subject: "Verify your Productos Y Servicios account",
+    html: baseLayout("Verify your Productos Y Servicios account", content),
   };
 };
 
@@ -337,7 +337,7 @@ color:${COLORS.secondary};
 "
 >
 We received a request to reset the password for your
-<b style="color:${COLORS.text};">Alygo</b> account.
+<b style="color:${COLORS.text};">Productos Y Servicios</b> account.
 
 Use the verification code below to continue.
 </p>
@@ -362,8 +362,8 @@ Your account remains secure.
 
   return {
     to: values.email,
-    subject: "Reset your Alygo password",
-    html: baseLayout("Reset your Alygo password", content),
+    subject: "Reset your Productos Y Servicios password",
+    html: baseLayout("Reset your Productos Y Servicios password", content),
   };
 };
 
@@ -397,7 +397,7 @@ color:${COLORS.secondary};
 "
 >
 A new support request has been submitted through the
-<b style="color:${COLORS.text};">Alygo</b> platform.
+<b style="color:${COLORS.text};">Productos Y Servicios</b> platform.
 
 The request details are shown below.
 </p>
@@ -408,7 +408,7 @@ cellpadding="0"
 cellspacing="0"
 style="
 margin-top:32px;
-background:#111118;
+background:${COLORS.background};
 border:1px solid ${COLORS.border};
 border-radius:12px;
 "
@@ -515,7 +515,7 @@ Message
 
 <div
 style="
-background:#111118;
+background:${COLORS.background};
 border:1px solid ${COLORS.border};
 border-left:5px solid ${COLORS.primary};
 border-radius:12px;
@@ -569,7 +569,7 @@ cellpadding="0"
 cellspacing="0"
 style="
 margin-top:36px;
-background:#111118;
+background:${COLORS.background};
 border:1px solid ${COLORS.border};
 border-radius:12px;
 "
@@ -592,7 +592,7 @@ Internal Notification
 
 <br><br>
 
-This email was automatically generated after a user submitted a support request through Alygo.
+This email was automatically generated after a user submitted a support request through Productos Y Servicios.
 
 <br><br>
 
@@ -607,7 +607,7 @@ Please review the request and respond as soon as possible.
 
   return {
     to: values.to,
-    subject: `Alygo Support Request: ${values.subject}`,
+    subject: `Productos Y Servicios Support Request: ${values.subject}`,
     html: baseLayout("Support Request", content),
   };
 };

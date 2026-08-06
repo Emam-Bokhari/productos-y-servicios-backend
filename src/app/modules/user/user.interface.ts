@@ -1,14 +1,14 @@
-import { Model, Types } from "mongoose";
+import { Model } from "mongoose";
 import { GENDER, STATUS, USER_ROLES } from "../../../enums/user";
 import { ISoftDeleteModel } from "../../../types/softDelete";
 
 export type IUser = {
   name: string;
   role: USER_ROLES;
-  roleId?: Types.ObjectId;
   email: string;
   profileImage?: string;
   stripeConnectedAccountId?: string;
+  stripeCustomerId?: string;
   password?: string;
   verified: boolean;
   phone: string;
@@ -19,10 +19,6 @@ export type IUser = {
   gender?: GENDER;
   userName?: string;
   deviceToken?: string;
-  stripeCustomerId?: string;
-  referralCode?: string;
-  referredById?: Types.ObjectId;
-
   location?: {
     type: "Point";
     coordinates: [number, number]; // [longitude, latitude],

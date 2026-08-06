@@ -16,11 +16,6 @@ const userSchema = new Schema<IUser, IUserModel>(
       enum: Object.values(USER_ROLES),
       default: USER_ROLES.USER,
     },
-    roleId: {
-      type: Schema.Types.ObjectId,
-      ref: "Role",
-      required: false,
-    },
     email: {
       type: String,
       required: true,
@@ -95,25 +90,14 @@ const userSchema = new Schema<IUser, IUserModel>(
         default: "",
       },
     },
-    stripeCustomerId: {
-      type: String,
-      required: false,
-    },
     stripeConnectedAccountId: {
       type: String,
       required: false,
     },
-    referralCode: {
+    stripeCustomerId: {
       type: String,
-      unique: true,
-      sparse: true,
-    },
-    referredById: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
       required: false,
     },
-
     authentication: {
       type: {
         isResetPassword: {
