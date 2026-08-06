@@ -3,7 +3,10 @@ import * as path from "path";
 import puppeteer from "puppeteer";
 
 async function main() {
-  const drawioPath = path.resolve(__dirname, "../docs/erd/modules/user/er-diagram.drawio");
+  const drawioPath = path.resolve(
+    __dirname,
+    "../docs/erd/modules/user/er-diagram.drawio",
+  );
   console.log("Drawio file exists:", fs.existsSync(drawioPath));
   if (!fs.existsSync(drawioPath)) return;
 
@@ -76,7 +79,11 @@ async function main() {
   console.log("Launching Puppeteer...");
   const browser = await puppeteer.launch({
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--allow-file-access-from-files"]
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--allow-file-access-from-files",
+    ],
   });
 
   try {
@@ -97,7 +104,10 @@ async function main() {
     console.log("Manually triggering processElements...");
     await page.evaluate(() => {
       try {
-        if ((window as any).GraphViewer && typeof (window as any).GraphViewer.processElements === "function") {
+        if (
+          (window as any).GraphViewer &&
+          typeof (window as any).GraphViewer.processElements === "function"
+        ) {
           console.log("GraphViewer found, processing elements...");
           (window as any).GraphViewer.processElements();
         } else {
@@ -109,12 +119,11 @@ async function main() {
     });
 
     // Wait a couple of seconds to see what gets loaded/changed
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
     console.log("DOM content after 3 seconds:");
     const content = await page.content();
     console.log(content);
-
   } finally {
     if (fs.existsSync(tempHtmlPath)) {
       fs.unlinkSync(tempHtmlPath);

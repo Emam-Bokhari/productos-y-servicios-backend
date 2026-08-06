@@ -45,11 +45,7 @@ router.get(
 );
 
 // Refund (Admins only)
-router.post(
-  "/refund",
-  isAdmin,
-  StripeControllers.refundTransaction,
-);
+router.post("/refund", isAdmin, StripeControllers.refundTransaction);
 
 // Stripe Webhook Endpoint (No Auth, verified cryptographically inside controller)
 router.post("/webhook", StripeControllers.handleWebhook);

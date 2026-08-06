@@ -43,7 +43,7 @@ const createStripeAccount = catchAsync(async (req: Request, res: Response) => {
 const getStripeDashboardLink = catchAsync(
   async (req: Request, res: Response) => {
     const user = req.user;
-    
+
     const userProfile = await User.findById(user.id);
     const connectedAccountId = userProfile?.stripeConnectedAccountId;
 
@@ -68,7 +68,7 @@ const getStripeDashboardLink = catchAsync(
 
 const getAccountDetails = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
-  
+
   const userProfile = await User.findById(user.id);
   const connectedAccountId = userProfile?.stripeConnectedAccountId;
 
@@ -97,21 +97,26 @@ const getAccountDetails = catchAsync(async (req: Request, res: Response) => {
 // ----------------------------------------------------
 const createCheckoutSession = catchAsync(
   async (req: Request, res: Response) => {
-    throw new ApiError(StatusCodes.NOT_IMPLEMENTED, "Ride payments not supported in this template.");
+    throw new ApiError(
+      StatusCodes.NOT_IMPLEMENTED,
+      "Ride payments not supported in this template.",
+    );
   },
 );
 
-const getPaymentStatus = catchAsync(
-  async (req: Request, res: Response) => {
-    throw new ApiError(StatusCodes.NOT_IMPLEMENTED, "Payment status check not supported in this template.");
-  },
-);
+const getPaymentStatus = catchAsync(async (req: Request, res: Response) => {
+  throw new ApiError(
+    StatusCodes.NOT_IMPLEMENTED,
+    "Payment status check not supported in this template.",
+  );
+});
 
-const refundTransaction = catchAsync(
-  async (req: Request, res: Response) => {
-    throw new ApiError(StatusCodes.NOT_IMPLEMENTED, "Refund not supported in this template.");
-  },
-);
+const refundTransaction = catchAsync(async (req: Request, res: Response) => {
+  throw new ApiError(
+    StatusCodes.NOT_IMPLEMENTED,
+    "Refund not supported in this template.",
+  );
+});
 
 // ----------------------------------------------------
 // Stripe Webhook Event Handler (Stubbed for template use)

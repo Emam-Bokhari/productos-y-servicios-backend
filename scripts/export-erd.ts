@@ -6,7 +6,9 @@ function main() {
   const erdDir = path.resolve(__dirname, "../docs/erd/modules");
   if (!fs.existsSync(erdDir)) {
     console.error(`ERD modules directory not found at: ${erdDir}`);
-    console.error("Please run 'npm run generate:diagram' first to generate and render the diagrams.");
+    console.error(
+      "Please run 'npm run generate:diagram' first to generate and render the diagrams.",
+    );
     process.exit(1);
   }
 
@@ -15,8 +17,12 @@ function main() {
   const projectName = path.basename(projectRootDir);
 
   // Resolve the user's local PC's Downloads directory dynamically based on the project name
-  const downloadsDir = path.join(os.homedir(), "Downloads", `${projectName}-erd-diagrams`);
-  
+  const downloadsDir = path.join(
+    os.homedir(),
+    "Downloads",
+    `${projectName}-erd-diagrams`,
+  );
+
   if (!fs.existsSync(downloadsDir)) {
     fs.mkdirSync(downloadsDir, { recursive: true });
   }
@@ -34,7 +40,7 @@ function main() {
 
   for (const moduleName of modules) {
     const moduleDir = path.join(erdDir, moduleName);
-    
+
     // Copy Draw.io XML if exists
     const drawioSrc = path.join(moduleDir, "er-diagram.drawio");
     if (fs.existsSync(drawioSrc)) {

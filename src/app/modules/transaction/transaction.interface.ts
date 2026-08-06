@@ -1,6 +1,10 @@
 import { ISoftDeleteModel } from "../../../types/softDelete";
 import { Model, Types } from "mongoose";
-import { PAYMENT_METHOD, PAYMENT_STATUS, TRANSACTION_TYPE } from "./transaction.constant";
+import {
+  PAYMENT_METHOD,
+  PAYMENT_STATUS,
+  TRANSACTION_TYPE,
+} from "./transaction.constant";
 
 export { TRANSACTION_TYPE };
 

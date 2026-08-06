@@ -6,7 +6,6 @@ import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import config from "../../../config";
 
-
 // register user
 const createUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -152,8 +151,8 @@ const getMyProfile = catchAsync(async (req, res) => {
     statusCode: 200,
     message: "Profile data is retrieved successfully",
     data: result,
-  })
-})
+  });
+});
 
 const deleteProfile = catchAsync(async (req, res) => {
   const { id }: any = req.user;

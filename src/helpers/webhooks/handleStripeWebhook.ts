@@ -1,6 +1,5 @@
 import { logger } from "../../shared/logger";
 
-
 /**
  * Stub handler for Stripe Webhook events.
  */

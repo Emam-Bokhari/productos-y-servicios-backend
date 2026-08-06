@@ -22,11 +22,7 @@ router
   )
   .get(BannerController.getBannersFromDB);
 
-router.patch(
-  "/status/:id",
-  isAdmin,
-  BannerController.updateBannerStatus,
-);
+router.patch("/status/:id", isAdmin, BannerController.updateBannerStatus);
 
 router
   .route("/:id")
@@ -36,15 +32,8 @@ router
     parseFileData({ fieldName: "image", mode: "single" }),
     BannerController.updateBanner,
   )
-  .delete(
-    isAdmin,
-    BannerController.deleteBanner,
-  );
+  .delete(isAdmin, BannerController.deleteBanner);
 
-router.get(
-  "/all",
-  isAdmin,
-  BannerController.getAllBanner,
-);
+router.get("/all", isAdmin, BannerController.getAllBanner);
 
 export const BannerRoutes = router;

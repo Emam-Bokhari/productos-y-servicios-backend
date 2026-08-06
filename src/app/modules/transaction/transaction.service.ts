@@ -44,10 +44,7 @@ const getTransactionsByUser = async (
   };
 
   if (userRole === "seller") {
-    query.$or = [
-      { userId: userObjectId },
-      { driverId: userObjectId },
-    ];
+    query.$or = [{ userId: userObjectId }, { driverId: userObjectId }];
   } else {
     // Default to "user" logic where transactions belong directly to the user
     query.userId = userObjectId;
@@ -202,10 +199,7 @@ const getTransactions = async (
 
   // 1. Role-based matching logic
   if (role === "seller") {
-    matchQuery.$or = [
-      { userId: userObjectId },
-      { driverId: userObjectId },
-    ];
+    matchQuery.$or = [{ userId: userObjectId }, { driverId: userObjectId }];
   } else {
     // Default to user/passenger
     matchQuery.userId = userObjectId;

@@ -56,7 +56,7 @@ const getAllSupportsFromDB = async (query: any) => {
   const meta = await queryBuilder.countTotal();
 
   if (!supports || supports.length === 0) {
-    throw new ApiError(404, "Supports data are not found in the database");
+    return [];
   }
 
   return {

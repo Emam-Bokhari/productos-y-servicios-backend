@@ -62,12 +62,13 @@ try {
   );
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 } catch (error) {
-  console.log("Swagger documentation file not found. Skipping swagger UI setup.");
+  console.log(
+    "Swagger documentation file not found. Skipping swagger UI setup.",
+  );
 }
 
 //router
 app.use("/api/v1", router);
-
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Server is running...");

@@ -15,7 +15,6 @@ import { NotificationPreferenceRoutes } from "../modules/notificationPreference/
 const router = express.Router();
 
 const apiRoutes = [
-
   {
     path: "/users",
     route: UserRoutes,
@@ -60,11 +59,11 @@ const apiRoutes = [
     path: "/fcmTokens",
     route: FcmTokenRoutes,
   },
- 
+
   {
     path: "/notification-preferences",
     route: NotificationPreferenceRoutes,
-  }
+  },
 ];
 
 apiRoutes.forEach((route) => router.use(route.path, route.route));

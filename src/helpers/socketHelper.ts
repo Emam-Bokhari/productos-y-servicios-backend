@@ -68,8 +68,6 @@ const socket = (io: Server) => {
       }
     });
 
-
-
     // disconnect
     socket.on("disconnect", (reason) => {
       const userId = socket.data?.userId;

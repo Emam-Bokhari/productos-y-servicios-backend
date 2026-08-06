@@ -46,7 +46,11 @@ export const checkChatPermission = async (
     case CHAT_COMMUNICATION_TYPE.SCHEDULED_RIDE:
     case CHAT_COMMUNICATION_TYPE.RESERVATION:
     case CHAT_COMMUNICATION_TYPE.LOST_FOUND: {
-      return { allowed: false, reason: "Ride and Lost & Found services are disabled in this project template." };
+      return {
+        allowed: false,
+        reason:
+          "Ride and Lost & Found services are disabled in this project template.",
+      };
     }
 
     case CHAT_COMMUNICATION_TYPE.SUPPORT: {

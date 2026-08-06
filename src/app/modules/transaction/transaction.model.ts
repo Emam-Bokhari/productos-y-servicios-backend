@@ -1,7 +1,11 @@
 import { softDeletePlugin } from "../../../DB/plugins/softDeletePlugin";
 import { model, Schema } from "mongoose";
 import { ITransaction, TransactionModel } from "./transaction.interface";
-import { PAYMENT_METHOD, PAYMENT_STATUS, TRANSACTION_TYPE } from "./transaction.constant";
+import {
+  PAYMENT_METHOD,
+  PAYMENT_STATUS,
+  TRANSACTION_TYPE,
+} from "./transaction.constant";
 
 const transactionSchema = new Schema<ITransaction, TransactionModel>(
   {

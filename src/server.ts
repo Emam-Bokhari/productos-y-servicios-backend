@@ -7,9 +7,6 @@ import { socketHelper } from "./helpers/socketHelper";
 import { Server } from "socket.io";
 import seedSuperAdmin from "./DB";
 
-
-
-
 //uncaught exception
 process.on("uncaughtException", (error) => {
   errorLogger.error("uncaughtException Detected", error);
@@ -49,8 +46,6 @@ async function main() {
     socketHelper.socket(io);
     //@ts-ignore
     global.io = io;
-
-
   } catch (error) {
     errorLogger.error(colors.red("🤢 Failed to connect Database"));
   }

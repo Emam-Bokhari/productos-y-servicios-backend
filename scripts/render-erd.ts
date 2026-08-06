@@ -38,7 +38,7 @@ async function renderDrawio(page: Page, drawioPath: string) {
     resize: true,
     lightbox: false,
     "check-visible-state": false,
-    xml: xmlContent
+    xml: xmlContent,
   };
 
   const configJson = JSON.stringify(config);
@@ -47,7 +47,9 @@ async function renderDrawio(page: Page, drawioPath: string) {
   // Load local Draw.io static viewer JS content to support offline rendering
   const viewerScriptPath = path.resolve(__dirname, "viewer-static.min.js");
   if (!fs.existsSync(viewerScriptPath)) {
-    throw new Error(`viewer-static.min.js not found at ${viewerScriptPath}. Please run the download script or verify it exists.`);
+    throw new Error(
+      `viewer-static.min.js not found at ${viewerScriptPath}. Please run the download script or verify it exists.`,
+    );
   }
   const viewerScriptContent = fs.readFileSync(viewerScriptPath, "utf8");
 
@@ -282,17 +284,26 @@ async function renderDrawio(page: Page, drawioPath: string) {
     await page.waitForSelector("div.mxgraph svg", { timeout: 20000 });
 
     // Additional robust stability check: ensure the SVG element has stabilized with non-zero geometry
-    await page.waitForFunction(() => {
-      const svg = document.querySelector("div.mxgraph svg");
-      if (!svg) return false;
-      const rect = svg.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0 && svg.querySelectorAll("g, rect, path, text").length > 0;
-    }, { timeout: 20000 });
+    await page.waitForFunction(
+      () => {
+        const svg = document.querySelector("div.mxgraph svg");
+        if (!svg) return false;
+        const rect = svg.getBoundingClientRect();
+        return (
+          rect.width > 0 &&
+          rect.height > 0 &&
+          svg.querySelectorAll("g, rect, path, text").length > 0
+        );
+      },
+      { timeout: 20000 },
+    );
 
     // Small delay to ensure all transition/rendering effects are fully resolved
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   } catch (err: any) {
-    throw new Error(`Failed to render Draw.io diagram in browser: ${err.message}`);
+    throw new Error(
+      `Failed to render Draw.io diagram in browser: ${err.message}`,
+    );
   }
 
   // Retrieve and calculate bounds, validate diagram structure, and retry if necessary
@@ -309,7 +320,7 @@ async function renderDrawio(page: Page, drawioPath: string) {
       }
       const graph = graphs[0];
       const viewer = (window as any).capturedViewers[0];
-      
+
       if (viewer) {
         viewer.autoFit = false;
         viewer.responsive = false;
@@ -375,10 +386,12 @@ async function renderDrawio(page: Page, drawioPath: string) {
         const newWidth = maxX - minX;
         const newHeight = maxY - minY;
 
-        if (Math.abs(bounds.x - minX * scale) < 1 &&
-            Math.abs(bounds.y - minY * scale) < 1 &&
-            Math.abs(bounds.width - newWidth * scale) < 1 &&
-            Math.abs(bounds.height - newHeight * scale) < 1) {
+        if (
+          Math.abs(bounds.x - minX * scale) < 1 &&
+          Math.abs(bounds.y - minY * scale) < 1 &&
+          Math.abs(bounds.width - newWidth * scale) < 1 &&
+          Math.abs(bounds.height - newHeight * scale) < 1
+        ) {
           break;
         }
 
@@ -386,7 +399,7 @@ async function renderDrawio(page: Page, drawioPath: string) {
           x: minX * scale,
           y: minY * scale,
           width: newWidth * scale,
-          height: newHeight * scale
+          height: newHeight * scale,
         };
       }
 
@@ -419,19 +432,18 @@ async function renderDrawio(page: Page, drawioPath: string) {
           entities.push(model.cells[id]);
         }
       }
-      
+
       const totalEntities = entities.length;
       let visibleEntities = 0;
-      
-      entities.forEach(cell => {
+
+      entities.forEach((cell) => {
         const state = graph.view.getState(cell);
         if (state && state.width > 0 && state.height > 0) {
-          const inside = (
+          const inside =
             state.x >= 0 &&
             state.y >= 0 &&
             state.x + state.width <= targetWidth &&
-            state.y + state.height <= targetHeight
-          );
+            state.y + state.height <= targetHeight;
           if (inside) {
             visibleEntities++;
           }
@@ -439,12 +451,11 @@ async function renderDrawio(page: Page, drawioPath: string) {
       });
 
       const finalBounds = graph.getGraphBounds();
-      const isFullyContained = (
+      const isFullyContained =
         finalBounds.x >= 0 &&
         finalBounds.y >= 0 &&
         finalBounds.x + finalBounds.width <= targetWidth &&
-        finalBounds.y + finalBounds.height <= targetHeight
-      );
+        finalBounds.y + finalBounds.height <= targetHeight;
 
       let connectorsValid = true;
       for (const id in model.cells) {
@@ -454,16 +465,24 @@ async function renderDrawio(page: Page, drawioPath: string) {
           if (state) {
             if (state.absolutePoints) {
               for (const pt of state.absolutePoints) {
-                if (pt.x < 0 || pt.y < 0 || pt.x > targetWidth || pt.y > targetHeight) {
+                if (
+                  pt.x < 0 ||
+                  pt.y < 0 ||
+                  pt.x > targetWidth ||
+                  pt.y > targetHeight
+                ) {
                   connectorsValid = false;
                   break;
                 }
               }
             }
             if (state.text) {
-              if (state.text.x < 0 || state.text.y < 0 || 
-                  state.text.x + state.text.width > targetWidth || 
-                  state.text.y + state.text.height > targetHeight) {
+              if (
+                state.text.x < 0 ||
+                state.text.y < 0 ||
+                state.text.x + state.text.width > targetWidth ||
+                state.text.y + state.text.height > targetHeight
+              ) {
                 connectorsValid = false;
               }
             }
@@ -478,7 +497,10 @@ async function renderDrawio(page: Page, drawioPath: string) {
         visibleEntities,
         isFullyContained,
         connectorsValid,
-        validationPassed: (visibleEntities === totalEntities) && isFullyContained && connectorsValid
+        validationPassed:
+          visibleEntities === totalEntities &&
+          isFullyContained &&
+          connectorsValid,
       };
     }, customPadding);
 
@@ -490,18 +512,26 @@ async function renderDrawio(page: Page, drawioPath: string) {
       break;
     }
 
-    console.warn(`Validation failed on attempt ${attempt + 1}. Visible entities: ${validationResult.visibleEntities}/${validationResult.totalEntities}. Fully contained: ${validationResult.isFullyContained}. Connectors valid: ${validationResult.connectorsValid}. Retrying...`);
+    console.warn(
+      `Validation failed on attempt ${attempt + 1}. Visible entities: ${validationResult.visibleEntities}/${validationResult.totalEntities}. Fully contained: ${validationResult.isFullyContained}. Connectors valid: ${validationResult.connectorsValid}. Retrying...`,
+    );
     customPadding += 100;
     attempt++;
   }
 
-  if (attempt >= maxAttempts || !validationResult || !validationResult.validationPassed) {
-    throw new Error(`Diagram validation failed: Not all entities, connectors, or labels could be fully contained within export bounds after ${maxAttempts} attempts.`);
+  if (
+    attempt >= maxAttempts ||
+    !validationResult ||
+    !validationResult.validationPassed
+  ) {
+    throw new Error(
+      `Diagram validation failed: Not all entities, connectors, or labels could be fully contained within export bounds after ${maxAttempts} attempts.`,
+    );
   }
 
   const dimensions = {
     width: validationResult.width,
-    height: validationResult.height
+    height: validationResult.height,
   };
 
   // 1. Export SVG
@@ -509,7 +539,7 @@ async function renderDrawio(page: Page, drawioPath: string) {
     const svg = document.querySelector("div.mxgraph svg");
     return svg ? svg.outerHTML : "";
   });
-  
+
   if (svgHtml) {
     const svgFileContent = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n${svgHtml}`;
     fs.writeFileSync(svgPath, svgFileContent, "utf8");
@@ -539,21 +569,23 @@ async function renderDrawio(page: Page, drawioPath: string) {
   await page.setViewport({
     width: dimensions.width,
     height: dimensions.height,
-    deviceScaleFactor: scaleFactor
+    deviceScaleFactor: scaleFactor,
   });
 
   // 2. Export PNG
   try {
     const buffer = await page.screenshot({
       type: "png",
-      omitBackground: false // Keep background color #FFFFFF
+      omitBackground: false, // Keep background color #FFFFFF
     });
     await sharp(buffer, { limitInputPixels: false })
       .withMetadata({ density: 300 })
       .toFile(pngPath);
     console.log(`-> Generated PNG (${scaleFactor.toFixed(2)}x): ${pngPath}`);
   } catch (pngErr: any) {
-    console.error(`-> Failed to generate PNG for ${baseName}: ${pngErr.message}`);
+    console.error(
+      `-> Failed to generate PNG for ${baseName}: ${pngErr.message}`,
+    );
   }
 
   // 3. Export PDF with matching custom dimensions
@@ -568,12 +600,14 @@ async function renderDrawio(page: Page, drawioPath: string) {
         top: "0px",
         right: "0px",
         bottom: "0px",
-        left: "0px"
-      }
+        left: "0px",
+      },
     });
     console.log(`-> Generated PDF: ${pdfPath}`);
   } catch (pdfErr: any) {
-    console.error(`-> Failed to generate PDF for ${baseName}: ${pdfErr.message}`);
+    console.error(
+      `-> Failed to generate PDF for ${baseName}: ${pdfErr.message}`,
+    );
   }
 }
 
@@ -598,7 +632,7 @@ async function main() {
   console.log("Launching headless browser to render diagrams...");
   const browser = await puppeteer.launch({
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
 
   try {
@@ -612,7 +646,12 @@ async function main() {
           const text = msg.text();
           const type = msg.type() as string;
           // Ignore routine logs to avoid cluttering, but log errors/warnings
-          if (type === "error" || type === "warning" || text.includes("error") || text.includes("fail")) {
+          if (
+            type === "error" ||
+            type === "warning" ||
+            text.includes("error") ||
+            text.includes("fail")
+          ) {
             console.log(`[Browser Console] ${type.toUpperCase()}: ${text}`);
           }
         });
@@ -636,7 +675,9 @@ async function main() {
   }
 
   const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-  console.log(`\nDraw.io rendering process completed successfully in ${duration} seconds.`);
+  console.log(
+    `\nDraw.io rendering process completed successfully in ${duration} seconds.`,
+  );
 }
 
 main();

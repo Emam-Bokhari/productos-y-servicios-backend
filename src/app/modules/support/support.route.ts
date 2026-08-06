@@ -7,20 +7,11 @@ const router = express.Router();
 router
   .route("/")
   .post(isAuthenticated, SupportControllers.submitSupportRequest)
-  .get(
-    isAdmin,
-    SupportControllers.getAllSupports,
-  );
+  .get(isAdmin, SupportControllers.getAllSupports);
 
 router
   .route("/:id")
-  .get(
-    isAdmin,
-    SupportControllers.getSupportById,
-  )
-  .delete(
-    isAdmin,
-    SupportControllers.deleteSupportById,
-  );
+  .get(isAdmin, SupportControllers.getSupportById)
+  .delete(isAdmin, SupportControllers.deleteSupportById);
 
 export const SupportRoutes = router;

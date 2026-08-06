@@ -15,8 +15,6 @@ import bcrypt from "bcrypt";
 import { sendNotifications } from "../../../helpers/notificationsHelper";
 import { NOTIFICATION_TYPE } from "../notification/notification.constant";
 
-
-
 // --- ADMIN SERVICES ---
 const createAdminToDB = async (payload: any): Promise<IUser> => {
   const isExistAdmin = await User.findOne({ email: payload.email });
@@ -107,7 +105,6 @@ const createUserToDB = async (payload: any) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Failed to create user");
   }
 
-
   //send email
   const otp = generateOTP();
   const values = {
@@ -167,10 +164,10 @@ const createUserToDB = async (payload: any) => {
 const getMyProfileFromDB = async (userId: string) => {
   const result = await User.findById(userId);
   if (!result) {
-    throw new ApiError(StatusCodes.NOT_FOUND, "User not found")
+    throw new ApiError(StatusCodes.NOT_FOUND, "User not found");
   }
   return result;
-}
+};
 
 const updateProfileToDB = async (
   user: JwtPayload,

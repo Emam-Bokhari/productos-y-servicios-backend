@@ -1,4 +1,13 @@
-import { Project, Node, SourceFile, ObjectLiteralExpression, PropertyAssignment, ArrayLiteralExpression, CallExpression, SyntaxKind } from "ts-morph";
+import {
+  Project,
+  Node,
+  SourceFile,
+  ObjectLiteralExpression,
+  PropertyAssignment,
+  ArrayLiteralExpression,
+  CallExpression,
+  SyntaxKind,
+} from "ts-morph";
 import * as path from "path";
 import * as fs from "fs";
 
@@ -24,7 +33,13 @@ interface ExtractedSchema {
   fields: ExtractedField[];
   plugins: string[];
   indexes: { fields: string; unique?: boolean }[];
-  virtuals: { name: string; ref?: string; localField?: string; foreignField?: string; justOne?: boolean }[];
+  virtuals: {
+    name: string;
+    ref?: string;
+    localField?: string;
+    foreignField?: string;
+    justOne?: boolean;
+  }[];
   timestamps: boolean;
 }
 
@@ -38,35 +53,47 @@ interface Relationship {
 // Clean up types for display
 function cleanType(typeText: string): string {
   const text = typeText.trim();
-  if (text.includes("ObjectId") || text.includes("Schema.Types.ObjectId") || text.includes("Types.ObjectId")) {
+  if (
+    text.includes("ObjectId") ||
+    text.includes("Schema.Types.ObjectId") ||
+    text.includes("Types.ObjectId")
+  ) {
     return "objectId";
   }
   if (text === "String" || text.toLowerCase() === "string") return "string";
   if (text === "Number" || text.toLowerCase() === "number") return "number";
   if (text === "Boolean" || text.toLowerCase() === "boolean") return "boolean";
   if (text === "Date" || text.toLowerCase() === "date") return "date";
-  if (text === "Mixed" || text.includes("Schema.Types.Mixed") || text.includes("Types.Mixed")) return "mixed";
-  
+  if (
+    text === "Mixed" ||
+    text.includes("Schema.Types.Mixed") ||
+    text.includes("Types.Mixed")
+  )
+    return "mixed";
+
   // Array types
   if (text.startsWith("[") && text.endsWith("]")) {
     const inner = text.slice(1, -1).trim();
     return `${cleanType(inner)}[]`;
   }
-  
+
   return text;
 }
 
 // Resolve enum values by parsing enums/objects recursively in the project files
-function resolveEnumValues(sourceFile: SourceFile, name: string): string[] | undefined {
+function resolveEnumValues(
+  sourceFile: SourceFile,
+  name: string,
+): string[] | undefined {
   // 1. Look for enum in current file
   const enumDec = sourceFile.getEnum(name);
   if (enumDec) {
-    return enumDec.getMembers().map(m => {
+    return enumDec.getMembers().map((m) => {
       const val = m.getValue();
       return typeof val === "string" ? val : m.getName();
     });
   }
-  
+
   // 2. Look for const variable in current file
   const varDec = sourceFile.getVariableDeclaration(name);
   if (varDec) {
@@ -89,20 +116,23 @@ function resolveEnumValues(sourceFile: SourceFile, name: string): string[] | und
 
   // 3. Look in import declarations
   for (const imp of sourceFile.getImportDeclarations()) {
-    const namedImports = imp.getNamedImports().map(ni => ni.getName());
+    const namedImports = imp.getNamedImports().map((ni) => ni.getName());
     if (namedImports.includes(name)) {
       const moduleSpecifier = imp.getModuleSpecifierValue();
       const project = sourceFile.getProject();
       const currentDir = sourceFile.getDirectoryPath();
-      
+
       const absolutePath = path.resolve(currentDir, moduleSpecifier);
       const possiblePaths = [
         absolutePath + ".ts",
         absolutePath + "/index.ts",
-        path.join(path.dirname(absolutePath), path.basename(absolutePath) + ".ts"),
-        absolutePath
+        path.join(
+          path.dirname(absolutePath),
+          path.basename(absolutePath) + ".ts",
+        ),
+        absolutePath,
       ];
-      
+
       for (const p of possiblePaths) {
         const resolvedFile = project.getSourceFile(p);
         if (resolvedFile) {
@@ -118,7 +148,7 @@ function resolveEnumValues(sourceFile: SourceFile, name: string): string[] | und
 // Helper to extract enum values from field options
 function extractEnum(sourceFile: SourceFile, node: Node): string[] | undefined {
   if (Node.isArrayLiteralExpression(node)) {
-    return node.getElements().map(el => {
+    return node.getElements().map((el) => {
       if (Node.isStringLiteral(el)) return el.getLiteralValue();
       return el.getText();
     });
@@ -141,15 +171,38 @@ function extractEnum(sourceFile: SourceFile, node: Node): string[] | undefined {
 }
 
 const MONGOOSE_FIELD_OPTIONS = new Set([
-  "type", "required", "unique", "default", "enum", "index", "sparse", "ref",
-  "select", "validate", "set", "get", "trim", "lowercase", "uppercase", "match",
-  "min", "max", "minlength", "maxlength", "alias", "timestamps", "auto", "expires"
+  "type",
+  "required",
+  "unique",
+  "default",
+  "enum",
+  "index",
+  "sparse",
+  "ref",
+  "select",
+  "validate",
+  "set",
+  "get",
+  "trim",
+  "lowercase",
+  "uppercase",
+  "match",
+  "min",
+  "max",
+  "minlength",
+  "maxlength",
+  "alias",
+  "timestamps",
+  "auto",
+  "expires",
 ]);
 
-function isMongooseFieldDefinition(objLiteral: ObjectLiteralExpression): boolean {
+function isMongooseFieldDefinition(
+  objLiteral: ObjectLiteralExpression,
+): boolean {
   const typeProp = objLiteral.getProperty("type");
   if (!typeProp) return false;
-  
+
   // Check if there are other keys that are not standard mongoose options
   for (const prop of objLiteral.getProperties()) {
     if (Node.isPropertyAssignment(prop)) {
@@ -165,15 +218,18 @@ function isMongooseFieldDefinition(objLiteral: ObjectLiteralExpression): boolean
 function parseFieldInitializer(
   fieldName: string,
   initializer: Node,
-  sourceFile: SourceFile
+  sourceFile: SourceFile,
 ): ExtractedField | null {
   // Case 1: Simple type e.g., String, Schema.Types.ObjectId
-  if (Node.isIdentifier(initializer) || Node.isPropertyAccessExpression(initializer)) {
+  if (
+    Node.isIdentifier(initializer) ||
+    Node.isPropertyAccessExpression(initializer)
+  ) {
     return {
       name: fieldName,
       type: cleanType(initializer.getText()),
       required: false,
-      unique: false
+      unique: false,
     };
   }
 
@@ -199,7 +255,7 @@ function parseFieldInitializer(
             required: false,
             unique: false,
             isNested: true,
-            nestedFields
+            nestedFields,
           };
         }
       } else {
@@ -208,7 +264,7 @@ function parseFieldInitializer(
           name: fieldName,
           type: `${cleanType(el.getText())}[]`,
           required: false,
-          unique: false
+          unique: false,
         };
       }
     }
@@ -216,7 +272,7 @@ function parseFieldInitializer(
       name: fieldName,
       type: "array",
       required: false,
-      unique: false
+      unique: false,
     };
   }
 
@@ -236,11 +292,15 @@ function parseFieldInitializer(
               required: false,
               unique: false,
               isNested: true,
-              nestedFields
+              nestedFields,
             };
           } else if (Node.isArrayLiteralExpression(typeInit)) {
             // It is an array wrapped in 'type', e.g. fieldName: { type: [Number], required: true }
-            const parsedArray = parseFieldInitializer(fieldName, typeInit, sourceFile);
+            const parsedArray = parseFieldInitializer(
+              fieldName,
+              typeInit,
+              sourceFile,
+            );
             if (parsedArray) {
               // Copy other constraints from outer object literal to the parsed array field
               for (const p of initializer.getProperties()) {
@@ -280,7 +340,7 @@ function parseFieldInitializer(
           name: fieldName,
           type: cleanType(typeText),
           required: false,
-          unique: false
+          unique: false,
         };
 
         // Extract constraints
@@ -323,21 +383,24 @@ function parseFieldInitializer(
       required: false,
       unique: false,
       isNested: true,
-      nestedFields
+      nestedFields,
     };
   }
 
   return null;
 }
 
-function parseSchemaObject(objLiteral: ObjectLiteralExpression, sourceFile: SourceFile): ExtractedField[] {
+function parseSchemaObject(
+  objLiteral: ObjectLiteralExpression,
+  sourceFile: SourceFile,
+): ExtractedField[] {
   const fields: ExtractedField[] = [];
   for (const property of objLiteral.getProperties()) {
     if (Node.isPropertyAssignment(property)) {
       const fieldName = property.getName();
       const initializer = property.getInitializer();
       if (!initializer) continue;
-      
+
       const parsed = parseFieldInitializer(fieldName, initializer, sourceFile);
       if (parsed) {
         fields.push(parsed);
@@ -347,16 +410,25 @@ function parseSchemaObject(objLiteral: ObjectLiteralExpression, sourceFile: Sour
   return fields;
 }
 
-function analyzeFile(sourceFile: SourceFile, moduleName: string): ExtractedSchema[] {
+function analyzeFile(
+  sourceFile: SourceFile,
+  moduleName: string,
+): ExtractedSchema[] {
   const schemas: ExtractedSchema[] = [];
   const schemaVarToModelMap = new Map<string, string>();
   const modelToSchemaMap = new Map<string, ExtractedSchema>();
 
   // 1. Find all Schema variable definitions: const xSchema = new Schema(...)
-  const newExpressions = sourceFile.getDescendants().filter(Node.isNewExpression);
+  const newExpressions = sourceFile
+    .getDescendants()
+    .filter(Node.isNewExpression);
   for (const newExpr of newExpressions) {
     const constructorText = newExpr.getExpression().getText();
-    if (constructorText === "Schema" || constructorText === "mongoose.Schema" || constructorText.endsWith(".Schema")) {
+    if (
+      constructorText === "Schema" ||
+      constructorText === "mongoose.Schema" ||
+      constructorText.endsWith(".Schema")
+    ) {
       // Find the VariableDeclaration parent
       const varDec = newExpr.getFirstAncestor(Node.isVariableDeclaration);
       const schemaVarName = varDec ? varDec.getName() : "AnonymousSchema";
@@ -388,7 +460,7 @@ function analyzeFile(sourceFile: SourceFile, moduleName: string): ExtractedSchem
         plugins: [],
         indexes: [],
         virtuals: [],
-        timestamps
+        timestamps,
       };
 
       modelToSchemaMap.set(schemaVarName, schema);
@@ -396,7 +468,9 @@ function analyzeFile(sourceFile: SourceFile, moduleName: string): ExtractedSchem
   }
 
   // 2. Find schema extensions: xSchema.plugin(...), xSchema.index(...), xSchema.virtual(...)
-  const callExpressions = sourceFile.getDescendants().filter(Node.isCallExpression);
+  const callExpressions = sourceFile
+    .getDescendants()
+    .filter(Node.isCallExpression);
   for (const call of callExpressions) {
     const expr = call.getExpression();
     if (Node.isPropertyAccessExpression(expr)) {
@@ -420,8 +494,14 @@ function analyzeFile(sourceFile: SourceFile, moduleName: string): ExtractedSchem
           schema.indexes.push({ fields: idxFields, unique });
         } else if (rightName === "virtual" && args.length > 0) {
           const virtualName = args[0].getText().replace(/['"]/g, "");
-          const virtualInfo: { name: string; ref?: string; localField?: string; foreignField?: string; justOne?: boolean } = { name: virtualName };
-          
+          const virtualInfo: {
+            name: string;
+            ref?: string;
+            localField?: string;
+            foreignField?: string;
+            justOne?: boolean;
+          } = { name: virtualName };
+
           if (args.length > 1 && Node.isObjectLiteralExpression(args[1])) {
             const opts = args[1];
             const refProp = opts.getProperty("ref");
@@ -430,16 +510,26 @@ function analyzeFile(sourceFile: SourceFile, moduleName: string): ExtractedSchem
             const justOneProp = opts.getProperty("justOne");
 
             if (refProp && Node.isPropertyAssignment(refProp)) {
-              virtualInfo.ref = refProp.getInitializer()?.getText().replace(/['"]/g, "");
+              virtualInfo.ref = refProp
+                .getInitializer()
+                ?.getText()
+                .replace(/['"]/g, "");
             }
             if (localProp && Node.isPropertyAssignment(localProp)) {
-              virtualInfo.localField = localProp.getInitializer()?.getText().replace(/['"]/g, "");
+              virtualInfo.localField = localProp
+                .getInitializer()
+                ?.getText()
+                .replace(/['"]/g, "");
             }
             if (foreignProp && Node.isPropertyAssignment(foreignProp)) {
-              virtualInfo.foreignField = foreignProp.getInitializer()?.getText().replace(/['"]/g, "");
+              virtualInfo.foreignField = foreignProp
+                .getInitializer()
+                ?.getText()
+                .replace(/['"]/g, "");
             }
             if (justOneProp && Node.isPropertyAssignment(justOneProp)) {
-              virtualInfo.justOne = justOneProp.getInitializer()?.getText() === "true";
+              virtualInfo.justOne =
+                justOneProp.getInitializer()?.getText() === "true";
             }
           }
           schema.virtuals.push(virtualInfo);
@@ -451,10 +541,11 @@ function analyzeFile(sourceFile: SourceFile, moduleName: string): ExtractedSchem
   // 3. Find model calls: model("ModelName", schemaVar) or mongoose.model("ModelName", schemaVar)
   for (const call of callExpressions) {
     const expr = call.getExpression();
-    const isModelCall = expr.getText() === "model" || 
-                        expr.getText() === "mongoose.model" || 
-                        expr.getText().endsWith(".model");
-    
+    const isModelCall =
+      expr.getText() === "model" ||
+      expr.getText() === "mongoose.model" ||
+      expr.getText().endsWith(".model");
+
     if (isModelCall) {
       const args = call.getArguments();
       if (args.length >= 2) {
@@ -489,7 +580,7 @@ function analyzeFile(sourceFile: SourceFile, moduleName: string): ExtractedSchem
             plugins: [],
             indexes: [],
             virtuals: [],
-            timestamps
+            timestamps,
           };
           schemas.push(schema);
         }
@@ -520,12 +611,18 @@ function analyzeFile(sourceFile: SourceFile, moduleName: string): ExtractedSchem
 function escapeXml(unsafe: string): string {
   return unsafe.replace(/[<>&'"]/g, (c) => {
     switch (c) {
-      case '<': return '&lt;';
-      case '>': return '&gt;';
-      case '&': return '&amp;';
-      case '\'': return '&apos;';
-      case '"': return '&quot;';
-      default: return c;
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case "&":
+        return "&amp;";
+      case "'":
+        return "&apos;";
+      case '"':
+        return "&quot;";
+      default:
+        return c;
     }
   });
 }
@@ -535,7 +632,10 @@ function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function getModulePalette(moduleName: string): { fill: string, stroke: string } {
+function getModulePalette(moduleName: string): {
+  fill: string;
+  stroke: string;
+} {
   const palettes = [
     { fill: "#1F203F", stroke: "#3B52DF" }, // Indigo
     { fill: "#162E3B", stroke: "#189AB4" }, // Teal
@@ -546,7 +646,7 @@ function getModulePalette(moduleName: string): { fill: string, stroke: string } 
     { fill: "#2B223D", stroke: "#A78BFA" }, // Lavender
     { fill: "#1B2A32", stroke: "#06B6D4" }, // Cyan
   ];
-  
+
   const name = moduleName || "default";
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
@@ -570,7 +670,10 @@ interface FieldLabelInfo {
   labelHtml: string;
 }
 
-function getFieldLabels(schema: ExtractedSchema, entName: string): FieldLabelInfo[] {
+function getFieldLabels(
+  schema: ExtractedSchema,
+  entName: string,
+): FieldLabelInfo[] {
   const list: FieldLabelInfo[] = [];
 
   // Pure high-contrast black background badges with white text
@@ -583,7 +686,7 @@ function getFieldLabels(schema: ExtractedSchema, entName: string): FieldLabelInf
   // 1. _id field
   list.push({
     id: `field_${entName}__id`,
-    labelHtml: `<b>_id</b>: <b>objectId</b> ${pkBadge}`
+    labelHtml: `<b>_id</b>: <b>objectId</b> ${pkBadge}`,
   });
 
   // 2. Regular fields
@@ -596,14 +699,21 @@ function getFieldLabels(schema: ExtractedSchema, entName: string): FieldLabelInf
         continue;
       }
 
-      const cleanFieldName = `${prefix}${field.name}`.replace(/[^a-zA-Z0-9_]/g, "_");
-      
+      const cleanFieldName = `${prefix}${field.name}`.replace(
+        /[^a-zA-Z0-9_]/g,
+        "_",
+      );
+
       // Required fields: Bold name
-      const nameHtml = field.required ? `<b>${cleanFieldName}</b>` : cleanFieldName;
-      
+      const nameHtml = field.required
+        ? `<b>${cleanFieldName}</b>`
+        : cleanFieldName;
+
       // Foreign Keys: Italic type
-      const typeText = field.ref ? `<i>${cleanType(field.type)}</i>` : cleanType(field.type);
-      
+      const typeText = field.ref
+        ? `<i>${cleanType(field.type)}</i>`
+        : cleanType(field.type);
+
       let badges = "";
       if (field.unique) {
         badges += ukBadge;
@@ -623,17 +733,20 @@ function getFieldLabels(schema: ExtractedSchema, entName: string): FieldLabelInf
         comments.push(`def: ${field.default.replace(/"/g, "'")}`);
       }
       if (field.enum && field.enum.length > 0) {
-        const cleanEnums = field.enum.map(ev => ev.replace(/"/g, "'"));
+        const cleanEnums = field.enum.map((ev) => ev.replace(/"/g, "'"));
         comments.push(`enum: ${cleanEnums.join("|")}`);
       }
 
       // Pure black high contrast color for italic comments
-      const commentStr = comments.length > 0 ? ` <span style="color:#000000; font-size:10px; font-style:italic;">(${comments.join(", ")})</span>` : "";
+      const commentStr =
+        comments.length > 0
+          ? ` <span style="color:#000000; font-size:10px; font-style:italic;">(${comments.join(", ")})</span>`
+          : "";
       const labelHtml = `${nameHtml}: ${typeText}${badges}${commentStr}`;
 
       list.push({
         id: `field_${entName}_${cleanFieldName}`,
-        labelHtml
+        labelHtml,
       });
     }
   };
@@ -643,11 +756,11 @@ function getFieldLabels(schema: ExtractedSchema, entName: string): FieldLabelInf
   if (schema.timestamps) {
     list.push({
       id: `field_${entName}_createdAt`,
-      labelHtml: `<b>createdAt</b>: date`
+      labelHtml: `<b>createdAt</b>: date`,
     });
     list.push({
       id: `field_${entName}_updatedAt`,
-      labelHtml: `<b>updatedAt</b>: date`
+      labelHtml: `<b>updatedAt</b>: date`,
     });
   }
 
@@ -658,36 +771,52 @@ function getFieldLabels(schema: ExtractedSchema, entName: string): FieldLabelInf
 // GRAPH LAYOUT OPTIMIZATION (Crossing Reduction)
 // ----------------------------------------------------
 
-function ccw(A: {x: number, y: number}, B: {x: number, y: number}, C: {x: number, y: number}): boolean {
+function ccw(
+  A: { x: number; y: number },
+  B: { x: number; y: number },
+  C: { x: number; y: number },
+): boolean {
   return (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x);
 }
 
 function intersect(
-  A: {x: number, y: number},
-  B: {x: number, y: number},
-  C: {x: number, y: number},
-  D: {x: number, y: number}
+  A: { x: number; y: number },
+  B: { x: number; y: number },
+  C: { x: number; y: number },
+  D: { x: number; y: number },
 ): boolean {
   return ccw(A, C, D) !== ccw(B, C, D) && ccw(A, B, C) !== ccw(A, B, D);
 }
 
 function countCrossings(
-  positions: Map<string, {x: number, y: number}>,
-  edges: {source: string, target: string}[]
+  positions: Map<string, { x: number; y: number }>,
+  edges: { source: string; target: string }[],
 ): number {
   let crossings = 0;
-  const edgeList = edges.map(e => {
-    const p1 = positions.get(e.source);
-    const p2 = positions.get(e.target);
-    return { p1, p2, source: e.source, target: e.target };
-  }).filter(e => e.p1 !== undefined && e.p2 !== undefined) as { p1: {x: number, y: number}, p2: {x: number, y: number}, source: string, target: string }[];
+  const edgeList = edges
+    .map((e) => {
+      const p1 = positions.get(e.source);
+      const p2 = positions.get(e.target);
+      return { p1, p2, source: e.source, target: e.target };
+    })
+    .filter((e) => e.p1 !== undefined && e.p2 !== undefined) as {
+    p1: { x: number; y: number };
+    p2: { x: number; y: number };
+    source: string;
+    target: string;
+  }[];
 
   for (let i = 0; i < edgeList.length; i++) {
     const e1 = edgeList[i];
     for (let j = i + 1; j < edgeList.length; j++) {
       const e2 = edgeList[j];
       // Skip if sharing an endpoint
-      if (e1.source === e2.source || e1.source === e2.target || e1.target === e2.source || e1.target === e2.target) {
+      if (
+        e1.source === e2.source ||
+        e1.source === e2.target ||
+        e1.target === e2.source ||
+        e1.target === e2.target
+      ) {
         continue;
       }
       if (intersect(e1.p1, e1.p2, e2.p1, e2.p2)) {
@@ -705,9 +834,9 @@ function getLayoutPositions(
   horizontalSpacing: number,
   verticalSpacing: number,
   paddingX: number,
-  paddingTop: number
-): Map<string, {x: number, y: number}> {
-  const positions = new Map<string, {x: number, y: number}>();
+  paddingTop: number,
+): Map<string, { x: number; y: number }> {
+  const positions = new Map<string, { x: number; y: number }>();
   const columnContainerWidth = colWidth + 2 * paddingX;
 
   for (let colIdx = 0; colIdx < columns.length; colIdx++) {
@@ -729,17 +858,25 @@ function getLayoutPositions(
 function optimizeLayout(
   columns: string[][],
   tableHeights: Map<string, number>,
-  edges: {source: string, target: string}[],
+  edges: { source: string; target: string }[],
   colWidth: number,
   horizontalSpacing: number,
   verticalSpacing: number,
   paddingX: number,
-  paddingTop: number
+  paddingTop: number,
 ): string[][] {
-  const bestColumns = columns.map(col => [...col]);
-  let bestPositions = getLayoutPositions(bestColumns, tableHeights, colWidth, horizontalSpacing, verticalSpacing, paddingX, paddingTop);
-  
-  const getEdgeLength = (positions: Map<string, {x: number, y: number}>) => {
+  const bestColumns = columns.map((col) => [...col]);
+  let bestPositions = getLayoutPositions(
+    bestColumns,
+    tableHeights,
+    colWidth,
+    horizontalSpacing,
+    verticalSpacing,
+    paddingX,
+    paddingTop,
+  );
+
+  const getEdgeLength = (positions: Map<string, { x: number; y: number }>) => {
     let length = 0;
     for (const edge of edges) {
       const p1 = positions.get(edge.source);
@@ -751,7 +888,7 @@ function optimizeLayout(
     return length;
   };
 
-  const getCost = (positions: Map<string, {x: number, y: number}>) => {
+  const getCost = (positions: Map<string, { x: number; y: number }>) => {
     const crossings = countCrossings(positions, edges);
     const edgeLength = getEdgeLength(positions);
     return crossings * 100000 + edgeLength;
@@ -780,7 +917,15 @@ function optimizeLayout(
     col[idx1] = col[idx2];
     col[idx2] = temp;
 
-    const tempPositions = getLayoutPositions(bestColumns, tableHeights, colWidth, horizontalSpacing, verticalSpacing, paddingX, paddingTop);
+    const tempPositions = getLayoutPositions(
+      bestColumns,
+      tableHeights,
+      colWidth,
+      horizontalSpacing,
+      verticalSpacing,
+      paddingX,
+      paddingTop,
+    );
     const tempCost = getCost(tempPositions);
 
     if (tempCost < bestCost) {
@@ -803,29 +948,90 @@ function optimizeLayout(
 
 function getDomainGroupIndex(moduleName: string): number {
   const normalized = moduleName.toLowerCase();
-  
+
   // 0. Identity & Access
-  if (["auth", "user", "role", "permission", "rbac", "resettoken", "fcmtoken"].includes(normalized)) {
+  if (
+    [
+      "auth",
+      "user",
+      "role",
+      "permission",
+      "rbac",
+      "resettoken",
+      "fcmtoken",
+    ].includes(normalized)
+  ) {
     return 0;
   }
   // 1. Ride & Booking
-  if (["ride", "ridecategory", "tracking", "livetrips", "cancellationpolicy", "cancellationreason", "cancellationanalytics", "fareconfiguration", "peakhour", "surgerule"].includes(normalized)) {
+  if (
+    [
+      "ride",
+      "ridecategory",
+      "tracking",
+      "livetrips",
+      "cancellationpolicy",
+      "cancellationreason",
+      "cancellationanalytics",
+      "fareconfiguration",
+      "peakhour",
+      "surgerule",
+    ].includes(normalized)
+  ) {
     return 1;
   }
   // 2. Driver & Fleet
-  if (["driver", "drivermanagement", "driverdutypolicy", "car", "tier", "servicearea", "servicecategory"].includes(normalized)) {
+  if (
+    [
+      "driver",
+      "drivermanagement",
+      "driverdutypolicy",
+      "car",
+      "tier",
+      "servicearea",
+      "servicecategory",
+    ].includes(normalized)
+  ) {
     return 2;
   }
   // 3. Finance & Payment
-  if (["wallet", "transaction", "payout", "pendingpayment", "stripe"].includes(normalized)) {
+  if (
+    ["wallet", "transaction", "payout", "pendingpayment", "stripe"].includes(
+      normalized,
+    )
+  ) {
     return 3;
   }
   // 4. Communication & Engagement
-  if (["chat", "message", "notification", "notificationpreference", "broadcast", "banner", "referral", "review"].includes(normalized)) {
+  if (
+    [
+      "chat",
+      "message",
+      "notification",
+      "notificationpreference",
+      "broadcast",
+      "banner",
+      "referral",
+      "review",
+    ].includes(normalized)
+  ) {
     return 4;
   }
   // 5. Support & Operations
-  if (["support", "emergencycontact", "emergencyhelpline", "lostandfound", "lostandfounditemcategory", "reportissuecategory", "tripreport", "aisupport", "aiknowledge", "faq"].includes(normalized)) {
+  if (
+    [
+      "support",
+      "emergencycontact",
+      "emergencyhelpline",
+      "lostandfound",
+      "lostandfounditemcategory",
+      "reportissuecategory",
+      "tripreport",
+      "aisupport",
+      "aiknowledge",
+      "faq",
+    ].includes(normalized)
+  ) {
     return 5;
   }
   // 6. System & Configuration
@@ -839,15 +1045,18 @@ const DOMAIN_NAMES = [
   "Finance & Payment Domain",
   "Communication & Engagement Domain",
   "Support & Operations Domain",
-  "System & Configuration Domain"
+  "System & Configuration Domain",
 ];
 
-function findFieldByPath(fields: ExtractedField[], pathText: string): ExtractedField | undefined {
+function findFieldByPath(
+  fields: ExtractedField[],
+  pathText: string,
+): ExtractedField | undefined {
   const parts = pathText.split(".");
   let currentFields = fields;
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
-    const found = currentFields.find(f => f.name === part);
+    const found = currentFields.find((f) => f.name === part);
     if (!found) return undefined;
     if (i === parts.length - 1) return found;
     if (found.nestedFields) {
@@ -861,7 +1070,7 @@ function findFieldByPath(fields: ExtractedField[], pathText: string): ExtractedF
 
 function partitionSchemas(
   nativeSchemas: ExtractedSchema[],
-  relations: Relationship[]
+  relations: Relationship[],
 ): ExtractedSchema[][] {
   const maxEntities = 15;
   if (nativeSchemas.length <= maxEntities) {
@@ -906,19 +1115,25 @@ function partitionSchemas(
   const finalGroups: ExtractedSchema[][] = [];
   for (const comp of components) {
     if (comp.length <= maxEntities) {
-      const schemas = comp.map(name => nativeSchemas.find(s => s.name === name)!);
+      const schemas = comp.map(
+        (name) => nativeSchemas.find((s) => s.name === name)!,
+      );
       finalGroups.push(schemas);
     } else {
       let currentChunk: string[] = [];
       for (const name of comp) {
         currentChunk.push(name);
         if (currentChunk.length === maxEntities) {
-          finalGroups.push(currentChunk.map(n => nativeSchemas.find(s => s.name === n)!));
+          finalGroups.push(
+            currentChunk.map((n) => nativeSchemas.find((s) => s.name === n)!),
+          );
           currentChunk = [];
         }
       }
       if (currentChunk.length > 0) {
-        finalGroups.push(currentChunk.map(n => nativeSchemas.find(s => s.name === n)!));
+        finalGroups.push(
+          currentChunk.map((n) => nativeSchemas.find((s) => s.name === n)!),
+        );
       }
     }
   }
@@ -926,18 +1141,17 @@ function partitionSchemas(
   return finalGroups;
 }
 
-
 function buildDrawioDiagram(
   moduleName: string,
   nativeSchemas: ExtractedSchema[],
   allSchemasMap: Map<string, ExtractedSchema>,
   moduleMap: Map<string, string[]>,
   codeRelations: Relationship[] = [],
-  isOverview: boolean = false
+  isOverview: boolean = false,
 ): string {
   const schemasToRender = new Map<string, ExtractedSchema>();
   const relationships: Relationship[] = [];
-  const nativeNames = new Set(nativeSchemas.map(s => s.name));
+  const nativeNames = new Set(nativeSchemas.map((s) => s.name));
 
   const isWhole = moduleName === "whole-er-diagram";
 
@@ -947,10 +1161,12 @@ function buildDrawioDiagram(
       // In overview diagrams, render all entities as lightweight (only PK)
       schemasToRender.set(schema.name, {
         ...schema,
-        fields: [{ name: "_id", type: "objectId", required: true, unique: true }],
+        fields: [
+          { name: "_id", type: "objectId", required: true, unique: true },
+        ],
         timestamps: false,
         indexes: [],
-        virtuals: []
+        virtuals: [],
       });
     } else {
       schemasToRender.set(schema.name, schema);
@@ -965,10 +1181,12 @@ function buildDrawioDiagram(
         // Shared entity from another module or overview: display only PK field
         schemasToRender.set(targetName, {
           ...targetSchema,
-          fields: [{ name: "_id", type: "objectId", required: true, unique: true }],
+          fields: [
+            { name: "_id", type: "objectId", required: true, unique: true },
+          ],
           timestamps: false,
           indexes: [],
-          virtuals: []
+          virtuals: [],
         });
       } else {
         // Create a stub schema for boundary node
@@ -976,11 +1194,13 @@ function buildDrawioDiagram(
           name: targetName,
           moduleName: "shared",
           filePath: "",
-          fields: [{ name: "_id", type: "objectId", required: true, unique: true }],
+          fields: [
+            { name: "_id", type: "objectId", required: true, unique: true },
+          ],
           plugins: [],
           indexes: [],
           virtuals: [],
-          timestamps: false
+          timestamps: false,
         });
       }
     }
@@ -988,7 +1208,11 @@ function buildDrawioDiagram(
 
   // Add code-level relations (e.g. populate, $lookup)
   for (const rel of codeRelations) {
-    const isRelevant = isWhole || isOverview || nativeNames.has(rel.source) || nativeNames.has(rel.target);
+    const isRelevant =
+      isWhole ||
+      isOverview ||
+      nativeNames.has(rel.source) ||
+      nativeNames.has(rel.target);
     if (isRelevant) {
       relationships.push(rel);
       if (isWhole || isOverview) {
@@ -1002,7 +1226,11 @@ function buildDrawioDiagram(
   }
 
   for (const nativeSchema of nativeSchemas) {
-    const checkFields = (fields: ExtractedField[], parentEntity: string, prefix = "") => {
+    const checkFields = (
+      fields: ExtractedField[],
+      parentEntity: string,
+      prefix = "",
+    ) => {
       for (const field of fields) {
         const fieldPath = prefix ? `${prefix}.${field.name}` : field.name;
 
@@ -1012,8 +1240,11 @@ function buildDrawioDiagram(
           relationships.push({
             source: targetName,
             target: parentEntity,
-            type: (field.unique && !field.type.endsWith("[]")) ? "one-to-one" : "one-to-many",
-            label: fieldPath
+            type:
+              field.unique && !field.type.endsWith("[]")
+                ? "one-to-one"
+                : "one-to-many",
+            label: fieldPath,
           });
           addTargetSchema(targetName);
         }
@@ -1027,7 +1258,7 @@ function buildDrawioDiagram(
                 source: modelName,
                 target: parentEntity,
                 type: "one-to-many",
-                label: `${fieldPath} (refPath: ${field.refPath})`
+                label: `${fieldPath} (refPath: ${field.refPath})`,
               });
               addTargetSchema(modelName);
             }
@@ -1041,7 +1272,7 @@ function buildDrawioDiagram(
             source: parentEntity,
             target: cleanTypeVal,
             type: field.type.endsWith("[]") ? "one-to-many" : "one-to-one",
-            label: fieldPath
+            label: fieldPath,
           });
           addTargetSchema(cleanTypeVal);
         }
@@ -1050,17 +1281,24 @@ function buildDrawioDiagram(
         if (field.isNested && field.nestedFields) {
           if (field.type === "object[]") {
             const subEntityName = `${parentEntity}_${capitalize(field.name)}`;
-            
+
             if (isOverview) {
               schemasToRender.set(subEntityName, {
                 name: subEntityName,
                 moduleName: nativeSchema.moduleName,
                 filePath: nativeSchema.filePath,
-                fields: [{ name: "_id", type: "objectId", required: true, unique: true }],
+                fields: [
+                  {
+                    name: "_id",
+                    type: "objectId",
+                    required: true,
+                    unique: true,
+                  },
+                ],
                 plugins: [],
                 indexes: [],
                 virtuals: [],
-                timestamps: false
+                timestamps: false,
               });
             } else {
               schemasToRender.set(subEntityName, {
@@ -1071,7 +1309,7 @@ function buildDrawioDiagram(
                 plugins: [],
                 indexes: [],
                 virtuals: [],
-                timestamps: false
+                timestamps: false,
               });
             }
 
@@ -1079,7 +1317,7 @@ function buildDrawioDiagram(
               source: parentEntity,
               target: subEntityName,
               type: "one-to-many",
-              label: field.name
+              label: field.name,
             });
 
             // Recurse inside the sub-entity fields
@@ -1102,26 +1340,31 @@ function buildDrawioDiagram(
           source: nativeSchema.name,
           target: targetName,
           type: virt.justOne ? "one-to-one" : "one-to-many",
-          label: `${virt.name} (virtual)`
+          label: `${virt.name} (virtual)`,
         });
         addTargetSchema(targetName);
       }
     }
   }
 
-  const sortedEntityNames = Array.from(schemasToRender.keys()).sort((a, b) => a.localeCompare(b));
+  const sortedEntityNames = Array.from(schemasToRender.keys()).sort((a, b) =>
+    a.localeCompare(b),
+  );
 
   const colWidth = 340;
-  const schemaInfos = new Map<string, {
-    labels: FieldLabelInfo[];
-    heights: number[];
-    totalHeight: number;
-  }>();
+  const schemaInfos = new Map<
+    string,
+    {
+      labels: FieldLabelInfo[];
+      heights: number[];
+      totalHeight: number;
+    }
+  >();
 
   for (const entName of sortedEntityNames) {
     const schema = schemasToRender.get(entName)!;
     const labels = getFieldLabels(schema, entName);
-    const heights = labels.map(l => estimateRowHeight(l.labelHtml, colWidth));
+    const heights = labels.map((l) => estimateRowHeight(l.labelHtml, colWidth));
     const totalHeight = 38 + heights.reduce((sum, h) => sum + h, 0);
     schemaInfos.set(entName, { labels, heights, totalHeight });
   }
@@ -1156,15 +1399,21 @@ function buildDrawioDiagram(
   if (isWhole) {
     // Dynamically identify all active modules present in the schemas being rendered
     const activeModules = Array.from(
-      new Set(Array.from(schemasToRender.values()).map(s => s.moduleName))
-    ).filter(m => m !== "shared").sort();
-    
-    if (Array.from(schemasToRender.values()).some(s => s.moduleName === "shared")) {
+      new Set(Array.from(schemasToRender.values()).map((s) => s.moduleName)),
+    )
+      .filter((m) => m !== "shared")
+      .sort();
+
+    if (
+      Array.from(schemasToRender.values()).some(
+        (s) => s.moduleName === "shared",
+      )
+    ) {
       activeModules.push("shared");
     }
 
     columns = Array.from({ length: activeModules.length }, () => []);
-    colTitles = activeModules.map(modName => {
+    colTitles = activeModules.map((modName) => {
       if (modName === "shared") return "Shared / External Dependencies";
       return `${capitalize(modName)} Module`;
     });
@@ -1180,8 +1429,10 @@ function buildDrawioDiagram(
     columns = Array.from({ length: 3 }, () => []);
     colTitles = [
       "Parent Lookups / External Dependencies",
-      isOverview ? `${capitalize(moduleName)} Core & Overview` : `Core Module: ${capitalize(moduleName)}`,
-      "Dependent Entities & Sub-Schemas"
+      isOverview
+        ? `${capitalize(moduleName)} Core & Overview`
+        : `Core Module: ${capitalize(moduleName)}`,
+      "Dependent Entities & Sub-Schemas",
     ];
 
     const leftTables: string[] = [];
@@ -1192,7 +1443,9 @@ function buildDrawioDiagram(
       if (nativeNames.has(entName)) {
         centerTables.push(entName);
       } else {
-        const isLookup = relationships.some(rel => rel.source === entName && nativeNames.has(rel.target));
+        const isLookup = relationships.some(
+          (rel) => rel.source === entName && nativeNames.has(rel.target),
+        );
         if (isLookup) {
           leftTables.push(entName);
         } else {
@@ -1221,17 +1474,19 @@ function buildDrawioDiagram(
   // Optimize vertical layout of tables in each column to minimize crossing and length
   columns = optimizeLayout(
     columns,
-    new Map(Array.from(schemaInfos.entries()).map(([k, v]) => [k, v.totalHeight])),
+    new Map(
+      Array.from(schemaInfos.entries()).map(([k, v]) => [k, v.totalHeight]),
+    ),
     relationships,
     colWidth,
     horizontalSpacing,
     verticalSpacing,
     paddingX,
-    paddingTop
+    paddingTop,
   );
 
   // Calculate layout coordinates
-  const columnHeights = columns.map(col => {
+  const columnHeights = columns.map((col) => {
     if (col.length === 0) return 0;
     let h = paddingTop;
     for (let i = 0; i < col.length; i++) {
@@ -1245,7 +1500,7 @@ function buildDrawioDiagram(
     return h;
   });
 
-  const tableRelativePositions = new Map<string, { rx: number, ry: number }>();
+  const tableRelativePositions = new Map<string, { rx: number; ry: number }>();
   const tableParentIds = new Map<string, string>();
 
   // Determine dynamic canvas size and coordinates using grid if isWhole
@@ -1259,7 +1514,10 @@ function buildDrawioDiagram(
   let currentY = topMargin;
 
   for (let r = 0; r < numRows; r++) {
-    const rowColHeights = columnHeights.slice(r * colsPerRow, (r + 1) * colsPerRow);
+    const rowColHeights = columnHeights.slice(
+      r * colsPerRow,
+      (r + 1) * colsPerRow,
+    );
     const rowH = Math.max(...rowColHeights, 100);
     rowHeights.push(rowH);
     rowYPositions.push(currentY);
@@ -1268,8 +1526,13 @@ function buildDrawioDiagram(
   }
 
   const pageCols = Math.min(numColumns, colsPerRow);
-  const pageWidth = Math.round(leftMargin + pageCols * (columnContainerWidth + horizontalSpacing) - horizontalSpacing + leftMargin);
-  const pageHeight = Math.round(currentY - (verticalSpacing * 2) + bottomMargin);
+  const pageWidth = Math.round(
+    leftMargin +
+      pageCols * (columnContainerWidth + horizontalSpacing) -
+      horizontalSpacing +
+      leftMargin,
+  );
+  const pageHeight = Math.round(currentY - verticalSpacing * 2 + bottomMargin);
 
   // XML construction
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
@@ -1288,13 +1551,17 @@ function buildDrawioDiagram(
     const r = Math.floor(colIdx / colsPerRow);
     const c = colIdx % colsPerRow;
 
-    const startY = Math.round(rowYPositions[r] + (rowHeights[r] - colHeight) / 2);
-    const colX = Math.round(leftMargin + c * (columnContainerWidth + horizontalSpacing));
+    const startY = Math.round(
+      rowYPositions[r] + (rowHeights[r] - colHeight) / 2,
+    );
+    const colX = Math.round(
+      leftMargin + c * (columnContainerWidth + horizontalSpacing),
+    );
     const cardId = `column_${colIdx}`;
 
     // Clean white column card with black dashed border representing domain structure
     const containerStyle = `rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;dashed=1;arcSize=6;align=left;verticalAlign=top;spacingLeft=15;spacingTop=12;fontColor=#000000;fontSize=14;fontStyle=1;container=1;collapsible=0;recursiveResize=0;`;
-    
+
     xml += `        <mxCell id="${cardId}" value="${escapeXml(title)}" style="${containerStyle}" vertex="1" parent="1">\n`;
     xml += `          <mxGeometry x="${colX}" y="${startY}" width="${columnContainerWidth}" height="${colHeight}" as="geometry" />\n`;
     xml += `        </mxCell>\n`;
@@ -1333,7 +1600,10 @@ function buildDrawioDiagram(
           addFieldsToIds(field.nestedFields, `${prefix}${field.name}_`);
           continue;
         }
-        const cleanFieldName = `${prefix}${field.name}`.replace(/[^a-zA-Z0-9_]/g, "_");
+        const cleanFieldName = `${prefix}${field.name}`.replace(
+          /[^a-zA-Z0-9_]/g,
+          "_",
+        );
         definedCellIds.add(`field_${entName}_${cleanFieldName}`);
       }
     };
@@ -1349,7 +1619,7 @@ function buildDrawioDiagram(
     const tableId = `table_${entName}`;
 
     const isNative = isWhole || nativeNames.has(entName);
-    
+
     let tableStyle = "";
     if (isNative) {
       // Solid black header background, white text, black border 2px
@@ -1358,7 +1628,7 @@ function buildDrawioDiagram(
       // Dashed border, white header background, black text, black border 2px for shared entities
       tableStyle = `swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=38;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;swimlaneFillColor=#FFFFFF;strokeColor=#000000;strokeWidth=2;dashed=1;fontColor=#000000;fontSize=13;align=center;`;
     }
-    
+
     xml += `        <mxCell id="${tableId}" value="${escapeXml(entName)}" style="${tableStyle}" vertex="1" parent="${parentId}">\n`;
     xml += `          <mxGeometry x="${rpos.rx}" y="${rpos.ry}" width="${colWidth}" height="${info.totalHeight}" as="geometry" />\n`;
     xml += `        </mxCell>\n`;
@@ -1369,7 +1639,7 @@ function buildDrawioDiagram(
     for (let i = 0; i < info.labels.length; i++) {
       const fLabel = info.labels[i];
       const fHeight = info.heights[i];
-      
+
       xml += `        <mxCell id="${fLabel.id}" value="${escapeXml(fLabel.labelHtml)}" style="${rowStyle}" vertex="1" parent="${tableId}">\n`;
       xml += `          <mxGeometry y="${currentY}" width="${colWidth}" height="${fHeight}" as="geometry" />\n`;
       xml += `        </mxCell>\n`;
@@ -1383,7 +1653,8 @@ function buildDrawioDiagram(
   const pairConnectionCount = new Map<string, number>();
 
   for (const rel of relationships) {
-    const hasNativeNode = nativeNames.has(rel.source) || nativeNames.has(rel.target);
+    const hasNativeNode =
+      nativeNames.has(rel.source) || nativeNames.has(rel.target);
     if (!isWhole && !isOverview && !hasNativeNode) continue;
 
     if (!schemasToRender.has(rel.source) || !schemasToRender.has(rel.target)) {
@@ -1392,7 +1663,8 @@ function buildDrawioDiagram(
 
     const key = `${rel.source}-${rel.target}-${rel.label}`;
     const reverseKey = `${rel.target}-${rel.source}-${rel.label}`;
-    if (renderedRelationships.has(key) || renderedRelationships.has(reverseKey)) continue;
+    if (renderedRelationships.has(key) || renderedRelationships.has(reverseKey))
+      continue;
     renderedRelationships.add(key);
 
     let sourceCellId = `field_${rel.source}__id`;
@@ -1407,7 +1679,10 @@ function buildDrawioDiagram(
       targetCellId = `table_${rel.target}`;
     }
 
-    if (!definedCellIds.has(sourceCellId) || !definedCellIds.has(targetCellId)) {
+    if (
+      !definedCellIds.has(sourceCellId) ||
+      !definedCellIds.has(targetCellId)
+    ) {
       continue;
     }
 
@@ -1422,10 +1697,13 @@ function buildDrawioDiagram(
     const isIntraModule = sourceModule === targetModule;
 
     // Offset multiple relationships between the same pair of entities to prevent overlaps
-    const pairKey = sourceCellId < targetCellId ? `${sourceCellId}-${targetCellId}` : `${targetCellId}-${sourceCellId}`;
+    const pairKey =
+      sourceCellId < targetCellId
+        ? `${sourceCellId}-${targetCellId}`
+        : `${targetCellId}-${sourceCellId}`;
     const connIndex = pairConnectionCount.get(pairKey) || 0;
     pairConnectionCount.set(pairKey, connIndex + 1);
-    
+
     // Offset connections vertically by 8px
     const offset = connIndex * 8;
 
@@ -1464,7 +1742,7 @@ function buildDrawioDiagram(
 function buildOverviewDiagram(
   moduleName: string,
   partitionedSchemas: ExtractedSchema[][],
-  codeRelations: Relationship[]
+  codeRelations: Relationship[],
 ): string {
   const allPartitionSchemas: ExtractedSchema[] = [];
   for (const schemas of partitionedSchemas) {
@@ -1477,9 +1755,15 @@ function buildOverviewDiagram(
   }
 
   const moduleMap = new Map<string, string[]>();
-  return buildDrawioDiagram(moduleName, allPartitionSchemas, allSchemasMap, moduleMap, codeRelations, true);
+  return buildDrawioDiagram(
+    moduleName,
+    allPartitionSchemas,
+    allSchemasMap,
+    moduleMap,
+    codeRelations,
+    true,
+  );
 }
-
 
 function deleteOldMmdFiles(dir: string) {
   if (!fs.existsSync(dir)) return;
@@ -1507,7 +1791,10 @@ function getCollectionName(modelName: string): string {
   return lower + "s";
 }
 
-function extractRelationshipsFromCode(project: Project, allSchemas: ExtractedSchema[]): Relationship[] {
+function extractRelationshipsFromCode(
+  project: Project,
+  allSchemas: ExtractedSchema[],
+): Relationship[] {
   const codeRelationships: Relationship[] = [];
   const modelToCollectionMap = new Map<string, string>();
   const collectionToModelMap = new Map<string, string>();
@@ -1539,7 +1826,7 @@ function extractRelationshipsFromCode(project: Project, allSchemas: ExtractedSch
     if (!moduleMatch) continue;
     const moduleName = moduleMatch[1];
 
-    const nativeSchemas = allSchemas.filter(s => s.moduleName === moduleName);
+    const nativeSchemas = allSchemas.filter((s) => s.moduleName === moduleName);
     if (nativeSchemas.length === 0) continue;
     const primaryModel = nativeSchemas[0].name;
 
@@ -1567,14 +1854,22 @@ function extractRelationshipsFromCode(project: Project, allSchemas: ExtractedSch
             const pathProp = arg.getProperty("path");
             const modelProp = arg.getProperty("model");
             if (pathProp && modelProp) {
-              const pathName = pathProp.getText().replace(/['"]/g, "").replace(/path:/, "").trim();
-              const targetModel = modelProp.getText().replace(/['"]/g, "").replace(/model:/, "").trim();
+              const pathName = pathProp
+                .getText()
+                .replace(/['"]/g, "")
+                .replace(/path:/, "")
+                .trim();
+              const targetModel = modelProp
+                .getText()
+                .replace(/['"]/g, "")
+                .replace(/model:/, "")
+                .trim();
               if (targetModel) {
                 codeRelationships.push({
                   source: targetModel,
                   target: sourceModel,
                   type: "one-to-many",
-                  label: `${pathName} (populate)`
+                  label: `${pathName} (populate)`,
                 });
               }
             }
@@ -1592,7 +1887,9 @@ function extractRelationshipsFromCode(project: Project, allSchemas: ExtractedSch
     }
 
     // Scan for $lookup objects
-    const objLiterals = sf.getDescendantsOfKind(SyntaxKind.ObjectLiteralExpression);
+    const objLiterals = sf.getDescendantsOfKind(
+      SyntaxKind.ObjectLiteralExpression,
+    );
     for (const obj of objLiterals) {
       const lookupProp = obj.getProperty("$lookup");
       if (lookupProp && Node.isPropertyAssignment(lookupProp)) {
@@ -1603,14 +1900,28 @@ function extractRelationshipsFromCode(project: Project, allSchemas: ExtractedSch
           const asProp = init.getProperty("as");
 
           if (fromProp) {
-            const fromVal = fromProp.getText().replace(/['"]/g, "").replace(/from:/, "").trim();
-            const localFieldVal = localFieldProp ? localFieldProp.getText().replace(/['"]/g, "").replace(/localField:/, "").trim() : "";
-            const asVal = asProp ? asProp.getText().replace(/['"]/g, "").replace(/as:/, "").trim() : "";
+            const fromVal = fromProp
+              .getText()
+              .replace(/['"]/g, "")
+              .replace(/from:/, "")
+              .trim();
+            const localFieldVal = localFieldProp
+              ? localFieldProp
+                  .getText()
+                  .replace(/['"]/g, "")
+                  .replace(/localField:/, "")
+                  .trim()
+              : "";
+            const asVal = asProp
+              ? asProp.getText().replace(/['"]/g, "").replace(/as:/, "").trim()
+              : "";
 
             const targetModel = findModelByCollection(fromVal);
             if (targetModel) {
               let sourceModel = primaryModel;
-              const parentCall = obj.getFirstAncestorByKind(SyntaxKind.CallExpression);
+              const parentCall = obj.getFirstAncestorByKind(
+                SyntaxKind.CallExpression,
+              );
               if (parentCall) {
                 const callText = parentCall.getExpression().getText();
                 for (const s of nativeSchemas) {
@@ -1625,7 +1936,7 @@ function extractRelationshipsFromCode(project: Project, allSchemas: ExtractedSch
                 source: targetModel,
                 target: sourceModel,
                 type: "one-to-many",
-                label: `${asVal || localFieldVal} ($lookup)`
+                label: `${asVal || localFieldVal} ($lookup)`,
               });
             }
           }
@@ -1637,19 +1948,31 @@ function extractRelationshipsFromCode(project: Project, allSchemas: ExtractedSch
   return codeRelationships;
 }
 
-function validateDrawioXml(xmlContent: string, moduleName: string): string | null {
+function validateDrawioXml(
+  xmlContent: string,
+  moduleName: string,
+): string | null {
   try {
     const tags = ["mxfile", "diagram", "mxGraphModel", "root"];
     for (const tag of tags) {
-      if (!xmlContent.includes(`<${tag}`) || !xmlContent.includes(`</${tag}>`)) {
+      if (
+        !xmlContent.includes(`<${tag}`) ||
+        !xmlContent.includes(`</${tag}>`)
+      ) {
         return `Missing XML tag: <${tag}> or </${tag}>`;
       }
     }
 
-    const cellRegex = /<mxCell\s+id="([^"]+)"(?:[^>]*?parent="([^"]+)")?(?:[^>]*?source="([^"]+)")?(?:[^>]*?target="([^"]+)")?(?:[^>]*?edge="1")?/g;
+    const cellRegex =
+      /<mxCell\s+id="([^"]+)"(?:[^>]*?parent="([^"]+)")?(?:[^>]*?source="([^"]+)")?(?:[^>]*?target="([^"]+)")?(?:[^>]*?edge="1")?/g;
     const cellIds = new Set<string>();
     const parentRefs = new Map<string, string>();
-    const edges: { id: string; source: string; target: string; parent: string }[] = [];
+    const edges: {
+      id: string;
+      source: string;
+      target: string;
+      parent: string;
+    }[] = [];
 
     let match;
     cellRegex.lastIndex = 0;
@@ -1705,7 +2028,7 @@ function main() {
   console.log("Analyzing project schemas and models using ts-morph AST...");
 
   const project = new Project({
-    tsConfigFilePath: path.resolve(__dirname, "../tsconfig.json")
+    tsConfigFilePath: path.resolve(__dirname, "../tsconfig.json"),
   });
 
   const modulesDir = path.resolve(__dirname, "../src/app/modules");
@@ -1715,7 +2038,7 @@ function main() {
   }
 
   // 1. Scan modules
-  const subdirs = fs.readdirSync(modulesDir).filter(f => {
+  const subdirs = fs.readdirSync(modulesDir).filter((f) => {
     return fs.statSync(path.join(modulesDir, f)).isDirectory();
   });
 
@@ -1726,7 +2049,9 @@ function main() {
 
   for (const moduleName of subdirs) {
     const modulePath = path.join(modulesDir, moduleName);
-    const sourceFiles = project.addSourceFilesAtPaths(path.join(modulePath, "**/*.ts"));
+    const sourceFiles = project.addSourceFilesAtPaths(
+      path.join(modulePath, "**/*.ts"),
+    );
 
     moduleMap.set(moduleName, []);
 
@@ -1750,13 +2075,17 @@ function main() {
   console.log(`Extracted ${allSchemas.length} models across modules.`);
 
   // Extract relationships from the query and aggregation code
-  console.log("Scanning service and controller source code for .populate() and $lookup relations...");
+  console.log(
+    "Scanning service and controller source code for .populate() and $lookup relations...",
+  );
   const codeRelations = extractRelationshipsFromCode(project, allSchemas);
-  console.log(`Extracted ${codeRelations.length} relationships from codebase code parsing.`);
+  console.log(
+    `Extracted ${codeRelations.length} relationships from codebase code parsing.`,
+  );
 
   // 2. Generate ER diagrams for each module
   const outputDir = path.resolve(__dirname, "../docs/erd/modules");
-  
+
   // Clean up legacy .mmd files from previous configurations
   console.log("Cleaning up any old .mmd Mermaid diagrams...");
   deleteOldMmdFiles(outputDir);
@@ -1766,7 +2095,7 @@ function main() {
   }
 
   for (const moduleName of subdirs) {
-    const nativeSchemas = allSchemas.filter(s => s.moduleName === moduleName);
+    const nativeSchemas = allSchemas.filter((s) => s.moduleName === moduleName);
     if (nativeSchemas.length === 0) {
       continue; // Skip modules without models
     }
@@ -1777,75 +2106,125 @@ function main() {
     }
 
     if (nativeSchemas.length > 15) {
-      console.log(`Module "${moduleName}" has ${nativeSchemas.length} entities (> 15). Splitting into sub-diagrams...`);
+      console.log(
+        `Module "${moduleName}" has ${nativeSchemas.length} entities (> 15). Splitting into sub-diagrams...`,
+      );
       const partitions = partitionSchemas(nativeSchemas, codeRelations);
-      
+
       // 1. Generate individual sub-diagrams
       for (let idx = 0; idx < partitions.length; idx++) {
         const subSchemas = partitions[idx];
         const partName = `${moduleName}-part${idx + 1}`;
-        const subXml = buildDrawioDiagram(partName, subSchemas, allSchemasMap, moduleMap, codeRelations, false);
-        
+        const subXml = buildDrawioDiagram(
+          partName,
+          subSchemas,
+          allSchemasMap,
+          moduleMap,
+          codeRelations,
+          false,
+        );
+
         const valErr = validateDrawioXml(subXml, partName);
         if (valErr) {
-          console.error(`[Validation Failed] Skipping sub-module part "${partName}": ${valErr}`);
+          console.error(
+            `[Validation Failed] Skipping sub-module part "${partName}": ${valErr}`,
+          );
           continue;
         }
 
         const subOutputPath = path.join(moduleOutputDir, `${partName}.drawio`);
         fs.writeFileSync(subOutputPath, subXml, "utf8");
-        console.log(`Generated sub-diagram: docs/erd/modules/${moduleName}/${partName}.drawio`);
+        console.log(
+          `Generated sub-diagram: docs/erd/modules/${moduleName}/${partName}.drawio`,
+        );
       }
 
       // 2. Generate overview diagram
-      const overviewXml = buildOverviewDiagram(moduleName, partitions, codeRelations);
+      const overviewXml = buildOverviewDiagram(
+        moduleName,
+        partitions,
+        codeRelations,
+      );
       const valErr = validateDrawioXml(overviewXml, `${moduleName}-overview`);
       if (valErr) {
-        console.error(`[Validation Failed] Skipping overview for "${moduleName}": ${valErr}`);
+        console.error(
+          `[Validation Failed] Skipping overview for "${moduleName}": ${valErr}`,
+        );
       } else {
-        const overviewPath = path.join(moduleOutputDir, `${moduleName}-overview.drawio`);
+        const overviewPath = path.join(
+          moduleOutputDir,
+          `${moduleName}-overview.drawio`,
+        );
         fs.writeFileSync(overviewPath, overviewXml, "utf8");
-        
+
         // Also write as er-diagram.drawio as the main entry point
         const standardPath = path.join(moduleOutputDir, "er-diagram.drawio");
         fs.writeFileSync(standardPath, overviewXml, "utf8");
-        console.log(`Generated overview ER diagram at: docs/erd/modules/${moduleName}/${moduleName}-overview.drawio`);
+        console.log(
+          `Generated overview ER diagram at: docs/erd/modules/${moduleName}/${moduleName}-overview.drawio`,
+        );
       }
     } else {
       // Standard single module diagram
-      const xmlContent = buildDrawioDiagram(moduleName, nativeSchemas, allSchemasMap, moduleMap, codeRelations, false);
-      
+      const xmlContent = buildDrawioDiagram(
+        moduleName,
+        nativeSchemas,
+        allSchemasMap,
+        moduleMap,
+        codeRelations,
+        false,
+      );
+
       const validationError = validateDrawioXml(xmlContent, moduleName);
       if (validationError) {
-        console.error(`[Validation Failed] Skipping module "${moduleName}": ${validationError}`);
+        console.error(
+          `[Validation Failed] Skipping module "${moduleName}": ${validationError}`,
+        );
         continue;
       }
 
       const outputPath = path.join(moduleOutputDir, "er-diagram.drawio");
       fs.writeFileSync(outputPath, xmlContent, "utf8");
-      console.log(`Generated ER diagram for module "${moduleName}" at: docs/erd/modules/${moduleName}/er-diagram.drawio`);
+      console.log(
+        `Generated ER diagram for module "${moduleName}" at: docs/erd/modules/${moduleName}/er-diagram.drawio`,
+      );
     }
   }
 
   // 3. Generate the project-wide (whole) ER diagram
   if (allSchemas.length > 0) {
     const wholeOutputDir = path.join(outputDir, "whole-er-diagram");
-    const wholeXmlContent = buildDrawioDiagram("whole-er-diagram", allSchemas, allSchemasMap, moduleMap, codeRelations);
-    
-    const validationError = validateDrawioXml(wholeXmlContent, "whole-er-diagram");
+    const wholeXmlContent = buildDrawioDiagram(
+      "whole-er-diagram",
+      allSchemas,
+      allSchemasMap,
+      moduleMap,
+      codeRelations,
+    );
+
+    const validationError = validateDrawioXml(
+      wholeXmlContent,
+      "whole-er-diagram",
+    );
     if (validationError) {
-      console.error(`[Validation Failed] Skipping project-wide diagram: ${validationError}`);
+      console.error(
+        `[Validation Failed] Skipping project-wide diagram: ${validationError}`,
+      );
     } else {
       if (!fs.existsSync(wholeOutputDir)) {
         fs.mkdirSync(wholeOutputDir, { recursive: true });
       }
       const wholeOutputPath = path.join(wholeOutputDir, "er-diagram.drawio");
       fs.writeFileSync(wholeOutputPath, wholeXmlContent, "utf8");
-      console.log(`Generated project-wide ER diagram at: docs/erd/modules/whole-er-diagram/er-diagram.drawio`);
+      console.log(
+        `Generated project-wide ER diagram at: docs/erd/modules/whole-er-diagram/er-diagram.drawio`,
+      );
     }
   }
 
-  console.log("AST schema parsing and Draw.io XML diagram generation completed successfully.");
+  console.log(
+    "AST schema parsing and Draw.io XML diagram generation completed successfully.",
+  );
 }
 
 main();
