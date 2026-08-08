@@ -59,4 +59,11 @@ router.get(
   StoreController.getMyStore,
 );
 
+router.patch(
+  "/status/:id",
+  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  validateRequest(StoreValidation.updateStoreStatusSchema),
+  StoreController.updateStoreStatus,
+);
+
 export const StoreRoutes = router;

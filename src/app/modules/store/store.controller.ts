@@ -40,8 +40,22 @@ const getMyStore = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const updateStoreStatus = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  const result = await StoreService.updateStoreStatusInDB(id, status);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Store status updated successfully",
+    data: result,
+  });
+});
+
 export const StoreController = {
   createStore,
   updateStore,
   getMyStore,
+  updateStoreStatus,
 };

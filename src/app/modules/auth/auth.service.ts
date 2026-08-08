@@ -12,6 +12,7 @@ import {
 } from "../../../types/auth";
 import { User } from "../user/user.model";
 import { Seller } from "../seller/seller.model";
+import { Store } from "../store/store.model";
 import cryptoToken from "../../../util/cryptoToken";
 import { ResetToken } from "../resetToken/resetToken.model";
 import { emailHelper } from "../../../helpers/emailHelper";
@@ -508,6 +509,21 @@ const switchRoleInDB = async (userId: string, requestedRole: string) => {
   }
 
   if (normalizedRole === "seller") {
+    // Check if store exists and is approved by admin (status: active)
+    const store = await Store.findOne({ owner: userId });
+    if (!store) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "Please create your store before switching to seller."
+      );
+    }
+    if (store.status !== "active") {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        "Your store must be approved by the admin before switching to seller."
+      );
+    }
+
     // Check if Seller Profile exists
     const sellerProfile = await Seller.findOne({ user: userId });
     if (!sellerProfile) {
@@ -515,6 +531,12 @@ const switchRoleInDB = async (userId: string, requestedRole: string) => {
         StatusCodes.CONFLICT,
         "Please create your store before switching to seller.",
         "SELLER_PROFILE_REQUIRED",
+      );
+    }
+    if (sellerProfile.status !== "active") {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        "Your seller profile is inactive."
       );
     }
   }
@@ -548,7 +570,7 @@ const switchRoleInDB = async (userId: string, requestedRole: string) => {
   }
 
   return {
-    activeRole: requestedRole.toUpperCase(),
+    activeRole: normalizedRole,
     accessToken,
     refreshToken,
   };

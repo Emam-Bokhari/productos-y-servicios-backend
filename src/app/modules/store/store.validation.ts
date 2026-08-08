@@ -93,7 +93,16 @@ const updateStoreSchema = z.object({
   }),
 });
 
+const updateStoreStatusSchema = z.object({
+  body: z.object({
+    status: z.enum(["under_review", "active", "rejected", "suspended"], {
+      required_error: "Status is required",
+    }),
+  }),
+});
+
 export const StoreValidation = {
   createStoreSchema,
   updateStoreSchema,
+  updateStoreStatusSchema,
 };

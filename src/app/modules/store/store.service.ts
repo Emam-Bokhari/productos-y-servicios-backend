@@ -3,6 +3,7 @@ import ApiError from "../../../errors/ApiErrors";
 import { Store } from "./store.model";
 import { StoreCategory } from "../storeCategory/storeCategory.model";
 import { Seller } from "../seller/seller.model";
+import { User } from "../user/user.model";
 
 const createStoreToDB = async (ownerId: string, payload: any) => {
   // Check if user already has a store
@@ -199,8 +200,36 @@ const getMyStoreFromDB = async (ownerId: string) => {
   };
 };
 
+const updateStoreStatusInDB = async (storeId: string, status: string) => {
+  const store = await Store.findById(storeId);
+  if (!store) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "Store not found");
+  }
+
+  store.status = status as any;
+  await store.save();
+
+  // If status is active, ensure seller status is active
+  // If status is not active, set activeRole of owner to "user" and seller status to "inactive"
+  if (status === "active") {
+    await Seller.findOneAndUpdate(
+      { user: store.owner },
+      { status: "active" }
+    );
+  } else {
+    await User.findByIdAndUpdate(store.owner, { activeRole: "user" });
+    await Seller.findOneAndUpdate(
+      { user: store.owner },
+      { status: "inactive" }
+    );
+  }
+
+  return store;
+};
+
 export const StoreService = {
   createStoreToDB,
   updateStoreInDB,
   getMyStoreFromDB,
+  updateStoreStatusInDB,
 };

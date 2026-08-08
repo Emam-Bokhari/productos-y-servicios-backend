@@ -4,6 +4,7 @@ import validateRequest from "../../middlewares/validateRequest";
 import { AuthController } from "./auth.controller";
 import { AuthValidation } from "./auth.validation";
 import { USER_ROLES } from "../../../enums/user";
+import { isUserOrSeller } from "../../../helpers/authHelper";
 const router = express.Router();
 
 router.post(
@@ -73,12 +74,7 @@ router.delete(
 
 router.post(
   "/switch-role",
-  auth(
-    USER_ROLES.ADMIN,
-    USER_ROLES.SUPER_ADMIN,
-    USER_ROLES.USER,
-    USER_ROLES.SELLER,
-  ),
+  isUserOrSeller,
   validateRequest(AuthValidation.switchRoleZodSchema),
   AuthController.switchRole,
 );

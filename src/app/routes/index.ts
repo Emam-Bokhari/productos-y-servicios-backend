@@ -13,6 +13,8 @@ import { FcmTokenRoutes } from "../modules/fcmToken/fcmToken.route";
 import { NotificationPreferenceRoutes } from "../modules/notificationPreference/notificationPreference.route";
 import { StoreRoutes } from "../modules/store/store.routes";
 import { StoreCategoryRoutes } from "../modules/storeCategory/storeCategory.routes";
+import { AdvertisementRoutes } from "../modules/advertisement/advertisement.route";
+import { CityAdConfigurationRoutes } from "../modules/cityAdConfiguration/cityAdConfiguration.route";
 
 const router = express.Router();
 
@@ -20,6 +22,14 @@ const apiRoutes = [
   {
     path: "/stores",
     route: StoreRoutes,
+  },
+  {
+    path: "/advertisements",
+    route: AdvertisementRoutes,
+  },
+  {
+    path: "/city-ad-configurations",
+    route: CityAdConfigurationRoutes,
   },
   {
     path: "/categories",

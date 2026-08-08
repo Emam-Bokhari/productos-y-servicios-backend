@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { USER_ROLES } from "../../../enums/user";
 
 const createVerifyEmailZodSchema = z.object({
   body: z.object({
@@ -42,11 +43,11 @@ const createChangePasswordZodSchema = z.object({
       required_error: "Confirm Password is required",
     }),
   }),
-});
+}); 
 
 const switchRoleZodSchema = z.object({
   body: z.object({
-    role: z.enum(["USER", "SELLER", "user", "seller"], {
+    role: z.enum([USER_ROLES.USER, USER_ROLES.SELLER], {
       required_error: "Role is required",
     }),
   }),
