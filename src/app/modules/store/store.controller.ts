@@ -4,86 +4,26 @@ import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import { StoreService } from "./store.service";
 
-const createDraftStore = catchAsync(async (req: Request, res: Response) => {
+const createStore = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user.id;
-  const result = await StoreService.createDraftStoreToDB(userId);
+  const result = await StoreService.createStoreToDB(userId, req.body);
 
   sendResponse(res, {
-    statusCode: StatusCodes.OK,
+    statusCode: StatusCodes.CREATED,
     success: true,
-    message: "Draft store created or retrieved successfully",
+    message: "Store created successfully, under review now",
     data: result,
   });
 });
 
-const getDraftStore = catchAsync(async (req: Request, res: Response) => {
+const updateStore = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user.id;
-  const result = await StoreService.getDraftStoreFromDB(userId);
+  const result = await StoreService.updateStoreInDB(userId, req.body);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Draft store retrieved successfully",
-    data: result,
-  });
-});
-
-const updateStep1 = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user.id;
-  const result = await StoreService.updateStepToDB(userId, 1, req.body);
-
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: "Store Step 1 updated successfully",
-    data: result,
-  });
-});
-
-const updateStep2 = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user.id;
-  const result = await StoreService.updateStepToDB(userId, 2, req.body);
-
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: "Store Step 2 updated successfully",
-    data: result,
-  });
-});
-
-const updateStep3 = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user.id;
-  const result = await StoreService.updateStepToDB(userId, 3, req.body);
-
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: "Store Step 3 updated successfully",
-    data: result,
-  });
-});
-
-const updateStep4 = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user.id;
-  const result = await StoreService.updateStepToDB(userId, 4, req.body);
-
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: "Store Step 4 updated successfully",
-    data: result,
-  });
-});
-
-const publishStore = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user.id;
-  const result = await StoreService.publishStoreToDB(userId);
-
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: "Store published successfully, under review now",
+    message: "Store updated successfully",
     data: result,
   });
 });
@@ -101,12 +41,7 @@ const getMyStore = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const StoreController = {
-  createDraftStore,
-  getDraftStore,
-  updateStep1,
-  updateStep2,
-  updateStep3,
-  updateStep4,
-  publishStore,
+  createStore,
+  updateStore,
   getMyStore,
 };

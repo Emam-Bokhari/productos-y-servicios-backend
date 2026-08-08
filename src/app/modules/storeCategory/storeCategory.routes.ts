@@ -26,7 +26,7 @@ router.get(
 );
 
 router.get(
-  "/:id",
+  "/:storeCategoryId",
   auth(
     USER_ROLES.ADMIN,
     USER_ROLES.SUPER_ADMIN,
@@ -37,14 +37,14 @@ router.get(
 );
 
 router.patch(
-  "/:id",
+  "/:storeCategoryId",
   auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
   validateRequest(StoreCategoryValidation.updateCategoryZodSchema),
   StoreCategoryController.updateCategory
 );
 
 router.delete(
-  "/:id",
+  "/:storeCategoryId",
   auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
   StoreCategoryController.deleteCategory
 );

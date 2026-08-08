@@ -32,27 +32,27 @@ const getAllCategoriesFromDB = async (query: Record<string, any>) => {
   return categories;
 };
 
-const getCategoryByIdFromDB = async (id: string) => {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+const getCategoryByIdFromDB = async (storeCategoryId: string) => {
+  if (!mongoose.Types.ObjectId.isValid(storeCategoryId)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid ID format");
   }
 
-  const category = await StoreCategory.findById(id);
+  const category = await StoreCategory.findById(storeCategoryId);
   if (!category) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Category not found");
   }
   return category;
 };
 
-const updateCategoryInDB = async (id: string, payload: Partial<IStoreCategory>) => {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+const updateCategoryInDB = async (storeCategoryId: string, payload: Partial<IStoreCategory>) => {
+  if (!mongoose.Types.ObjectId.isValid(storeCategoryId)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid ID format");
   }
 
   if (payload.name) {
     const isExist = await StoreCategory.findOne({
       name: payload.name,
-      _id: { $ne: id },
+      _id: { $ne: storeCategoryId },
     });
     if (isExist) {
       throw new ApiError(StatusCodes.CONFLICT, "Category name already exists");
@@ -60,7 +60,7 @@ const updateCategoryInDB = async (id: string, payload: Partial<IStoreCategory>) 
   }
 
   const category = await StoreCategory.findByIdAndUpdate(
-    { _id: id },
+    { _id: storeCategoryId },
     payload,
     { new: true }
   );
@@ -71,12 +71,12 @@ const updateCategoryInDB = async (id: string, payload: Partial<IStoreCategory>) 
   return category;
 };
 
-const deleteCategoryFromDB = async (id: string) => {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+const deleteCategoryFromDB = async (storeCategoryId: string) => {
+  if (!mongoose.Types.ObjectId.isValid(storeCategoryId)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid ID format");
   }
 
-  const category = await StoreCategory.softDeleteById(id);
+  const category = await StoreCategory.softDeleteById(storeCategoryId);
   if (!category) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Category not found or already deleted");
   }

@@ -90,7 +90,7 @@ const storeSchema = new Schema<IStore>(
     status: {
       type: String,
       enum: Object.values(STORE_STATUS),
-      default: STORE_STATUS.DRAFT,
+      default: STORE_STATUS.UNDER_REVIEW,
     },
   },
   {

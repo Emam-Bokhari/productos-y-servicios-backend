@@ -1,5 +1,4 @@
 export const STORE_STATUS = {
-  DRAFT: "draft",
   UNDER_REVIEW: "under_review",
   ACTIVE: "active",
   REJECTED: "rejected",
