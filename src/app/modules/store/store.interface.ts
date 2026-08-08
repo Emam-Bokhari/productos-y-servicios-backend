@@ -19,7 +19,7 @@ export type IStore = {
   latitude?: number;
   longitude?: number;
   businessLicenseNumber?: string;
-  tradeLicenseImage?: string;
+  tradeLicense?: string;
   tinNumber?: string;
   status: STORE_STATUS;
 };

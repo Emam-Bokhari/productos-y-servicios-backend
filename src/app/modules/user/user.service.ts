@@ -131,7 +131,11 @@ const createUserToDB = async (payload: any) => {
     {
       id: createUser._id,
       email: createUser.email,
-      role: createUser.activeRole || createUser.role,
+      role: [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN].includes(
+        createUser.role as any,
+      )
+        ? createUser.role
+        : createUser.activeRole || createUser.role,
     },
     config.jwt.jwt_secret as Secret,
     config.jwt.jwt_expire_in as string,

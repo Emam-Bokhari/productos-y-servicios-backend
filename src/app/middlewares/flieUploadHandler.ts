@@ -111,6 +111,16 @@ export const FILE_CONFIG = {
     maxCount: 1,
     mimeTypes: new Set(["image/png", "image/jpeg", "image/webp"]),
   },
+  tradeLicense: {
+    dir: "tradeLicense",
+    maxCount: 1,
+    mimeTypes: new Set([
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+      "application/pdf",
+    ]),
+  },
   audio: {
     dir: "audio",
     maxCount: 5,

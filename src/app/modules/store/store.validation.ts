@@ -48,8 +48,8 @@ const createStoreSchema = z.object({
     businessLicenseNumber: z.string({
       required_error: "Business License Number is required",
     }),
-    tradeLicenseImage: z.string({
-      required_error: "Trade license image is required",
+    tradeLicense: z.string({
+      required_error: "Trade license is required",
     }),
     tinNumber: z.string({
       required_error: "TIN number is required",
@@ -88,7 +88,7 @@ const updateStoreSchema = z.object({
     latitude: z.number().optional(),
     longitude: z.number().optional(),
     businessLicenseNumber: z.string().optional(),
-    tradeLicenseImage: z.string().optional(),
+    tradeLicense: z.string().optional(),
     tinNumber: z.string().optional(),
   }),
 });

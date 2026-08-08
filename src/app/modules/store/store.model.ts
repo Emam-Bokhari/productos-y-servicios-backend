@@ -78,7 +78,7 @@ const storeSchema = new Schema<IStore>(
       required: false,
       trim: true,
     },
-    tradeLicenseImage: {
+    tradeLicense: {
       type: String,
       required: false,
     },

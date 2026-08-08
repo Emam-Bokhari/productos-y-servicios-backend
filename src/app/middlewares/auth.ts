@@ -53,7 +53,11 @@ const auth =
         }
 
         // Attach database role to verified user info
-        verifyUser.role = user.activeRole || user.role;
+        verifyUser.role = [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN].includes(
+          user.role as any,
+        )
+          ? user.role
+          : user.activeRole || user.role;
 
         //guard user role
         if (roles.length && !roles.includes(verifyUser.role)) {

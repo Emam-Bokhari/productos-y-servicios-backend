@@ -17,7 +17,7 @@ import { ResetToken } from "../resetToken/resetToken.model";
 import { emailHelper } from "../../../helpers/emailHelper";
 import generateOTP from "../../../util/generateOTP";
 import { emailTemplate } from "../../../shared/emailTemplate";
-import { STATUS } from "../../../enums/user";
+import { STATUS, USER_ROLES } from "../../../enums/user";
 import { firebaseAdmin } from "../../../config/firebase";
 import { FcmTokenService } from "../fcmToken/fcmService";
 
@@ -68,7 +68,11 @@ const loginUserFromDB = async (payload: ILoginData) => {
   const createToken = jwtHelper.createToken(
     {
       id: isExistUser._id,
-      role: isExistUser.activeRole || isExistUser.role,
+      role: [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN].includes(
+        isExistUser.role as any,
+      )
+        ? isExistUser.role
+        : isExistUser.activeRole || isExistUser.role,
       email: isExistUser.email,
     },
     config.jwt.jwt_secret as Secret,
@@ -295,7 +299,11 @@ const newAccessTokenToUser = async (token: string) => {
   const accessToken = jwtHelper.createToken(
     {
       id: isExistUser._id,
-      role: isExistUser.activeRole || isExistUser.role,
+      role: [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN].includes(
+        isExistUser.role as any,
+      )
+        ? isExistUser.role
+        : isExistUser.activeRole || isExistUser.role,
       email: isExistUser.email,
     },
     config.jwt.jwt_secret as Secret,
@@ -474,7 +482,11 @@ const googleLoginService = async (payload: {
   const createToken = jwtHelper.createToken(
     {
       id: user._id,
-      role: user.activeRole || user.role,
+      role: [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN].includes(
+        user.role as any,
+      )
+        ? user.role
+        : user.activeRole || user.role,
       email: user.email,
     },
     config.jwt.jwt_secret as Secret,
