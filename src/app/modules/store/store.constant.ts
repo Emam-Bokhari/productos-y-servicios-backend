@@ -12,4 +12,4 @@ export const STORE_TYPE = {
   SERVICE_STORE: "service_store",
 } as const;
 
-export type STORE_TYPE = (typeof STORE_TYPE)[keyof typeof STORE_TYPE];
+export type STORE_TYPE = (typeof STORE_TYPE)[keyof typeof STORE_TYPE];

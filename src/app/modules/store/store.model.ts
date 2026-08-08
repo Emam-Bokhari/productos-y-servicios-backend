@@ -96,7 +96,7 @@ const storeSchema = new Schema<IStore>(
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 // Apply soft delete plugin

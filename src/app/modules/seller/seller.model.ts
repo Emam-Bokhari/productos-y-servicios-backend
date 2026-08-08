@@ -26,7 +26,7 @@ const sellerSchema = new Schema<ISeller>(
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 // Apply soft delete plugin

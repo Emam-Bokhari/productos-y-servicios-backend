@@ -77,10 +77,10 @@ router.post(
     USER_ROLES.ADMIN,
     USER_ROLES.SUPER_ADMIN,
     USER_ROLES.USER,
-    USER_ROLES.SELLER
+    USER_ROLES.SELLER,
   ),
   validateRequest(AuthValidation.switchRoleZodSchema),
-  AuthController.switchRole
+  AuthController.switchRole,
 );
 
 // google login

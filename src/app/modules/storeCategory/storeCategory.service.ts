@@ -44,7 +44,10 @@ const getCategoryByIdFromDB = async (storeCategoryId: string) => {
   return category;
 };
 
-const updateCategoryInDB = async (storeCategoryId: string, payload: Partial<IStoreCategory>) => {
+const updateCategoryInDB = async (
+  storeCategoryId: string,
+  payload: Partial<IStoreCategory>,
+) => {
   if (!mongoose.Types.ObjectId.isValid(storeCategoryId)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid ID format");
   }
@@ -62,7 +65,7 @@ const updateCategoryInDB = async (storeCategoryId: string, payload: Partial<ISto
   const category = await StoreCategory.findByIdAndUpdate(
     { _id: storeCategoryId },
     payload,
-    { new: true }
+    { new: true },
   );
 
   if (!category) {
@@ -78,7 +81,10 @@ const deleteCategoryFromDB = async (storeCategoryId: string) => {
 
   const category = await StoreCategory.softDeleteById(storeCategoryId);
   if (!category) {
-    throw new ApiError(StatusCodes.NOT_FOUND, "Category not found or already deleted");
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      "Category not found or already deleted",
+    );
   }
   return category;
 };

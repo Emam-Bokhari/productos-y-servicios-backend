@@ -2,7 +2,6 @@ import { Schema } from "mongoose";
 import { ISoftDeleteModel } from "../../../types/softDelete";
 import { STORE_STATUS, STORE_TYPE } from "./store.constant";
 
-
 export type IStore = {
   owner: Schema.Types.ObjectId;
   storeType?: STORE_TYPE;

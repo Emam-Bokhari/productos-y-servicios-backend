@@ -30,7 +30,7 @@ const storeCategorySchema = new Schema<IStoreCategory>(
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 // Apply soft delete plugin
@@ -38,5 +38,5 @@ storeCategorySchema.plugin(softDeletePlugin);
 
 export const StoreCategory = model<IStoreCategory, StoreCategoryModel>(
   "StoreCategory",
-  storeCategorySchema
+  storeCategorySchema,
 );

@@ -502,7 +502,7 @@ const switchRoleInDB = async (userId: string, requestedRole: string) => {
       throw new ApiError(
         StatusCodes.CONFLICT,
         "Please create your store before switching to seller.",
-        "SELLER_PROFILE_REQUIRED"
+        "SELLER_PROFILE_REQUIRED",
       );
     }
   }
@@ -519,7 +519,7 @@ const switchRoleInDB = async (userId: string, requestedRole: string) => {
       email: isExistUser.email,
     },
     config.jwt.jwt_secret as Secret,
-    config.jwt.jwt_expire_in as string
+    config.jwt.jwt_expire_in as string,
   );
 
   let refreshToken = undefined;
@@ -531,7 +531,7 @@ const switchRoleInDB = async (userId: string, requestedRole: string) => {
         email: isExistUser.email,
       },
       config.jwt.jwtRefreshSecret as Secret,
-      config.jwt.jwtRefreshExpiresIn as string || "365d"
+      (config.jwt.jwtRefreshExpiresIn as string) || "365d",
     );
   }
 

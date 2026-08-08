@@ -10,7 +10,7 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
   if (existingStore) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      `You already have a store which is in ${existingStore.status} status.`
+      `You already have a store which is in ${existingStore.status} status.`,
     );
   }
 
@@ -19,22 +19,34 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
   // Validate category exists and is active
   const category = await StoreCategory.findById(categoryId);
   if (!category) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Selected category does not exist");
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "Selected category does not exist",
+    );
   }
   if (category.status === "inactive") {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Selected category is inactive");
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "Selected category is inactive",
+    );
   }
 
   // Validate duplicate display name
   const duplicateDisplayName = await Store.findOne({ displayName });
   if (duplicateDisplayName) {
-    throw new ApiError(StatusCodes.CONFLICT, "Display name is already taken by another store");
+    throw new ApiError(
+      StatusCodes.CONFLICT,
+      "Display name is already taken by another store",
+    );
   }
 
   // Validate duplicate phone
   const duplicatePhone = await Store.findOne({ phone });
   if (duplicatePhone) {
-    throw new ApiError(StatusCodes.CONFLICT, "Phone number is already linked with another store");
+    throw new ApiError(
+      StatusCodes.CONFLICT,
+      "Phone number is already linked with another store",
+    );
   }
 
   // Validate duplicate business license number
@@ -42,7 +54,7 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
   if (duplicateLicense) {
     throw new ApiError(
       StatusCodes.CONFLICT,
-      "Business License Number is already registered by another store"
+      "Business License Number is already registered by another store",
     );
   }
 
@@ -75,7 +87,7 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
   if (store.status !== "under_review" && store.status !== "rejected") {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      `Cannot update store details when status is ${store.status}`
+      `Cannot update store details when status is ${store.status}`,
     );
   }
 
@@ -85,10 +97,16 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
   if (categoryId && categoryId !== store.categoryId?.toString()) {
     const category = await StoreCategory.findById(categoryId);
     if (!category) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, "Selected category does not exist");
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "Selected category does not exist",
+      );
     }
     if (category.status === "inactive") {
-      throw new ApiError(StatusCodes.BAD_REQUEST, "Selected category is inactive");
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "Selected category is inactive",
+      );
     }
   }
 
@@ -99,7 +117,10 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
       _id: { $ne: store._id },
     });
     if (duplicate) {
-      throw new ApiError(StatusCodes.CONFLICT, "Display name is already taken by another store");
+      throw new ApiError(
+        StatusCodes.CONFLICT,
+        "Display name is already taken by another store",
+      );
     }
   }
 
@@ -110,12 +131,18 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
       _id: { $ne: store._id },
     });
     if (duplicate) {
-      throw new ApiError(StatusCodes.CONFLICT, "Phone number is already linked with another store");
+      throw new ApiError(
+        StatusCodes.CONFLICT,
+        "Phone number is already linked with another store",
+      );
     }
   }
 
   // Validate duplicate license number
-  if (businessLicenseNumber && businessLicenseNumber !== store.businessLicenseNumber) {
+  if (
+    businessLicenseNumber &&
+    businessLicenseNumber !== store.businessLicenseNumber
+  ) {
     const duplicate = await Store.findOne({
       businessLicenseNumber,
       _id: { $ne: store._id },
@@ -123,14 +150,14 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
     if (duplicate) {
       throw new ApiError(
         StatusCodes.CONFLICT,
-        "Business License Number is already registered by another store"
+        "Business License Number is already registered by another store",
       );
     }
   }
 
   // Filter out undefined values to support partial patching
   const cleanedUpdateData = Object.fromEntries(
-    Object.entries(payload).filter(([_, v]) => v !== undefined)
+    Object.entries(payload).filter(([_, v]) => v !== undefined),
   );
 
   // If store status was rejected, reset it back to under_review on re-submission/edit
@@ -141,7 +168,7 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
   const updatedStore = await Store.findOneAndUpdate(
     { owner: ownerId },
     { $set: cleanedUpdateData },
-    { new: true }
+    { new: true },
   );
 
   if (!updatedStore) {

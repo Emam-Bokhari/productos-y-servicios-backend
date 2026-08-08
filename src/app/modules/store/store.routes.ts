@@ -11,20 +11,20 @@ router.post(
   "/",
   auth(USER_ROLES.USER, USER_ROLES.SELLER),
   validateRequest(StoreValidation.createStoreSchema),
-  StoreController.createStore
+  StoreController.createStore,
 );
 
 router.patch(
   "/",
   auth(USER_ROLES.USER, USER_ROLES.SELLER),
   validateRequest(StoreValidation.updateStoreSchema),
-  StoreController.updateStore
+  StoreController.updateStore,
 );
 
 router.get(
   "/me",
   auth(USER_ROLES.USER, USER_ROLES.SELLER),
-  StoreController.getMyStore
+  StoreController.getMyStore,
 );
 
 export const StoreRoutes = router;

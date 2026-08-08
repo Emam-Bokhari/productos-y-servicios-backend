@@ -11,7 +11,7 @@ router.post(
   "/",
   auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
   validateRequest(StoreCategoryValidation.createCategoryZodSchema),
-  StoreCategoryController.createCategory
+  StoreCategoryController.createCategory,
 );
 
 router.get(
@@ -20,9 +20,9 @@ router.get(
     USER_ROLES.ADMIN,
     USER_ROLES.SUPER_ADMIN,
     USER_ROLES.USER,
-    USER_ROLES.SELLER
+    USER_ROLES.SELLER,
   ),
-  StoreCategoryController.getAllCategories
+  StoreCategoryController.getAllCategories,
 );
 
 router.get(
@@ -31,22 +31,22 @@ router.get(
     USER_ROLES.ADMIN,
     USER_ROLES.SUPER_ADMIN,
     USER_ROLES.USER,
-    USER_ROLES.SELLER
+    USER_ROLES.SELLER,
   ),
-  StoreCategoryController.getCategoryById
+  StoreCategoryController.getCategoryById,
 );
 
 router.patch(
   "/:storeCategoryId",
   auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
   validateRequest(StoreCategoryValidation.updateCategoryZodSchema),
-  StoreCategoryController.updateCategory
+  StoreCategoryController.updateCategory,
 );
 
 router.delete(
   "/:storeCategoryId",
   auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
-  StoreCategoryController.deleteCategory
+  StoreCategoryController.deleteCategory,
 );
 
 export const StoreCategoryRoutes = router;
