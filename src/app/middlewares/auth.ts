@@ -53,10 +53,10 @@ const auth =
         }
 
         // Attach database role to verified user info
-        verifyUser.role = user.role;
+        verifyUser.role = user.activeRole || user.role;
 
         //guard user role
-        if (roles.length && !roles.includes(user.role)) {
+        if (roles.length && !roles.includes(verifyUser.role)) {
           throw new ApiError(
             StatusCodes.FORBIDDEN,
             "You don't have permission to access this api !!",

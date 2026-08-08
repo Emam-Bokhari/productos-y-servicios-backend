@@ -131,7 +131,7 @@ const createUserToDB = async (payload: any) => {
     {
       id: createUser._id,
       email: createUser.email,
-      role: createUser.role,
+      role: createUser.activeRole || createUser.role,
     },
     config.jwt.jwt_secret as Secret,
     config.jwt.jwt_expire_in as string,

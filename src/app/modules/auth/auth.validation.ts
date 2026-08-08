@@ -44,10 +44,19 @@ const createChangePasswordZodSchema = z.object({
   }),
 });
 
+const switchRoleZodSchema = z.object({
+  body: z.object({
+    role: z.enum(["USER", "SELLER", "user", "seller"], {
+      required_error: "Role is required",
+    }),
+  }),
+});
+
 export const AuthValidation = {
   createVerifyEmailZodSchema,
   createForgetPasswordZodSchema,
   createLoginZodSchema,
   createResetPasswordZodSchema,
   createChangePasswordZodSchema,
+  switchRoleZodSchema,
 };

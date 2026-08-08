@@ -90,6 +90,7 @@ const globalErrorHandler: ErrorRequestHandler = (error, req, res, next) => {
     return res.status(200).json({
       success: false,
       message,
+      errorCode: error?.errorCode,
       errorMessages,
       data: [],
       stack: config.node_env !== "production" ? error?.stack : undefined,
@@ -102,6 +103,7 @@ const globalErrorHandler: ErrorRequestHandler = (error, req, res, next) => {
   return res.status(statusCode).json({
     success: false,
     message,
+    errorCode: error?.errorCode,
     errorMessages,
     stack: config.node_env !== "production" ? error?.stack : undefined,
   });

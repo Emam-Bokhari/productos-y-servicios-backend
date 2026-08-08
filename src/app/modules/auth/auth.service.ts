@@ -11,6 +11,7 @@ import {
   IVerifyEmail,
 } from "../../../types/auth";
 import { User } from "../user/user.model";
+import { Seller } from "../seller/seller.model";
 import cryptoToken from "../../../util/cryptoToken";
 import { ResetToken } from "../resetToken/resetToken.model";
 import { emailHelper } from "../../../helpers/emailHelper";
@@ -67,7 +68,7 @@ const loginUserFromDB = async (payload: ILoginData) => {
   const createToken = jwtHelper.createToken(
     {
       id: isExistUser._id,
-      role: isExistUser.role,
+      role: isExistUser.activeRole || isExistUser.role,
       email: isExistUser.email,
     },
     config.jwt.jwt_secret as Secret,
@@ -294,7 +295,7 @@ const newAccessTokenToUser = async (token: string) => {
   const accessToken = jwtHelper.createToken(
     {
       id: isExistUser._id,
-      role: isExistUser.role,
+      role: isExistUser.activeRole || isExistUser.role,
       email: isExistUser.email,
     },
     config.jwt.jwt_secret as Secret,
@@ -473,7 +474,7 @@ const googleLoginService = async (payload: {
   const createToken = jwtHelper.createToken(
     {
       id: user._id,
-      role: user.role,
+      role: user.activeRole || user.role,
       email: user.email,
     },
     config.jwt.jwt_secret as Secret,
@@ -483,6 +484,61 @@ const googleLoginService = async (payload: {
   return {
     token: createToken,
     user,
+  };
+};
+
+const switchRoleInDB = async (userId: string, requestedRole: string) => {
+  const normalizedRole = requestedRole.toLowerCase();
+
+  const isExistUser = await User.findById(userId);
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
+  }
+
+  if (normalizedRole === "seller") {
+    // Check if Seller Profile exists
+    const sellerProfile = await Seller.findOne({ user: userId });
+    if (!sellerProfile) {
+      throw new ApiError(
+        StatusCodes.CONFLICT,
+        "Please create your store before switching to seller.",
+        "SELLER_PROFILE_REQUIRED"
+      );
+    }
+  }
+
+  // Update activeRole
+  isExistUser.activeRole = normalizedRole as "user" | "seller";
+  await isExistUser.save();
+
+  // Generate new Access Token
+  const accessToken = jwtHelper.createToken(
+    {
+      id: isExistUser._id,
+      role: normalizedRole,
+      email: isExistUser.email,
+    },
+    config.jwt.jwt_secret as Secret,
+    config.jwt.jwt_expire_in as string
+  );
+
+  let refreshToken = undefined;
+  if (config.jwt.jwtRefreshSecret) {
+    refreshToken = jwtHelper.createToken(
+      {
+        id: isExistUser._id,
+        role: normalizedRole,
+        email: isExistUser.email,
+      },
+      config.jwt.jwtRefreshSecret as Secret,
+      config.jwt.jwtRefreshExpiresIn as string || "365d"
+    );
+  }
+
+  return {
+    activeRole: requestedRole.toUpperCase(),
+    accessToken,
+    refreshToken,
   };
 };
 
@@ -496,4 +552,5 @@ export const AuthService = {
   resendVerificationEmailToDB,
   deleteUserFromDB,
   googleLoginService,
+  switchRoleInDB,
 };

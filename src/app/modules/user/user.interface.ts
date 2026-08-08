@@ -32,6 +32,7 @@ export type IUser = {
   averageRating?: number;
   totalRatings?: number;
   totalReviews?: number;
+  activeRole?: "user" | "seller";
 };
 
 export type UserModal = {

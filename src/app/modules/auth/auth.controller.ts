@@ -126,6 +126,19 @@ const googleLogin = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const switchRole = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user.id;
+  const { role } = req.body;
+  const result = await AuthService.switchRoleInDB(userId, role);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: "Role switched successfully.",
+    data: result,
+  });
+});
+
 export const AuthController = {
   verifyEmail,
   loginUser,
@@ -136,4 +149,5 @@ export const AuthController = {
   resendVerificationEmail,
   deleteUser,
   googleLogin,
+  switchRole,
 };

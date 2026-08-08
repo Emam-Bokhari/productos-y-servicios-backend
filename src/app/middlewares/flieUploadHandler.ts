@@ -152,6 +152,7 @@ export const FILE_CONFIG = {
       "image/svg+xml",
       "video/mp4",
       "video/webm",
+      "application/pdf",
     ]),
   },
 } satisfies Record<string, FileConfig>;

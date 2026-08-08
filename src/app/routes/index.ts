@@ -11,10 +11,20 @@ import { StripeRoutes } from "../modules/stripe/stripe.route";
 import { NotificationRoutes } from "../modules/notification/notification.routes";
 import { FcmTokenRoutes } from "../modules/fcmToken/fcmToken.route";
 import { NotificationPreferenceRoutes } from "../modules/notificationPreference/notificationPreference.route";
+import { StoreRoutes } from "../modules/store/store.routes";
+import { StoreCategoryRoutes } from "../modules/storeCategory/storeCategory.routes";
 
 const router = express.Router();
 
 const apiRoutes = [
+  {
+    path: "/stores",
+    route: StoreRoutes,
+  },
+  {
+    path: "/categories",
+    route: StoreCategoryRoutes,
+  },
   {
     path: "/users",
     route: UserRoutes,
