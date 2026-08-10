@@ -4,10 +4,7 @@ import {
   ADVERTISEMENT_STATUS,
   ADVERTISEMENT_TYPE,
 } from "./advertisement.constant";
-import {
-  AdvertisementModel,
-  IAdvertisement,
-} from "./advertisement.interface";
+import { AdvertisementModel, IAdvertisement } from "./advertisement.interface";
 
 const advertisementSchema = new Schema<IAdvertisement>(
   {

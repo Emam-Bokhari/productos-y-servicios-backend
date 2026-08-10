@@ -514,13 +514,13 @@ const switchRoleInDB = async (userId: string, requestedRole: string) => {
     if (!store) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        "Please create your store before switching to seller."
+        "Please create your store before switching to seller.",
       );
     }
     if (store.status !== "active") {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
-        "Your store must be approved by the admin before switching to seller."
+        "Your store must be approved by the admin before switching to seller.",
       );
     }
 
@@ -536,7 +536,7 @@ const switchRoleInDB = async (userId: string, requestedRole: string) => {
     if (sellerProfile.status !== "active") {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
-        "Your seller profile is inactive."
+        "Your seller profile is inactive.",
       );
     }
   }

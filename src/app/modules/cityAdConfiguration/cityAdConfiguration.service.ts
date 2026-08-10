@@ -6,7 +6,10 @@ import { SLOT_CONFIG_STATUS } from "./cityAdConfiguration.constant";
 import { ICityAdConfiguration } from "./cityAdConfiguration.interface";
 import { CityAdConfiguration } from "./cityAdConfiguration.model";
 import { getOverlappingBookedSlots } from "../advertisement/advertisement.service";
-import { ADVERTISEMENT_TYPE, ADVERTISEMENT_STATUS } from "../advertisement/advertisement.constant";
+import {
+  ADVERTISEMENT_TYPE,
+  ADVERTISEMENT_STATUS,
+} from "../advertisement/advertisement.constant";
 import { Advertisement } from "../advertisement/advertisement.model";
 
 const createCityAdConfigToDB = async (
@@ -101,7 +104,10 @@ const updateCityAdConfigInDB = async (
   });
 
   if (!result) {
-    throw new ApiError(StatusCodes.NOT_FOUND, "City configuration update failed");
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      "City configuration update failed",
+    );
   }
 
   return result;
@@ -112,7 +118,10 @@ const toggleCityAdConfigInDB = async (
   adType: "banner" | "featured",
   enabled: boolean,
 ): Promise<ICityAdConfiguration> => {
-  const updateField = adType === "banner" ? { bannerEnabled: enabled } : { featuredEnabled: enabled };
+  const updateField =
+    adType === "banner"
+      ? { bannerEnabled: enabled }
+      : { featuredEnabled: enabled };
   return await updateCityAdConfigInDB(id, updateField);
 };
 
@@ -121,11 +130,16 @@ const updateCityAdCapacityInDB = async (
   adType: "banner" | "featured",
   capacity: number,
 ): Promise<ICityAdConfiguration> => {
-  const updateField = adType === "banner" ? { bannerCapacity: capacity } : { featuredCapacity: capacity };
+  const updateField =
+    adType === "banner"
+      ? { bannerCapacity: capacity }
+      : { featuredCapacity: capacity };
   return await updateCityAdConfigInDB(id, updateField);
 };
 
-const getSellerActiveCitiesFromDB = async (): Promise<ICityAdConfiguration[]> => {
+const getSellerActiveCitiesFromDB = async (): Promise<
+  ICityAdConfiguration[]
+> => {
   return await CityAdConfiguration.find({ status: SLOT_CONFIG_STATUS.ACTIVE });
 };
 
@@ -133,8 +147,10 @@ const getCityWiseAvailabilitySummaryFromDB = async (
   startDateStr?: string,
   endDateStr?: string,
 ): Promise<any[]> => {
-  const cities = await CityAdConfiguration.find({ status: SLOT_CONFIG_STATUS.ACTIVE });
-  
+  const cities = await CityAdConfiguration.find({
+    status: SLOT_CONFIG_STATUS.ACTIVE,
+  });
+
   const today = new Date();
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -204,7 +220,10 @@ const getCityBookingStatisticsFromDB = async (
 
   const config = await CityAdConfiguration.findById(cityAdConfigId);
   if (!config) {
-    throw new ApiError(StatusCodes.NOT_FOUND, "City slot configuration not found");
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      "City slot configuration not found",
+    );
   }
 
   const now = new Date();
@@ -250,7 +269,8 @@ const getCityBookingStatisticsFromDB = async (
       upcoming: upcomingCount,
       expired: expiredCount,
       cancelled: cancelledCount,
-      totalBookings: activeCount + upcomingCount + expiredCount + cancelledCount,
+      totalBookings:
+        activeCount + upcomingCount + expiredCount + cancelledCount,
     },
   };
 };

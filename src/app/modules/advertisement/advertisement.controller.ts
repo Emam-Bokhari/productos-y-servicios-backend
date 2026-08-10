@@ -8,10 +8,10 @@ import { AdvertisementService } from "./advertisement.service";
 // ADMIN CONTROLLERS
 // ----------------------------------------------------
 
-
-
 const getAllBookings = catchAsync(async (req: Request, res: Response) => {
-  const result = await AdvertisementService.getBookingsByStatusFromDB(req.query);
+  const result = await AdvertisementService.getBookingsByStatusFromDB(
+    req.query,
+  );
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
@@ -25,17 +25,19 @@ const getAllBookings = catchAsync(async (req: Request, res: Response) => {
 // SELLER / USER CONTROLLERS
 // ----------------------------------------------------
 
-
-
-const verifySellerForPosting = catchAsync(async (req: Request, res: Response) => {
-  const result = await AdvertisementService.verifySellerForPostingInDB(req.user.id);
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: result.message,
-    data: result,
-  });
-});
+const verifySellerForPosting = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await AdvertisementService.verifySellerForPostingInDB(
+      req.user.id,
+    );
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: result.message,
+      data: result,
+    });
+  },
+);
 
 const getSlotAvailability = catchAsync(async (req: Request, res: Response) => {
   const { cityAdConfigId, advertisementType, startDate, endDate } = req.query;
@@ -67,29 +69,32 @@ const createAdvertisement = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const getSellerAdvertisements = catchAsync(async (req: Request, res: Response) => {
-  const sellerId = req.user.id;
-  const result = await AdvertisementService.getSellerAdvertisementsFromDB(
-    sellerId,
-    req.query,
-  );
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: "My advertisements retrieved successfully.",
-    pagination: result.meta,
-    data: result.data,
-  });
-});
+const getSellerAdvertisements = catchAsync(
+  async (req: Request, res: Response) => {
+    const sellerId = req.user.id;
+    const result = await AdvertisementService.getSellerAdvertisementsFromDB(
+      sellerId,
+      req.query,
+    );
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: "My advertisements retrieved successfully.",
+      pagination: result.meta,
+      data: result.data,
+    });
+  },
+);
 
 const getSellerAdvertisementDetails = catchAsync(
   async (req: Request, res: Response) => {
     const sellerId = req.user.id;
     const { id } = req.params;
-    const result = await AdvertisementService.getSellerAdvertisementDetailsFromDB(
-      id,
-      sellerId,
-    );
+    const result =
+      await AdvertisementService.getSellerAdvertisementDetailsFromDB(
+        id,
+        sellerId,
+      );
     sendResponse(res, {
       statusCode: StatusCodes.OK,
       success: true,
@@ -102,7 +107,10 @@ const getSellerAdvertisementDetails = catchAsync(
 const cancelAdvertisement = catchAsync(async (req: Request, res: Response) => {
   const sellerId = req.user.id;
   const { id } = req.params;
-  const result = await AdvertisementService.cancelAdvertisementInDB(id, sellerId);
+  const result = await AdvertisementService.cancelAdvertisementInDB(
+    id,
+    sellerId,
+  );
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
@@ -131,10 +139,11 @@ const getAdvertisementBookingInfo = catchAsync(
   async (req: Request, res: Response) => {
     const sellerId = req.user.id;
     const { id } = req.params;
-    const result = await AdvertisementService.getSellerAdvertisementDetailsFromDB(
-      id,
-      sellerId,
-    );
+    const result =
+      await AdvertisementService.getSellerAdvertisementDetailsFromDB(
+        id,
+        sellerId,
+      );
     sendResponse(res, {
       statusCode: StatusCodes.OK,
       success: true,
@@ -144,21 +153,23 @@ const getAdvertisementBookingInfo = catchAsync(
   },
 );
 
-const getUserAdvertisements = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user.id;
-  const { latitude, longitude } = req.query;
-  const result = await AdvertisementService.getUserAdvertisementsFromDB(
-    userId,
-    latitude as string,
-    longitude as string,
-  );
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: "Advertisements retrieved successfully.",
-    data: result,
-  });
-});
+const getUserAdvertisements = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.user.id;
+    const { latitude, longitude } = req.query;
+    const result = await AdvertisementService.getUserAdvertisementsFromDB(
+      userId,
+      latitude as string,
+      longitude as string,
+    );
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: "Advertisements retrieved successfully.",
+      data: result,
+    });
+  },
+);
 
 export const AdvertisementController = {
   getAllBookings,

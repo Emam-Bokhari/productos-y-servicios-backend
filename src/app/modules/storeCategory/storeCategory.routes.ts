@@ -13,11 +13,7 @@ router.post(
   StoreCategoryController.createCategory,
 );
 
-router.get(
-  "/",
-  isAuthenticated,
-  StoreCategoryController.getAllCategories,
-);
+router.get("/", isAuthenticated, StoreCategoryController.getAllCategories);
 
 router.get(
   "/:storeCategoryId",

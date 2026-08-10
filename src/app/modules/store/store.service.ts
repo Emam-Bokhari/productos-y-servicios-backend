@@ -212,15 +212,12 @@ const updateStoreStatusInDB = async (storeId: string, status: string) => {
   // If status is active, ensure seller status is active
   // If status is not active, set activeRole of owner to "user" and seller status to "inactive"
   if (status === "active") {
-    await Seller.findOneAndUpdate(
-      { user: store.owner },
-      { status: "active" }
-    );
+    await Seller.findOneAndUpdate({ user: store.owner }, { status: "active" });
   } else {
     await User.findByIdAndUpdate(store.owner, { activeRole: "user" });
     await Seller.findOneAndUpdate(
       { user: store.owner },
-      { status: "inactive" }
+      { status: "inactive" },
     );
   }
 

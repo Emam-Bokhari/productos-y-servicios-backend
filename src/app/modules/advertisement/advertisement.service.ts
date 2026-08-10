@@ -45,7 +45,7 @@ export const getOverlappingBookedSlots = async (
   const pointsToCheck = new Set<number>();
   pointsToCheck.add(startDate.getTime());
   pointsToCheck.add(endDate.getTime());
-  
+
   overlappingAds.forEach((ad) => {
     const adStart = new Date(ad.startDate).getTime();
     if (adStart >= startDate.getTime() && adStart <= endDate.getTime()) {
@@ -75,17 +75,13 @@ export const getOverlappingBookedSlots = async (
 // ADMIN ACTIONS
 // ----------------------------------------------------
 
-
-
 // ----------------------------------------------------
 // SELLER / USER ACTIONS
 // ----------------------------------------------------
 
-
-
 const verifySellerForPostingInDB = async (userId: string): Promise<any> => {
   const store = await Store.findOne({ owner: userId });
-  
+
   if (!store) {
     return {
       hasStore: false,
@@ -175,7 +171,10 @@ const getSlotAvailabilityFromDB = async (
 
   const cityConfig = await CityAdConfiguration.findById(cityAdConfigId);
   if (!cityConfig) {
-    throw new ApiError(StatusCodes.NOT_FOUND, "City slot configuration not found");
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      "City slot configuration not found",
+    );
   }
 
   if (cityConfig.status !== SLOT_CONFIG_STATUS.ACTIVE) {
@@ -273,13 +272,19 @@ const createAdvertisementToDB = async (
   }
 
   if (!payload.cityAdConfigId) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "City Slot Config ID is required");
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "City Slot Config ID is required",
+    );
   }
 
   const cityAdConfigId = payload.cityAdConfigId.toString();
   const advertisementType = payload.advertisementType;
   if (!advertisementType) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Advertisement type is required");
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "Advertisement type is required",
+    );
   }
 
   const startDate = new Date(payload.startDate!);
@@ -298,7 +303,10 @@ const createAdvertisementToDB = async (
     );
 
     if (!cityConfig) {
-      throw new ApiError(StatusCodes.NOT_FOUND, "City slot configuration not found");
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        "City slot configuration not found",
+      );
     }
 
     if (cityConfig.status !== SLOT_CONFIG_STATUS.ACTIVE) {
@@ -437,7 +445,10 @@ const cancelAdvertisementInDB = async (
   );
 
   if (!result) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Failed to cancel advertisement");
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "Failed to cancel advertisement",
+    );
   }
 
   return result;
@@ -472,14 +483,18 @@ const updateAdvertisementInDB = async (
   const updatePayload: Record<string, any> = {};
   if (payload.campaignName) updatePayload.campaignName = payload.campaignName;
   if (payload.bannerImage) updatePayload.bannerImage = payload.bannerImage;
-  if (payload.featuredImage) updatePayload.featuredImage = payload.featuredImage;
+  if (payload.featuredImage)
+    updatePayload.featuredImage = payload.featuredImage;
 
   const result = await Advertisement.findByIdAndUpdate(id, updatePayload, {
     new: true,
   });
 
   if (!result) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Failed to update advertisement");
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "Failed to update advertisement",
+    );
   }
 
   return result;
@@ -488,8 +503,6 @@ const updateAdvertisementInDB = async (
 // ----------------------------------------------------
 // ADMIN DASHBOARD & BOOKINGS VIEW
 // ----------------------------------------------------
-
-
 
 const getBookingsByStatusFromDB = async (
   query: Record<string, unknown>,
@@ -542,9 +555,19 @@ const getUserAdvertisementsFromDB = async (
   }
 
   // Fallback: If coordinates not provided, fetch user's location coordinates from DB
-  if (latitude === undefined || longitude === undefined || isNaN(latitude) || isNaN(longitude)) {
+  if (
+    latitude === undefined ||
+    longitude === undefined ||
+    isNaN(latitude) ||
+    isNaN(longitude)
+  ) {
     const user = await User.findById(userId);
-    if (user && user.location && user.location.coordinates && user.location.coordinates.length === 2) {
+    if (
+      user &&
+      user.location &&
+      user.location.coordinates &&
+      user.location.coordinates.length === 2
+    ) {
       // GeoJSON coordinates are stored as [longitude, latitude]
       longitude = user.location.coordinates[0];
       latitude = user.location.coordinates[1];
@@ -565,13 +588,20 @@ const getUserAdvertisementsFromDB = async (
   }
 
   // Find all active city configurations
-  const activeCities = await CityAdConfiguration.find({ status: SLOT_CONFIG_STATUS.ACTIVE });
+  const activeCities = await CityAdConfiguration.find({
+    status: SLOT_CONFIG_STATUS.ACTIVE,
+  });
   if (activeCities.length === 0) {
     return { banners: [], featured: [] };
   }
 
   // Haversine formula helper
-  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const getDistance = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ) => {
     const R = 6371; // Earth's radius in km
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
@@ -579,18 +609,29 @@ const getUserAdvertisementsFromDB = async (
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(lat1 * (Math.PI / 180)) *
         Math.cos(lat2 * (Math.PI / 180)) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
 
   // Find closest city config
   let closestCity = activeCities[0];
-  let minDistance = getDistance(latitude, longitude, closestCity.latitude, closestCity.longitude);
+  let minDistance = getDistance(
+    latitude,
+    longitude,
+    closestCity.latitude,
+    closestCity.longitude,
+  );
 
   for (let i = 1; i < activeCities.length; i++) {
     const city = activeCities[i];
-    const dist = getDistance(latitude, longitude, city.latitude, city.longitude);
+    const dist = getDistance(
+      latitude,
+      longitude,
+      city.latitude,
+      city.longitude,
+    );
     if (dist < minDistance) {
       minDistance = dist;
       closestCity = city;
@@ -606,10 +647,14 @@ const getUserAdvertisementsFromDB = async (
   }).populate("storeId");
 
   const banners = advertisements.filter(
-    (ad) => ad.advertisementType === ADVERTISEMENT_TYPE.BANNER && closestCity.bannerEnabled,
+    (ad) =>
+      ad.advertisementType === ADVERTISEMENT_TYPE.BANNER &&
+      closestCity.bannerEnabled,
   );
   const featured = advertisements.filter(
-    (ad) => ad.advertisementType === ADVERTISEMENT_TYPE.FEATURED && closestCity.featuredEnabled,
+    (ad) =>
+      ad.advertisementType === ADVERTISEMENT_TYPE.FEATURED &&
+      closestCity.featuredEnabled,
   );
 
   return { banners, featured };

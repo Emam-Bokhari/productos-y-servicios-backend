@@ -2,7 +2,12 @@ import express from "express";
 import validateRequest from "../../middlewares/validateRequest";
 import { AdvertisementController } from "./advertisement.controller";
 import { AdvertisementValidation } from "./advertisement.validation";
-import { isAdmin, isSeller, isUser, isAuthenticated } from "../../../helpers/authHelper";
+import {
+  isAdmin,
+  isSeller,
+  isUser,
+  isAuthenticated,
+} from "../../../helpers/authHelper";
 import fileUploadHandler from "../../middlewares/flieUploadHandler";
 import { parseFileData } from "../../middlewares/parseFileData";
 
@@ -12,11 +17,7 @@ const router = express.Router();
 // ADMIN ROUTES
 // ====================================================
 
-router.get(
-  "/admin/bookings",
-  isAdmin,
-  AdvertisementController.getAllBookings,
-);
+router.get("/admin/bookings", isAdmin, AdvertisementController.getAllBookings);
 
 // ====================================================
 // SELLER / USER ROUTES

@@ -1,7 +1,5 @@
 import { z } from "zod";
-import {
-  ADVERTISEMENT_TYPE,
-} from "./advertisement.constant";
+import { ADVERTISEMENT_TYPE } from "./advertisement.constant";
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 

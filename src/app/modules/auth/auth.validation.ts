@@ -43,7 +43,7 @@ const createChangePasswordZodSchema = z.object({
       required_error: "Confirm Password is required",
     }),
   }),
-}); 
+});
 
 const switchRoleZodSchema = z.object({
   body: z.object({

@@ -5,7 +5,9 @@ import sendResponse from "../../../shared/sendResponse";
 import { CityAdConfigurationService } from "./cityAdConfiguration.service";
 
 const createCityAdConfig = catchAsync(async (req: Request, res: Response) => {
-  const result = await CityAdConfigurationService.createCityAdConfigToDB(req.body);
+  const result = await CityAdConfigurationService.createCityAdConfigToDB(
+    req.body,
+  );
   sendResponse(res, {
     statusCode: StatusCodes.CREATED,
     success: true,
@@ -15,7 +17,9 @@ const createCityAdConfig = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getCityAdConfigs = catchAsync(async (req: Request, res: Response) => {
-  const result = await CityAdConfigurationService.getCityAdConfigsFromDB(req.query);
+  const result = await CityAdConfigurationService.getCityAdConfigsFromDB(
+    req.query,
+  );
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
@@ -38,7 +42,10 @@ const getSingleCityConfig = catchAsync(async (req: Request, res: Response) => {
 
 const updateCityAdConfig = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const result = await CityAdConfigurationService.updateCityAdConfigInDB(id, req.body);
+  const result = await CityAdConfigurationService.updateCityAdConfigInDB(
+    id,
+    req.body,
+  );
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
@@ -52,10 +59,11 @@ const updateCityAdConfig = catchAsync(async (req: Request, res: Response) => {
 const getCityWiseAvailabilitySummary = catchAsync(
   async (req: Request, res: Response) => {
     const { startDate, endDate } = req.query;
-    const result = await CityAdConfigurationService.getCityWiseAvailabilitySummaryFromDB(
-      startDate as string,
-      endDate as string,
-    );
+    const result =
+      await CityAdConfigurationService.getCityWiseAvailabilitySummaryFromDB(
+        startDate as string,
+        endDate as string,
+      );
     sendResponse(res, {
       statusCode: StatusCodes.OK,
       success: true,
@@ -68,7 +76,8 @@ const getCityWiseAvailabilitySummary = catchAsync(
 const getCityBookingStatistics = catchAsync(
   async (req: Request, res: Response) => {
     const { id } = req.params;
-    const result = await CityAdConfigurationService.getCityBookingStatisticsFromDB(id);
+    const result =
+      await CityAdConfigurationService.getCityBookingStatisticsFromDB(id);
     sendResponse(res, {
       statusCode: StatusCodes.OK,
       success: true,
@@ -78,15 +87,18 @@ const getCityBookingStatistics = catchAsync(
   },
 );
 
-const getSellerActiveCities = catchAsync(async (req: Request, res: Response) => {
-  const result = await CityAdConfigurationService.getSellerActiveCitiesFromDB();
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: "Available advertisement cities retrieved successfully.",
-    data: result,
-  });
-});
+const getSellerActiveCities = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await CityAdConfigurationService.getSellerActiveCitiesFromDB();
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: "Available advertisement cities retrieved successfully.",
+      data: result,
+    });
+  },
+);
 
 export const CityAdConfigurationController = {
   createCityAdConfig,

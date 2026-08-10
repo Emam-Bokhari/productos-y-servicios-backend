@@ -17,11 +17,7 @@ router.post(
   CityAdConfigurationController.createCityAdConfig,
 );
 
-router.get(
-  "/admin",
-  isAdmin,
-  CityAdConfigurationController.getCityAdConfigs,
-);
+router.get("/admin", isAdmin, CityAdConfigurationController.getCityAdConfigs);
 
 router.get(
   "/admin/availability",

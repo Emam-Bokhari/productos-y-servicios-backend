@@ -36,7 +36,9 @@ const createCityConfigSchema = z.object({
       .min(0, "Capacity cannot be negative"),
     bannerEnabled: z.boolean().optional(),
     featuredEnabled: z.boolean().optional(),
-    status: z.enum([SLOT_CONFIG_STATUS.ACTIVE, SLOT_CONFIG_STATUS.INACTIVE]).optional(),
+    status: z
+      .enum([SLOT_CONFIG_STATUS.ACTIVE, SLOT_CONFIG_STATUS.INACTIVE])
+      .optional(),
   }),
 });
 
@@ -56,10 +58,15 @@ const updateCityConfigSchema = z.object({
       .max(180, "Longitude must be between -180 and 180")
       .optional(),
     bannerCapacity: z.number().min(0, "Capacity cannot be negative").optional(),
-    featuredCapacity: z.number().min(0, "Capacity cannot be negative").optional(),
+    featuredCapacity: z
+      .number()
+      .min(0, "Capacity cannot be negative")
+      .optional(),
     bannerEnabled: z.boolean().optional(),
     featuredEnabled: z.boolean().optional(),
-    status: z.enum([SLOT_CONFIG_STATUS.ACTIVE, SLOT_CONFIG_STATUS.INACTIVE]).optional(),
+    status: z
+      .enum([SLOT_CONFIG_STATUS.ACTIVE, SLOT_CONFIG_STATUS.INACTIVE])
+      .optional(),
   }),
 });
 
