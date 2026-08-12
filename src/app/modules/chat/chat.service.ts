@@ -99,7 +99,8 @@ const getAllChatsFromDB = async (
     const allChatLists = await Promise.all(
       allChats.map(async (chat) => {
         const otherParticipantIds = chat.participants.filter(
-          (participantId) => participantId && participantId.toString() !== userId,
+          (participantId) =>
+            participantId && participantId.toString() !== userId,
         );
 
         const otherParticipants = await User.find({
