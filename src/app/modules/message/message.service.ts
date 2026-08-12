@@ -83,12 +83,12 @@ const sendMessageToDB = async (payload: IMessage): Promise<IMessage> => {
 
   // get populated message for socket
   const populatedMessage = await Message.findById(response._id)
-    .populate("sender", "firstName lastName role email profileImage")
+    .populate("sender", "name role activeRole email profileImage")
     .lean();
 
   // get updated chat with populated data for chat list update
   const populatedChat = await Chat.findById(response?.chatId)
-    .populate("participants", "firstName lastName role email profileImage")
+    .populate("participants", "name role activeRole email profileImage")
     .populate("lastMessage")
     .lean();
 
@@ -171,11 +171,11 @@ const getMessagesFromDB = async (
   const response = await Message.find({ chatId })
     .populate({
       path: "sender",
-      select: "firstName lastName role email profileImage",
+      select: "name role activeRole email profileImage",
     })
     .populate({
       path: "pinnedBy",
-      select: "firstName lastName role email profileImage",
+      select: "name role activeRole email profileImage",
     })
 
     .skip(skip)
@@ -207,11 +207,11 @@ const getMessagesFromDB = async (
   })
     .populate({
       path: "sender",
-      select: "firstName lastName role email profileImage",
+      select: "name role activeRole email profileImage",
     })
     .populate({
       path: "pinnedBy",
-      select: "firstName lastName role email profileImage",
+      select: "name role activeRole email profileImage",
     })
     .sort({ pinnedAt: -1 });
 

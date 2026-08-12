@@ -4,10 +4,9 @@ export enum CHAT_STATUS {
 }
 
 export enum CHAT_COMMUNICATION_TYPE {
-  REGULAR_RIDE = "regular_ride",
-  SCHEDULED_RIDE = "scheduled_ride",
-  LOST_FOUND = "lost_found",
-  RESERVATION = "reservation",
+  PRODUCT = "product",
+  SERVICE = "service",
+  STORE = "store",
   SUPPORT = "support",
   OTHER = "other",
 }

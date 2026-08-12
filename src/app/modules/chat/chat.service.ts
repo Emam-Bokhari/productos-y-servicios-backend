@@ -5,6 +5,7 @@ import { Message } from "../message/message.model";
 import ApiError from "../../../errors/ApiErrors";
 import { CHAT_COMMUNICATION_TYPE } from "../../../enums/chat";
 import { MESSAGE_TYPE } from "../../../enums/message";
+import { STATUS, USER_ROLES } from "../../../enums/user";
 import { chatSocketHelper } from "./socket/chat.socket";
 
 const createChatIntoDB = async (
@@ -12,6 +13,21 @@ const createChatIntoDB = async (
   communicationType?: CHAT_COMMUNICATION_TYPE,
   referenceId?: string,
 ) => {
+  // If support chat requested and no distinct second participant provided, resolve an admin automatically
+  if (
+    communicationType === CHAT_COMMUNICATION_TYPE.SUPPORT &&
+    (!participants[1] || participants[0] === participants[1])
+  ) {
+    const adminUser = await User.findOne({
+      role: { $in: [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN] },
+      status: STATUS.ACTIVE,
+    });
+    if (!adminUser) {
+      throw new ApiError(404, "No support admin available at the moment.");
+    }
+    participants = [participants[0], adminUser._id.toString()];
+  }
+
   const query: any = {
     participants: { $all: participants },
     isDeleted: { $ne: true },
@@ -68,7 +84,7 @@ const getAllChatsFromDB = async (
   const chatQuery = {
     participants: { $in: [userId] },
     deletedBy: { $ne: userId },
-    isDeleted: { $ne: true }, // new field
+    isDeleted: { $ne: true },
   };
 
   let chats;
@@ -83,13 +99,13 @@ const getAllChatsFromDB = async (
     const allChatLists = await Promise.all(
       allChats.map(async (chat) => {
         const otherParticipantIds = chat.participants.filter(
-          (participantId) => participantId.toString() !== userId,
+          (participantId) => participantId && participantId.toString() !== userId,
         );
 
         const otherParticipants = await User.find({
           _id: { $in: otherParticipantIds },
         })
-          .select("_id firstName lastName profileImage email role")
+          .select("_id name profileImage email role activeRole")
           .lean();
 
         const unreadCount = await Message.countDocuments({
@@ -109,8 +125,10 @@ const getAllChatsFromDB = async (
     );
 
     const filteredChats = allChatLists.filter((chat) => {
-      return chat.participants.some((participant) =>
-        participant.name.toLowerCase().includes(searchTerm),
+      return chat.participants.some(
+        (participant: any) =>
+          participant.name &&
+          participant.name.toLowerCase().includes(searchTerm),
       );
     });
 
@@ -128,8 +146,6 @@ const getAllChatsFromDB = async (
 
     chats = await Promise.all(
       rawChats.map(async (chat) => {
-        // const otherParticipantIds = chat.participants.filter((participantId) => participantId.toString() !== userId);
-
         const otherParticipantIds = chat.participants.filter(
           (participantId) =>
             participantId && participantId.toString() !== userId,
@@ -138,7 +154,7 @@ const getAllChatsFromDB = async (
         const otherParticipants = await User.find({
           _id: { $in: otherParticipantIds },
         })
-          .select("_id firstName lastName profileImage email role")
+          .select("_id name profileImage email role activeRole")
           .lean();
 
         // FIXED: Same unread count calculation

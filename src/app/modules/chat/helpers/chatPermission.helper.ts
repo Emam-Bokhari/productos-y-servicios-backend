@@ -2,7 +2,7 @@ import { Types } from "mongoose";
 import { User } from "../../user/user.model";
 import { Support } from "../../support/support.model";
 import { CHAT_COMMUNICATION_TYPE } from "../../../../enums/chat";
-import { STATUS } from "../../../../enums/user";
+import { STATUS, USER_ROLES } from "../../../../enums/user";
 
 export interface IChatPermissionResult {
   allowed: boolean;
@@ -42,51 +42,34 @@ export const checkChatPermission = async (
 
   // 3. Contextual/Reference Validations
   switch (communicationType) {
-    case CHAT_COMMUNICATION_TYPE.REGULAR_RIDE:
-    case CHAT_COMMUNICATION_TYPE.SCHEDULED_RIDE:
-    case CHAT_COMMUNICATION_TYPE.RESERVATION:
-    case CHAT_COMMUNICATION_TYPE.LOST_FOUND: {
-      return {
-        allowed: false,
-        reason:
-          "Ride and Lost & Found services are disabled in this project template.",
-      };
-    }
-
     case CHAT_COMMUNICATION_TYPE.SUPPORT: {
-      if (!referenceId) {
-        return {
-          allowed: false,
-          reason: "Support ticket reference ID is required.",
-        };
-      }
-      const ticket = await Support.findById(referenceId);
-      if (!ticket) {
-        return { allowed: false, reason: "Support ticket not found." };
-      }
-
-      // One participant must be the owner of the ticket, the other must be admin/super_admin
-      const isOwner =
-        ticket.userId &&
-        (ticket.userId.toString() === sender._id.toString() ||
-          ticket.userId.toString() === receiver._id.toString());
       const isAdmin =
-        sender.role === "admin" ||
-        sender.role === "super_admin" ||
-        receiver.role === "admin" ||
-        receiver.role === "super_admin";
+        sender.role === USER_ROLES.ADMIN ||
+        sender.role === USER_ROLES.SUPER_ADMIN ||
+        receiver.role === USER_ROLES.ADMIN ||
+        receiver.role === USER_ROLES.SUPER_ADMIN;
 
-      if (!isOwner || !isAdmin) {
+      if (!isAdmin) {
         return {
           allowed: false,
-          reason: "Support chat requires the ticket owner and a support agent.",
+          reason: "Support chat requires at least one admin participant.",
         };
+      }
+
+      if (referenceId) {
+        const ticket = await Support.findById(referenceId);
+        if (!ticket) {
+          return { allowed: false, reason: "Support ticket not found." };
+        }
       }
       break;
     }
 
+    case CHAT_COMMUNICATION_TYPE.PRODUCT:
+    case CHAT_COMMUNICATION_TYPE.SERVICE:
+    case CHAT_COMMUNICATION_TYPE.STORE:
     case CHAT_COMMUNICATION_TYPE.OTHER:
-      // Other communication context, we require no special checks besides active user validation
+      // Regular messaging between active users, sellers, or admins
       break;
 
     default:

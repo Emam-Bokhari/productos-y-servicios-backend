@@ -8,10 +8,11 @@ import { chatPermissionHelper } from "./helpers/chatPermission.helper";
 const createChat = catchAsync(async (req, res) => {
   const { participant, communicationType, referenceId } = req.body;
   const { id: userId }: any = req.user;
-  const participants = [userId, participant];
+  const participants = participant ? [userId, participant] : [userId];
 
-  // Validate contextual permission if a specific type is provided
+  // Validate contextual permission if participant is specified and a specific type is provided
   if (
+    participant &&
     communicationType &&
     communicationType !== CHAT_COMMUNICATION_TYPE.OTHER
   ) {
