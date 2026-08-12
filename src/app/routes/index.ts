@@ -18,6 +18,7 @@ import { CityAdConfigurationRoutes } from "../modules/cityAdConfiguration/cityAd
 
 import { ProductRoutes } from "../modules/product/product.routes";
 import { ServiceRoutes } from "../modules/service/service.routes";
+import { FavoriteRoutes } from "../modules/favorite/favorite.routes";
 
 const router = express.Router();
 
@@ -94,6 +95,10 @@ const apiRoutes = [
   {
     path: "/notification-preferences",
     route: NotificationPreferenceRoutes,
+  },
+  {
+    path: "/favorites",
+    route: FavoriteRoutes,
   },
 ];
 
