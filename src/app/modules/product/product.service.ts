@@ -68,14 +68,19 @@ const getAllProductsFromDB = async (query: Record<string, unknown>) => {
     .paginate()
     .fields();
 
-  const data = await builder.modelQuery.populate("storeId", "displayName logo city rating");
+  const data = await builder.modelQuery.populate(
+    "storeId",
+    "displayName logo city rating",
+  );
   const meta = await builder.countTotal();
 
   return { data, meta };
 };
 
 const getSingleProductFromDB = async (id: string) => {
-  const result = await Product.findById(id).populate("storeId").populate("sellerId", "name email image");
+  const result = await Product.findById(id)
+    .populate("storeId")
+    .populate("sellerId", "name email image");
   if (!result) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Product not found");
   }

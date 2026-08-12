@@ -19,11 +19,7 @@ router.post(
   ServiceController.createService,
 );
 
-router.get(
-  "/my-services",
-  isSeller,
-  ServiceController.getMyServices,
-);
+router.get("/my-services", isSeller, ServiceController.getMyServices);
 
 router.get("/", ServiceController.getAllServices);
 
@@ -38,10 +34,6 @@ router.patch(
   ServiceController.updateService,
 );
 
-router.delete(
-  "/:id",
-  isSeller,
-  ServiceController.deleteService,
-);
+router.delete("/:id", isSeller, ServiceController.deleteService);
 
 export const ServiceRoutes = router;

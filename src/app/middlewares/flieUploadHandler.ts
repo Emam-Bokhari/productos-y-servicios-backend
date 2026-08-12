@@ -156,11 +156,7 @@ export const FILE_CONFIG = {
   document: {
     dir: "document",
     maxCount: 10,
-    mimeTypes: new Set([
-      "application/pdf",
-      "text/plain",
-      "application/msword",
-    ]),
+    mimeTypes: new Set(["application/pdf", "text/plain", "application/msword"]),
   },
   taxDocuments: {
     dir: "taxDocuments",

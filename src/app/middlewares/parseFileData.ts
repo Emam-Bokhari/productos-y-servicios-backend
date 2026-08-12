@@ -76,7 +76,10 @@ export const parseFileData = (...fields: FieldInput[]) => {
         let fieldFiles = files[fieldName];
 
         // Fallback for image / images field name mismatch
-        if ((!fieldFiles || fieldFiles.length === 0) && fieldName === "images") {
+        if (
+          (!fieldFiles || fieldFiles.length === 0) &&
+          fieldName === "images"
+        ) {
           fieldFiles = (files as any)["image"];
         }
         if ((!fieldFiles || fieldFiles.length === 0) && fieldName === "image") {
@@ -90,8 +93,8 @@ export const parseFileData = (...fields: FieldInput[]) => {
         const targetFolder: IFolderName = files[fieldName]
           ? fieldName
           : fieldName === "images"
-          ? "image"
-          : "images";
+            ? "image"
+            : "images";
 
         if (
           fieldName === "taxDocuments" ||
@@ -176,8 +179,8 @@ export const parseFileData = (...fields: FieldInput[]) => {
           const existingArray = Array.isArray(existing)
             ? existing
             : typeof existing === "string"
-            ? [existing]
-            : [];
+              ? [existing]
+              : [];
           if (Array.isArray(fileData[key])) {
             const existingUrls = existingArray.filter(
               (url) => typeof url === "string" && url.trim().length > 0,

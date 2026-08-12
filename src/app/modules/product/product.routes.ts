@@ -17,11 +17,7 @@ router.post(
   ProductController.createProduct,
 );
 
-router.get(
-  "/my-products",
-  isSeller,
-  ProductController.getMyProducts,
-);
+router.get("/my-products", isSeller, ProductController.getMyProducts);
 
 router.get("/", ProductController.getAllProducts);
 
@@ -36,10 +32,6 @@ router.patch(
   ProductController.updateProduct,
 );
 
-router.delete(
-  "/:id",
-  isSeller,
-  ProductController.deleteProduct,
-);
+router.delete("/:id", isSeller, ProductController.deleteProduct);
 
 export const ProductRoutes = router;

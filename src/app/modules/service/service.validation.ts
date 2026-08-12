@@ -4,7 +4,9 @@ import { SERVICE_STATUS } from "./service.constant";
 const createServiceSchema = z.object({
   body: z.object({
     title: z.string({ required_error: "Service title is required" }).min(1),
-    activePrice: z.coerce.number({ required_error: "Active price is required" }).min(0),
+    activePrice: z.coerce
+      .number({ required_error: "Active price is required" })
+      .min(0),
     originalPrice: z.coerce.number().min(0).optional(),
     description: z.string({ required_error: "Description is required" }).min(1),
     whatsIncluded: z.array(z.string()).optional(),
