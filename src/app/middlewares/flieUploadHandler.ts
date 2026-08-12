@@ -29,17 +29,23 @@ export const FILE_CONFIG = {
   profileImage: {
     dir: "profileImage",
     maxCount: 1,
-    mimeTypes: new Set(["image/png", "image/jpeg", "image/webp"]),
+    mimeTypes: new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]),
   },
   originalImage: {
     dir: "originalImage",
     maxCount: 1,
-    mimeTypes: new Set(["image/png", "image/jpeg"]),
+    mimeTypes: new Set(["image/png", "image/jpeg", "image/jpg"]),
   },
   images: {
     dir: "images",
     maxCount: 10,
-    mimeTypes: new Set(["image/png", "image/jpeg", "image/webp"]),
+    mimeTypes: new Set([
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "image/webp",
+      "image/svg+xml",
+    ]),
   },
   drivingLicense: {
     dir: "drivingLicense",
@@ -47,6 +53,7 @@ export const FILE_CONFIG = {
     mimeTypes: new Set([
       "image/png",
       "image/jpeg",
+      "image/jpg",
       "image/webp",
       "application/pdf",
     ]),
@@ -54,7 +61,7 @@ export const FILE_CONFIG = {
   liveSelfie: {
     dir: "liveSelfie",
     maxCount: 1,
-    mimeTypes: new Set(["image/png", "image/jpeg", "image/webp"]),
+    mimeTypes: new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]),
   },
   vehicleLicense: {
     dir: "vehicleLicense",
@@ -62,6 +69,7 @@ export const FILE_CONFIG = {
     mimeTypes: new Set([
       "image/png",
       "image/jpeg",
+      "image/jpg",
       "image/webp",
       "application/pdf",
     ]),
@@ -72,6 +80,7 @@ export const FILE_CONFIG = {
     mimeTypes: new Set([
       "image/png",
       "image/jpeg",
+      "image/jpg",
       "image/webp",
       "application/pdf",
     ]),
@@ -82,6 +91,7 @@ export const FILE_CONFIG = {
     mimeTypes: new Set([
       "image/png",
       "image/jpeg",
+      "image/jpg",
       "image/webp",
       "application/pdf",
     ]),
@@ -89,7 +99,7 @@ export const FILE_CONFIG = {
   thumbnail: {
     dir: "thumbnail",
     maxCount: 5,
-    mimeTypes: new Set(["image/png", "image/jpeg", "image/webp"]),
+    mimeTypes: new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]),
   },
   logo: {
     dir: "logo",
@@ -97,6 +107,7 @@ export const FILE_CONFIG = {
     mimeTypes: new Set([
       "image/png",
       "image/jpeg",
+      "image/jpg",
       "image/webp",
       "image/svg+xml",
     ]),
@@ -104,22 +115,22 @@ export const FILE_CONFIG = {
   banner: {
     dir: "banner",
     maxCount: 5,
-    mimeTypes: new Set(["image/png", "image/jpeg", "image/webp"]),
+    mimeTypes: new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]),
   },
   bannerImage: {
     dir: "bannerImage",
     maxCount: 1,
-    mimeTypes: new Set(["image/png", "image/jpeg", "image/webp"]),
+    mimeTypes: new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]),
   },
   featuredImage: {
     dir: "featuredImage",
     maxCount: 1,
-    mimeTypes: new Set(["image/png", "image/jpeg", "image/webp"]),
+    mimeTypes: new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]),
   },
   coverImage: {
     dir: "coverImage",
     maxCount: 1,
-    mimeTypes: new Set(["image/png", "image/jpeg", "image/webp"]),
+    mimeTypes: new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]),
   },
   tradeLicense: {
     dir: "tradeLicense",
@@ -127,6 +138,7 @@ export const FILE_CONFIG = {
     mimeTypes: new Set([
       "image/png",
       "image/jpeg",
+      "image/jpg",
       "image/webp",
       "application/pdf",
     ]),
@@ -148,7 +160,6 @@ export const FILE_CONFIG = {
       "application/pdf",
       "text/plain",
       "application/msword",
-      "application/pdf",
     ]),
   },
   taxDocuments: {
@@ -157,6 +168,7 @@ export const FILE_CONFIG = {
     mimeTypes: new Set([
       "image/png",
       "image/jpeg",
+      "image/jpg",
       "image/webp",
       "application/pdf",
     ]),

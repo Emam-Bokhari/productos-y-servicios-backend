@@ -154,7 +154,7 @@ const getCityWiseAvailabilitySummaryFromDB = async (
 
   for (const city of cities) {
     // Featured summary
-    const featuredTotal = city.featuredCapacity;
+    const featuredTotal = city.featuredCapacity || 0;
     const featuredBookedObj = await getOverlappingBookedSlots(
       city._id as Types.ObjectId,
       ADVERTISEMENT_TYPE.FEATURED,

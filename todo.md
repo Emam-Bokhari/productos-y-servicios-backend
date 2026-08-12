@@ -6,5 +6,5 @@
 6. Notification
 
 <!-- 
-1. age advertisement type chilo banner r featured, but akhon whole codebase theke banner type ta bad jabe sudho e featured thakbe
+1. akhon start date, end date daoua lagtese, but porobortite start date, end date thakbe na, auto nibe subscription select onojai e 
  -->

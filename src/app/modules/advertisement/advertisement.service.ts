@@ -159,16 +159,37 @@ const verifySellerForPostingInDB = async (userId: string): Promise<any> => {
 };
 
 const getSlotAvailabilityFromDB = async (
-  cityAdConfigId: string,
-  advertisementType: string,
-  startDateStr: string,
-  endDateStr: string,
+  cityAdConfigId?: string,
+  advertisementType?: string,
+  startDateStr?: string,
+  endDateStr?: string,
+  queryData?: {
+    country?: string;
+    city?: string;
+    latitude?: string;
+    longitude?: string;
+  },
 ): Promise<any> => {
-  if (!Types.ObjectId.isValid(cityAdConfigId)) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid City Slot Config ID");
+  let cityConfig = null;
+
+  if (cityAdConfigId && Types.ObjectId.isValid(cityAdConfigId)) {
+    cityConfig = await CityAdConfiguration.findById(cityAdConfigId);
+  } else if (queryData?.country && queryData?.city) {
+    cityConfig = await CityAdConfiguration.findOne({
+      country: { $regex: `^${queryData.country.trim()}$`, $options: "i" },
+      city: { $regex: `^${queryData.city.trim()}$`, $options: "i" },
+    });
+  } else if (queryData?.latitude && queryData?.longitude) {
+    const lat = parseFloat(queryData.latitude);
+    const lng = parseFloat(queryData.longitude);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      cityConfig = await CityAdConfiguration.findOne({
+        latitude: lat,
+        longitude: lng,
+      });
+    }
   }
 
-  const cityConfig = await CityAdConfiguration.findById(cityAdConfigId);
   if (!cityConfig) {
     throw new ApiError(
       StatusCodes.NOT_FOUND,
@@ -194,8 +215,10 @@ const getSlotAvailabilityFromDB = async (
     );
   }
 
-  const startDate = new Date(startDateStr);
-  const endDate = new Date(endDateStr);
+  const startDate = startDateStr ? new Date(startDateStr) : new Date();
+  const endDate = endDateStr
+    ? new Date(endDateStr)
+    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   const totalSlots = cityConfig.featuredCapacity;
 
@@ -228,10 +251,12 @@ const getSlotAvailabilityFromDB = async (
     cityConfig: {
       _id: cityConfig._id,
       country: cityConfig.country,
+      countryCode: cityConfig.countryCode,
       city: cityConfig.city,
       latitude: cityConfig.latitude,
       longitude: cityConfig.longitude,
     },
+    advertisementType,
     totalSlots,
     bookedSlots,
     availableSlots,
@@ -554,19 +579,6 @@ const getUserAdvertisementsFromDB = async (
     }
   }
 
-  if (
-    latitude === undefined ||
-    longitude === undefined ||
-    isNaN(latitude) ||
-    isNaN(longitude) ||
-    (latitude === 0 && longitude === 0)
-  ) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      "User location coordinates (latitude and longitude) are required to show advertisements.",
-    );
-  }
-
   // Find all active city configurations
   const activeCities = await CityAdConfiguration.find({
     status: SLOT_CONFIG_STATUS.ACTIVE,
@@ -575,71 +587,108 @@ const getUserAdvertisementsFromDB = async (
     return { featured: [] };
   }
 
-  // Haversine formula helper
-  const getDistance = (
-    lat1: number,
-    lon1: number,
-    lat2: number,
-    lon2: number,
-  ) => {
-    const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * (Math.PI / 180)) *
-        Math.cos(lat2 * (Math.PI / 180)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
-  // Find closest city config
-  let closestCity = activeCities[0];
-  let minDistance = getDistance(
-    latitude,
-    longitude,
-    closestCity.latitude,
-    closestCity.longitude,
-  );
-
-  for (let i = 1; i < activeCities.length; i++) {
-    const city = activeCities[i];
-    const dist = getDistance(
-      latitude,
-      longitude,
-      city.latitude,
-      city.longitude,
-    );
-    if (dist < minDistance) {
-      minDistance = dist;
-      closestCity = city;
-    }
-  }
+  const hasValidCoordinates =
+    latitude !== undefined &&
+    longitude !== undefined &&
+    !isNaN(latitude) &&
+    !isNaN(longitude) &&
+    !(latitude === 0 && longitude === 0);
 
   const now = new Date();
-  let advertisements = await Advertisement.find({
-    cityAdConfigId: closestCity._id,
-    status: ADVERTISEMENT_STATUS.ACTIVE,
-    startDate: { $lte: now },
-    endDate: { $gte: now },
-  }).populate({
-    path: "storeId",
-    match: storeType ? { storeType } : {},
-  });
+  let advertisements: IAdvertisement[] = [];
 
-  if (storeType) {
-    advertisements = advertisements.filter((ad) => ad.storeId !== null);
+  if (hasValidCoordinates) {
+    // Haversine formula helper
+    const getDistance = (
+      lat1: number,
+      lon1: number,
+      lat2: number,
+      lon2: number,
+    ) => {
+      const R = 6371; // Earth's radius in km
+      const dLat = (lat2 - lat1) * (Math.PI / 180);
+      const dLon = (lon2 - lon1) * (Math.PI / 180);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * (Math.PI / 180)) *
+          Math.cos(lat2 * (Math.PI / 180)) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
+
+    // Find closest city config
+    let closestCity = activeCities[0];
+    let minDistance = getDistance(
+      latitude!,
+      longitude!,
+      closestCity.latitude,
+      closestCity.longitude,
+    );
+
+    for (let i = 1; i < activeCities.length; i++) {
+      const city = activeCities[i];
+      const dist = getDistance(
+        latitude!,
+        longitude!,
+        city.latitude,
+        city.longitude,
+      );
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestCity = city;
+      }
+    }
+
+    advertisements = await Advertisement.find({
+      cityAdConfigId: closestCity._id,
+      status: ADVERTISEMENT_STATUS.ACTIVE,
+      startDate: { $lte: now },
+      endDate: { $gte: now },
+    }).populate({
+      path: "storeId",
+      match: storeType ? { storeType } : {},
+    });
+
+    if (storeType) {
+      advertisements = advertisements.filter((ad) => ad.storeId !== null);
+    }
+
+    const featured = advertisements.filter(
+      (ad) =>
+        ad.advertisementType === ADVERTISEMENT_TYPE.FEATURED &&
+        closestCity.featuredEnabled,
+    );
+
+    return { featured };
+  } else {
+    // If coordinates are not provided, return active featured advertisements across all active cities
+    const featuredCityConfigIds = activeCities
+      .filter((city) => city.featuredEnabled)
+      .map((city) => city._id.toString());
+
+    advertisements = await Advertisement.find({
+      status: ADVERTISEMENT_STATUS.ACTIVE,
+      startDate: { $lte: now },
+      endDate: { $gte: now },
+    }).populate({
+      path: "storeId",
+      match: storeType ? { storeType } : {},
+    });
+
+    if (storeType) {
+      advertisements = advertisements.filter((ad) => ad.storeId !== null);
+    }
+
+    const featured = advertisements.filter(
+      (ad) =>
+        ad.advertisementType === ADVERTISEMENT_TYPE.FEATURED &&
+        featuredCityConfigIds.includes(ad.cityAdConfigId.toString()),
+    );
+
+    return { featured };
   }
-
-  const featured = advertisements.filter(
-    (ad) =>
-      ad.advertisementType === ADVERTISEMENT_TYPE.FEATURED &&
-      closestCity.featuredEnabled,
-  );
-
-  return { featured };
 };
 
 export const AdvertisementService = {

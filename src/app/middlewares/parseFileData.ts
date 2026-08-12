@@ -40,9 +40,11 @@ const safeJsonParse = (value: any) => {
 // auto mode resolver
 const resolveMode = (
   mode: "single" | "multiple" | "auto",
+  fieldName: string,
   files?: Express.Multer.File[],
 ): "single" | "multiple" => {
   if (mode !== "auto") return mode;
+  if (fieldName === "images") return "multiple";
   return files && files.length <= 1 ? "single" : "multiple";
 };
 
@@ -56,12 +58,40 @@ export const parseFileData = (...fields: FieldInput[]) => {
 
       const fileData: Record<string, any> = {};
 
+      let parsedBody: Record<string, unknown> = {};
+
+      if (req.body?.data) {
+        parsedBody = safeJsonParse(req.body.data);
+      }
+
+      // Alias image -> images if images is not explicitly set in parsedBody or req.body
+      if (parsedBody.image !== undefined && parsedBody.images === undefined) {
+        parsedBody.images = parsedBody.image;
+      }
+      if (req.body?.image !== undefined && req.body?.images === undefined) {
+        req.body.images = req.body.image;
+      }
+
       for (const { fieldName, mode } of normalized) {
-        const fieldFiles = files[fieldName];
+        let fieldFiles = files[fieldName];
+
+        // Fallback for image / images field name mismatch
+        if ((!fieldFiles || fieldFiles.length === 0) && fieldName === "images") {
+          fieldFiles = (files as any)["image"];
+        }
+        if ((!fieldFiles || fieldFiles.length === 0) && fieldName === "image") {
+          fieldFiles = (files as any)["images"];
+        }
 
         if (!fieldFiles || fieldFiles.length === 0) continue;
 
-        const resolvedMode = resolveMode(mode, fieldFiles);
+        const resolvedMode = resolveMode(mode, fieldName, fieldFiles);
+
+        const targetFolder: IFolderName = files[fieldName]
+          ? fieldName
+          : fieldName === "images"
+          ? "image"
+          : "images";
 
         if (
           fieldName === "taxDocuments" ||
@@ -70,21 +100,16 @@ export const parseFileData = (...fields: FieldInput[]) => {
         ) {
           // Special handling for taxDocuments, insuranceHub and uploadedFiles: create array of objects with fileUrl and fileName
           fileData[fieldName] = fieldFiles.map((file) => ({
-            fileUrl: mapFileToUrl(file, fieldName),
+            fileUrl: mapFileToUrl(file, targetFolder),
             fileName: file.originalname,
             uploadedAt: new Date(),
           }));
         } else if (resolvedMode === "single") {
-          fileData[fieldName] = mapFileToUrl(fieldFiles[0]!, fieldName);
+          fileData[fieldName] = mapFileToUrl(fieldFiles[0]!, targetFolder);
         } else {
-          fileData[fieldName] = mapFilesToUrls(fieldFiles, fieldName);
+          const mapped = mapFilesToUrls(fieldFiles, targetFolder);
+          fileData[fieldName] = Array.isArray(mapped) ? mapped : [mapped];
         }
-      }
-
-      let parsedBody: Record<string, unknown> = {};
-
-      if (req.body?.data) {
-        parsedBody = safeJsonParse(req.body.data);
       }
 
       // Merge taxDocuments data from parsedBody with file data
@@ -130,6 +155,36 @@ export const parseFileData = (...fields: FieldInput[]) => {
         );
         // Remove uploadedFiles from parsedBody to avoid duplication
         delete parsedBody.uploadedFiles;
+      }
+
+      // Normalize single string images in parsedBody / req.body for multiple mode / images field
+      for (const { fieldName, mode } of normalized) {
+        if (fieldName === "images" || mode === "multiple") {
+          if (typeof parsedBody[fieldName] === "string") {
+            parsedBody[fieldName] = [parsedBody[fieldName] as string];
+          }
+          if (typeof req.body?.[fieldName] === "string") {
+            req.body[fieldName] = [req.body[fieldName] as string];
+          }
+        }
+      }
+
+      // Smart merge string array URLs (e.g. existing images from parsedBody/req.body + newly uploaded files)
+      for (const key of Object.keys(fileData)) {
+        let existing = parsedBody[key] ?? req.body?.[key];
+        if (existing !== undefined && existing !== null) {
+          const existingArray = Array.isArray(existing)
+            ? existing
+            : typeof existing === "string"
+            ? [existing]
+            : [];
+          if (Array.isArray(fileData[key])) {
+            const existingUrls = existingArray.filter(
+              (url) => typeof url === "string" && url.trim().length > 0,
+            );
+            fileData[key] = [...existingUrls, ...fileData[key]];
+          }
+        }
       }
 
       req.body = {

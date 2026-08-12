@@ -1,0 +1,122 @@
+import { StatusCodes } from "http-status-codes";
+import ApiError from "../../../errors/ApiErrors";
+import QueryBuilder from "../../builder/queryBuilder";
+import { STORE_TYPE } from "../store/store.constant";
+import { Store } from "../store/store.model";
+import { PRODUCT_SEARCHABLE_FIELDS, PRODUCT_STATUS } from "./product.constant";
+import { IProduct } from "./product.interface";
+import { Product } from "./product.model";
+
+const createProductToDB = async (
+  sellerId: string,
+  payload: Partial<IProduct>,
+): Promise<IProduct> => {
+  const store = await Store.findOne({ owner: sellerId });
+  if (!store) {
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      "Store profile not found. Please create a store first.",
+    );
+  }
+
+  if (store.status !== "active") {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      `Your store status is "${store.status}". It must be active to publish products.`,
+    );
+  }
+
+  if (store.storeType !== STORE_TYPE.PRODUCT_STORE) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "Your store is registered as a service store. You can only create services.",
+    );
+  }
+
+  payload.sellerId = sellerId as any;
+  payload.storeId = store._id as any;
+  payload.status = PRODUCT_STATUS.ACTIVE;
+
+  const result = await Product.create(payload);
+  return result;
+};
+
+const getMyProductsFromDB = async (
+  sellerId: string,
+  query: Record<string, unknown>,
+) => {
+  const productQuery = { ...query, sellerId };
+  const builder = new QueryBuilder(Product.find(), productQuery)
+    .search(PRODUCT_SEARCHABLE_FIELDS)
+    .filter()
+    .sort()
+    .paginate()
+    .fields();
+
+  const data = await builder.modelQuery.populate("storeId");
+  const meta = await builder.countTotal();
+
+  return { data, meta };
+};
+
+const getAllProductsFromDB = async (query: Record<string, unknown>) => {
+  const filterQuery = { status: PRODUCT_STATUS.ACTIVE, ...query };
+  const builder = new QueryBuilder(Product.find(), filterQuery)
+    .search(PRODUCT_SEARCHABLE_FIELDS)
+    .filter()
+    .sort()
+    .paginate()
+    .fields();
+
+  const data = await builder.modelQuery.populate("storeId", "displayName logo city rating");
+  const meta = await builder.countTotal();
+
+  return { data, meta };
+};
+
+const getSingleProductFromDB = async (id: string) => {
+  const result = await Product.findById(id).populate("storeId").populate("sellerId", "name email image");
+  if (!result) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "Product not found");
+  }
+  return result;
+};
+
+const updateProductInDB = async (
+  id: string,
+  sellerId: string,
+  payload: Partial<IProduct>,
+) => {
+  const product = await Product.findOne({ _id: id, sellerId });
+  if (!product) {
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      "Product not found or you do not have permission to edit it",
+    );
+  }
+
+  const result = await Product.findByIdAndUpdate(id, payload, { new: true });
+  return result;
+};
+
+const deleteProductFromDB = async (id: string, sellerId: string) => {
+  const product = await Product.findOne({ _id: id, sellerId });
+  if (!product) {
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      "Product not found or you do not have permission to delete it",
+    );
+  }
+
+  const result = await Product.findByIdAndDelete(id);
+  return result;
+};
+
+export const ProductService = {
+  createProductToDB,
+  getMyProductsFromDB,
+  getAllProductsFromDB,
+  getSingleProductFromDB,
+  updateProductInDB,
+  deleteProductFromDB,
+};

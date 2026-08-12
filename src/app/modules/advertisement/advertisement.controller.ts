@@ -40,12 +40,27 @@ const verifySellerForPosting = catchAsync(
 );
 
 const getSlotAvailability = catchAsync(async (req: Request, res: Response) => {
-  const { cityAdConfigId, advertisementType, startDate, endDate } = req.query;
+  const {
+    cityAdConfigId,
+    advertisementType,
+    startDate,
+    endDate,
+    country,
+    city,
+    latitude,
+    longitude,
+  } = req.query;
   const result = await AdvertisementService.getSlotAvailabilityFromDB(
     cityAdConfigId as string,
     advertisementType as string,
     startDate as string,
     endDate as string,
+    {
+      country: country as string,
+      city: city as string,
+      latitude: latitude as string,
+      longitude: longitude as string,
+    },
   );
   sendResponse(res, {
     statusCode: StatusCodes.OK,

@@ -25,3 +25,4 @@ export type IStore = {
 };
 
 export type StoreModel = ISoftDeleteModel<IStore>;
+

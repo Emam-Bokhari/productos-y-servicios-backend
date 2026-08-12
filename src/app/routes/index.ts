@@ -16,9 +16,20 @@ import { StoreCategoryRoutes } from "../modules/storeCategory/storeCategory.rout
 import { AdvertisementRoutes } from "../modules/advertisement/advertisement.route";
 import { CityAdConfigurationRoutes } from "../modules/cityAdConfiguration/cityAdConfiguration.route";
 
+import { ProductRoutes } from "../modules/product/product.routes";
+import { ServiceRoutes } from "../modules/service/service.routes";
+
 const router = express.Router();
 
 const apiRoutes = [
+  {
+    path: "/products",
+    route: ProductRoutes,
+  },
+  {
+    path: "/services",
+    route: ServiceRoutes,
+  },
   {
     path: "/stores",
     route: StoreRoutes,
