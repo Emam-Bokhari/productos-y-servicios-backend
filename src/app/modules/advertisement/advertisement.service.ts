@@ -10,14 +10,13 @@ import {
   SLOT_CONFIG_STATUS,
 } from "./advertisement.constant";
 import { IAdvertisement } from "./advertisement.interface";
-import { ICityAdConfiguration } from "../cityAdConfiguration/cityAdConfiguration.interface";
 import { CityAdConfiguration } from "../cityAdConfiguration/cityAdConfiguration.model";
 import { Advertisement } from "./advertisement.model";
 import { Store } from "../store/store.model";
 import { User } from "../user/user.model";
 import QueryBuilder from "../../builder/queryBuilder";
 
-// Helper to calculate maximum concurrent bookings for a given date range
+// helper to calculate maximum concurrent bookings for a given date range
 export const getOverlappingBookedSlots = async (
   cityAdConfigId: Types.ObjectId,
   advertisementType: string,
@@ -184,31 +183,21 @@ const getSlotAvailabilityFromDB = async (
     );
   }
 
-  if (advertisementType === ADVERTISEMENT_TYPE.BANNER) {
-    if (!cityConfig.bannerEnabled) {
-      throw new ApiError(
-        StatusCodes.FORBIDDEN,
-        "Banner advertisements are currently disabled for this city.",
-      );
-    }
-  } else if (advertisementType === ADVERTISEMENT_TYPE.FEATURED) {
-    if (!cityConfig.featuredEnabled) {
-      throw new ApiError(
-        StatusCodes.FORBIDDEN,
-        "Featured advertisements are currently disabled for this city.",
-      );
-    }
-  } else {
+  if (advertisementType !== ADVERTISEMENT_TYPE.FEATURED) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid advertisement type");
+  }
+
+  if (!cityConfig.featuredEnabled) {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      "Featured advertisements are currently disabled for this city.",
+    );
   }
 
   const startDate = new Date(startDateStr);
   const endDate = new Date(endDateStr);
 
-  const totalSlots =
-    advertisementType === ADVERTISEMENT_TYPE.BANNER
-      ? cityConfig.bannerCapacity
-      : cityConfig.featuredCapacity;
+  const totalSlots = cityConfig.featuredCapacity;
 
   const { bookedSlots, overlappingAds } = await getOverlappingBookedSlots(
     cityConfig._id as Types.ObjectId,
@@ -316,27 +305,18 @@ const createAdvertisementToDB = async (
       );
     }
 
-    // Verify type is enabled
-    if (advertisementType === ADVERTISEMENT_TYPE.BANNER) {
-      if (!cityConfig.bannerEnabled) {
-        throw new ApiError(
-          StatusCodes.FORBIDDEN,
-          "Banner advertisements are currently disabled for this city.",
-        );
-      }
-    } else if (advertisementType === ADVERTISEMENT_TYPE.FEATURED) {
-      if (!cityConfig.featuredEnabled) {
-        throw new ApiError(
-          StatusCodes.FORBIDDEN,
-          "Featured advertisements are currently disabled for this city.",
-        );
-      }
+    if (advertisementType !== ADVERTISEMENT_TYPE.FEATURED) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid advertisement type");
     }
 
-    const totalSlots =
-      advertisementType === ADVERTISEMENT_TYPE.BANNER
-        ? cityConfig.bannerCapacity
-        : cityConfig.featuredCapacity;
+    if (!cityConfig.featuredEnabled) {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        "Featured advertisements are currently disabled for this city.",
+      );
+    }
+
+    const totalSlots = cityConfig.featuredCapacity;
 
     // Check booked slots inside the session transaction
     const { bookedSlots } = await getOverlappingBookedSlots(
@@ -482,7 +462,6 @@ const updateAdvertisementInDB = async (
   // Prevent modifying critical booking parameters (dates, type, city configuration) to maintain capacity integrity
   const updatePayload: Record<string, any> = {};
   if (payload.campaignName) updatePayload.campaignName = payload.campaignName;
-  if (payload.bannerImage) updatePayload.bannerImage = payload.bannerImage;
   if (payload.featuredImage)
     updatePayload.featuredImage = payload.featuredImage;
 
@@ -545,7 +524,8 @@ const getUserAdvertisementsFromDB = async (
   userId: string,
   latitudeStr?: string,
   longitudeStr?: string,
-): Promise<{ banners: IAdvertisement[]; featured: IAdvertisement[] }> => {
+  storeType?: string,
+): Promise<{ featured: IAdvertisement[] }> => {
   let latitude: number | undefined;
   let longitude: number | undefined;
 
@@ -592,7 +572,7 @@ const getUserAdvertisementsFromDB = async (
     status: SLOT_CONFIG_STATUS.ACTIVE,
   });
   if (activeCities.length === 0) {
-    return { banners: [], featured: [] };
+    return { featured: [] };
   }
 
   // Haversine formula helper
@@ -639,25 +619,27 @@ const getUserAdvertisementsFromDB = async (
   }
 
   const now = new Date();
-  const advertisements = await Advertisement.find({
+  let advertisements = await Advertisement.find({
     cityAdConfigId: closestCity._id,
     status: ADVERTISEMENT_STATUS.ACTIVE,
     startDate: { $lte: now },
     endDate: { $gte: now },
-  }).populate("storeId");
+  }).populate({
+    path: "storeId",
+    match: storeType ? { storeType } : {},
+  });
 
-  const banners = advertisements.filter(
-    (ad) =>
-      ad.advertisementType === ADVERTISEMENT_TYPE.BANNER &&
-      closestCity.bannerEnabled,
-  );
+  if (storeType) {
+    advertisements = advertisements.filter((ad) => ad.storeId !== null);
+  }
+
   const featured = advertisements.filter(
     (ad) =>
       ad.advertisementType === ADVERTISEMENT_TYPE.FEATURED &&
       closestCity.featuredEnabled,
   );
 
-  return { banners, featured };
+  return { featured };
 };
 
 export const AdvertisementService = {

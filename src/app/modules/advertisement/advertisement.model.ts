@@ -64,10 +64,6 @@ const advertisementSchema = new Schema<IAdvertisement>(
       type: Date,
       required: true,
     },
-    bannerImage: {
-      type: String,
-      required: false,
-    },
     featuredImage: {
       type: String,
       required: false,

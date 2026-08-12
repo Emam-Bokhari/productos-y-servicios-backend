@@ -46,10 +46,7 @@ router.post(
   "/",
   isSeller,
   fileUploadHandler(),
-  parseFileData(
-    { fieldName: "bannerImage", mode: "single" },
-    { fieldName: "featuredImage", mode: "single" },
-  ),
+  parseFileData({ fieldName: "featuredImage", mode: "single" }),
   validateRequest(AdvertisementValidation.createAdvertisementSchema),
   AdvertisementController.createAdvertisement,
 );
@@ -70,10 +67,7 @@ router.patch(
   "/my-advertisements/:id",
   isSeller,
   fileUploadHandler(),
-  parseFileData(
-    { fieldName: "bannerImage", mode: "single" },
-    { fieldName: "featuredImage", mode: "single" },
-  ),
+  parseFileData({ fieldName: "featuredImage", mode: "single" }),
   validateRequest(AdvertisementValidation.updateAdvertisementSchema),
   AdvertisementController.updateAdvertisement,
 );

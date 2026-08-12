@@ -156,11 +156,12 @@ const getAdvertisementBookingInfo = catchAsync(
 const getUserAdvertisements = catchAsync(
   async (req: Request, res: Response) => {
     const userId = req.user.id;
-    const { latitude, longitude } = req.query;
+    const { latitude, longitude, storeType } = req.query;
     const result = await AdvertisementService.getUserAdvertisementsFromDB(
       userId,
       latitude as string,
       longitude as string,
+      storeType as string,
     );
     sendResponse(res, {
       statusCode: StatusCodes.OK,

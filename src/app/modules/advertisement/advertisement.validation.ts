@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ADVERTISEMENT_TYPE } from "./advertisement.constant";
+import { STORE_TYPE } from "../store/store.constant";
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
@@ -16,19 +17,15 @@ const createAdvertisementSchema = z.object({
         .refine((val) => objectIdRegex.test(val), {
           message: "Invalid configuration ID format",
         }),
-      advertisementType: z.enum(
-        [ADVERTISEMENT_TYPE.BANNER, ADVERTISEMENT_TYPE.FEATURED],
-        {
-          required_error: "Advertisement type must be banner or featured",
-        },
-      ),
+      advertisementType: z.enum([ADVERTISEMENT_TYPE.FEATURED], {
+        required_error: "Advertisement type must be featured",
+      }),
       startDate: z.string({
         required_error: "Start Date is required",
       }),
       endDate: z.string({
         required_error: "End Date is required",
       }),
-      bannerImage: z.string().optional(),
       featuredImage: z.string().optional(),
     })
     .refine(
@@ -61,7 +58,6 @@ const createAdvertisementSchema = z.object({
 const updateAdvertisementSchema = z.object({
   body: z.object({
     campaignName: z.string().optional(),
-    bannerImage: z.string().optional(),
     featuredImage: z.string().optional(),
   }),
 });
@@ -79,6 +75,9 @@ const getUserAdsQuerySchema = z.object({
       .refine((val) => !isNaN(parseFloat(val)), {
         message: "Longitude must be a valid number string",
       })
+      .optional(),
+    storeType: z
+      .enum([STORE_TYPE.PRODUCT_STORE, STORE_TYPE.SERVICE_STORE])
       .optional(),
   }),
 });

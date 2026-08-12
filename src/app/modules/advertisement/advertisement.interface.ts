@@ -1,10 +1,9 @@
-import { Schema, Types } from "mongoose";
+import { Types } from "mongoose";
 import { ISoftDeleteModel } from "../../../types/softDelete";
 import {
   ADVERTISEMENT_STATUS,
   ADVERTISEMENT_TYPE,
 } from "./advertisement.constant";
-import { ICityAdConfiguration } from "../cityAdConfiguration/cityAdConfiguration.interface";
 
 export interface IAdvertisement {
   sellerId: Types.ObjectId;
@@ -19,7 +18,6 @@ export interface IAdvertisement {
   longitude: number;
   startDate: Date;
   endDate: Date;
-  bannerImage?: string;
   featuredImage?: string;
   status: ADVERTISEMENT_STATUS;
   isDeleted?: boolean;

@@ -31,22 +31,11 @@ const cityAdConfigurationSchema = new Schema<ICityAdConfiguration>(
       type: Number,
       required: true,
     },
-    bannerCapacity: {
-      type: Number,
-      required: true,
-      min: 0,
-      default: 0,
-    },
     featuredCapacity: {
       type: Number,
       required: true,
       min: 0,
       default: 0,
-    },
-    bannerEnabled: {
-      type: Boolean,
-      required: true,
-      default: true,
     },
     featuredEnabled: {
       type: Boolean,

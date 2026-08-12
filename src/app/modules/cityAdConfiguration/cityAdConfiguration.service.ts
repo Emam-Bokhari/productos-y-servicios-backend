@@ -115,26 +115,18 @@ const updateCityAdConfigInDB = async (
 
 const toggleCityAdConfigInDB = async (
   id: string,
-  adType: "banner" | "featured",
+  adType: "featured",
   enabled: boolean,
 ): Promise<ICityAdConfiguration> => {
-  const updateField =
-    adType === "banner"
-      ? { bannerEnabled: enabled }
-      : { featuredEnabled: enabled };
-  return await updateCityAdConfigInDB(id, updateField);
+  return await updateCityAdConfigInDB(id, { featuredEnabled: enabled });
 };
 
 const updateCityAdCapacityInDB = async (
   id: string,
-  adType: "banner" | "featured",
+  adType: "featured",
   capacity: number,
 ): Promise<ICityAdConfiguration> => {
-  const updateField =
-    adType === "banner"
-      ? { bannerCapacity: capacity }
-      : { featuredCapacity: capacity };
-  return await updateCityAdConfigInDB(id, updateField);
+  return await updateCityAdConfigInDB(id, { featuredCapacity: capacity });
 };
 
 const getSellerActiveCitiesFromDB = async (): Promise<
@@ -161,17 +153,6 @@ const getCityWiseAvailabilitySummaryFromDB = async (
   const summary = [];
 
   for (const city of cities) {
-    // Banner summary
-    const bannerTotal = city.bannerCapacity;
-    const bannerBookedObj = await getOverlappingBookedSlots(
-      city._id as Types.ObjectId,
-      ADVERTISEMENT_TYPE.BANNER,
-      startDate,
-      endDate,
-    );
-    const bannerBooked = bannerBookedObj.bookedSlots;
-    const bannerAvailable = Math.max(0, bannerTotal - bannerBooked);
-
     // Featured summary
     const featuredTotal = city.featuredCapacity;
     const featuredBookedObj = await getOverlappingBookedSlots(
@@ -192,12 +173,6 @@ const getCityWiseAvailabilitySummaryFromDB = async (
         latitude: city.latitude,
         longitude: city.longitude,
         status: city.status,
-      },
-      banner: {
-        total: bannerTotal,
-        booked: bannerBooked,
-        available: bannerAvailable,
-        enabled: city.bannerEnabled,
       },
       featured: {
         total: featuredTotal,

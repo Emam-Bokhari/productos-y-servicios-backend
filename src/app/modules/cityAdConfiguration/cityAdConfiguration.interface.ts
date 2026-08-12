@@ -7,9 +7,7 @@ export interface ICityAdConfiguration {
   city: string;
   latitude: number;
   longitude: number;
-  bannerCapacity: number;
   featuredCapacity: number;
-  bannerEnabled: boolean;
   featuredEnabled: boolean;
   status: SLOT_CONFIG_STATUS;
   lockVersion: number;

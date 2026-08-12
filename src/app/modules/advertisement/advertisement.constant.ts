@@ -1,5 +1,4 @@
 export const ADVERTISEMENT_TYPE = {
-  BANNER: "banner",
   FEATURED: "featured",
 } as const;
 
