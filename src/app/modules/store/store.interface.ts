@@ -26,6 +26,7 @@ export type IStore = {
   documentFront?: string;
   documentBack?: string;
   isVerified?: boolean;
+  visitorCount?: number;
 };
 
 export type StoreModel = ISoftDeleteModel<IStore>;

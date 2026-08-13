@@ -107,6 +107,18 @@ const updateStoreVerification = catchAsync(
   },
 );
 
+const getSellerDashboard = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user.id;
+  const result = await StoreService.getSellerDashboardFromDB(userId);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Seller dashboard details retrieved successfully",
+    data: result,
+  });
+});
+
 export const StoreController = {
   createStore,
   updateStore,
@@ -116,4 +128,5 @@ export const StoreController = {
   getAllStores,
   verifyIdentity,
   updateStoreVerification,
+  getSellerDashboard,
 };

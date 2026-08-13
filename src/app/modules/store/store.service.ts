@@ -12,6 +12,8 @@ import { SERVICE_STATUS } from "../service/service.constant";
 import QueryBuilder from "../../builder/queryBuilder";
 import { CityAdConfiguration } from "../cityAdConfiguration/cityAdConfiguration.model";
 import { SLOT_CONFIG_STATUS } from "../cityAdConfiguration/cityAdConfiguration.constant";
+import { DateTime } from "luxon";
+import { StoreTraffic } from "../storeTraffic/storeTraffic.model";
 
 const createStoreToDB = async (ownerId: string, payload: any) => {
   // Check if user already has a store
@@ -270,10 +272,27 @@ const updateStoreStatusInDB = async (storeId: string, status: string) => {
 };
 
 const getStoreDetailsFromDB = async (storeId: string) => {
-  const store = await Store.findById(storeId).populate("categoryId");
+  const store = await Store.findByIdAndUpdate(
+    storeId,
+    { $inc: { visitorCount: 1 } },
+    { new: true },
+  ).populate("categoryId");
   if (!store) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Store not found");
   }
+
+  // Record daily traffic
+  const defaultTimezone = "Asia/Dhaka";
+  const todayInDhaka = DateTime.now().setZone(defaultTimezone).startOf("day");
+  const todayUtc = todayInDhaka.toUTC().toJSDate();
+
+  await StoreTraffic.findOneAndUpdate(
+    { storeId: store._id, date: todayUtc },
+    { $inc: { count: 1 } },
+    { upsert: true, new: true },
+  ).catch((err) => {
+    console.error("Failed to increment store traffic log:", err);
+  });
 
   if (store.status !== STORE_STATUS.ACTIVE) {
     throw new ApiError(StatusCodes.FORBIDDEN, "Store is not active");
@@ -422,6 +441,55 @@ const updateStoreVerificationInDB = async (
   return store;
 };
 
+const getSellerDashboardFromDB = async (ownerId: string) => {
+  const store = await Store.findOne({ owner: ownerId });
+  if (!store) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "Store not found for this seller.");
+  }
+
+  const totalProducts = await Product.countDocuments({ storeId: store._id });
+  const totalServices = await Service.countDocuments({ storeId: store._id });
+  const totalItems = totalProducts + totalServices;
+
+  const totalVisitors = store.visitorCount || 0;
+
+  const defaultTimezone = "Asia/Dhaka";
+  const startOfWeek = DateTime.now().setZone(defaultTimezone).startOf("week");
+  const endOfWeek = DateTime.now().setZone(defaultTimezone).endOf("week");
+
+  // Fetch all traffic records for this week
+  const trafficRecords = await StoreTraffic.find({
+    storeId: store._id,
+    date: {
+      $gte: startOfWeek.toUTC().toJSDate(),
+      $lte: endOfWeek.toUTC().toJSDate(),
+    },
+  });
+
+  // Map to Monday through Sunday structure
+  const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const weeklyTraffic = daysOfWeek.map((day, index) => {
+    // luxon week starts on Monday, so index 0 = Mon, index 1 = Tue, etc.
+    const dayDate = startOfWeek.plus({ days: index }).toUTC().toJSDate();
+    const dayTime = dayDate.getTime();
+
+    const record = trafficRecords.find(
+      (r) => r.date.getTime() === dayTime,
+    );
+
+    return {
+      day,
+      count: record ? record.count : 0,
+    };
+  });
+
+  return {
+    totalItems,
+    storeVisitors: totalVisitors,
+    weeklyTraffic,
+  };
+};
+
 export const StoreService = {
   createStoreToDB,
   updateStoreInDB,
@@ -431,4 +499,5 @@ export const StoreService = {
   getAllStoresFromDB,
   verifyStoreIdentityInDB,
   updateStoreVerificationInDB,
+  getSellerDashboardFromDB,
 };

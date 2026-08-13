@@ -109,6 +109,10 @@ const storeSchema = new Schema<IStore>(
       type: Boolean,
       default: false,
     },
+    visitorCount: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

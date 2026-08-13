@@ -4,7 +4,7 @@ import { StoreController } from "./store.controller";
 import { StoreValidation } from "./store.validation";
 import fileUploadHandler from "../../middlewares/flieUploadHandler";
 import { parseFileData } from "../../middlewares/parseFileData";
-import { isAdmin, isAuthenticated } from "../../../helpers/authHelper";
+import { isAdmin, isAuthenticated, isSeller } from "../../../helpers/authHelper";
 
 const router = express.Router();
 
@@ -55,6 +55,8 @@ router.patch(
 router.get("/me", isAuthenticated, StoreController.getMyStore);
 
 router.get("/", isAuthenticated, StoreController.getAllStores);
+
+router.get("/seller/dashboard", isSeller, StoreController.getSellerDashboard);
 
 router.get("/:id", isAuthenticated, StoreController.getStoreDetails);
 
