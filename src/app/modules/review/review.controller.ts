@@ -19,7 +19,11 @@ const createReview = catchAsync(async (req: Request, res: Response) => {
 const replyAsStoreOwner = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user.id;
   const { id } = req.params;
-  const result = await ReviewService.replyAsStoreOwnerInDB(userId, id, req.body);
+  const result = await ReviewService.replyAsStoreOwnerInDB(
+    userId,
+    id,
+    req.body,
+  );
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,

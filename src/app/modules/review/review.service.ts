@@ -37,7 +37,7 @@ const updateStoreRatings = async (storeId: string) => {
 
 const createReviewInDB = async (
   userId: string,
-  payload: { storeId: string; rating: number; comment: string }
+  payload: { storeId: string; rating: number; comment: string },
 ) => {
   const { storeId, rating, comment } = payload;
 
@@ -50,7 +50,7 @@ const createReviewInDB = async (
   if (store.owner.toString() === userId) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      "Store owners cannot review their own store."
+      "Store owners cannot review their own store.",
     );
   }
 
@@ -59,7 +59,7 @@ const createReviewInDB = async (
   if (existingReview) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      "You have already reviewed this store."
+      "You have already reviewed this store.",
     );
   }
 
@@ -79,7 +79,7 @@ const createReviewInDB = async (
 const replyAsStoreOwnerInDB = async (
   userId: string,
   reviewId: string,
-  payload: { comment: string }
+  payload: { comment: string },
 ) => {
   const review = await Review.findById(reviewId).populate("storeId");
   if (!review) {
@@ -90,14 +90,14 @@ const replyAsStoreOwnerInDB = async (
   if (!store || store.owner.toString() !== userId) {
     throw new ApiError(
       StatusCodes.FORBIDDEN,
-      "Only the store owner can reply to this review."
+      "Only the store owner can reply to this review.",
     );
   }
 
   if (review.ownerReply) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      "Store owner has already replied to this review. Only one reply is allowed."
+      "Store owner has already replied to this review. Only one reply is allowed.",
     );
   }
 
@@ -113,7 +113,7 @@ const replyAsStoreOwnerInDB = async (
 const replyAsReviewerInDB = async (
   userId: string,
   reviewId: string,
-  payload: { comment: string }
+  payload: { comment: string },
 ) => {
   const review = await Review.findById(reviewId);
   if (!review) {
@@ -123,21 +123,21 @@ const replyAsReviewerInDB = async (
   if (review.userId.toString() !== userId) {
     throw new ApiError(
       StatusCodes.FORBIDDEN,
-      "Only the reviewer who wrote the review can reply."
+      "Only the reviewer who wrote the review can reply.",
     );
   }
 
   if (!review.ownerReply) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      "You cannot reply until the store owner has replied."
+      "You cannot reply until the store owner has replied.",
     );
   }
 
   if (review.userReply) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      "You have already replied to the store owner's response. Only one reply is allowed."
+      "You have already replied to the store owner's response. Only one reply is allowed.",
     );
   }
 
@@ -152,12 +152,12 @@ const replyAsReviewerInDB = async (
 
 const getStoreReviewsFromDB = async (
   storeId: string,
-  query: Record<string, unknown>
+  query: Record<string, unknown>,
 ) => {
   if (!storeId) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      "Store ID is required to retrieve reviews."
+      "Store ID is required to retrieve reviews.",
     );
   }
 

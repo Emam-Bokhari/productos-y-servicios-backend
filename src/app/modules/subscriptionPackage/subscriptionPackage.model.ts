@@ -1,5 +1,8 @@
 import { model, Schema } from "mongoose";
-import { TSubscriptionPackage, SubscriptionPackageModel } from "./subscriptionPackage.interface";
+import {
+  TSubscriptionPackage,
+  SubscriptionPackageModel,
+} from "./subscriptionPackage.interface";
 import { softDeletePlugin } from "../../../DB/plugins/softDeletePlugin";
 
 const subscriptionPackageSchema = new Schema<TSubscriptionPackage>(
@@ -50,7 +53,7 @@ const subscriptionPackageSchema = new Schema<TSubscriptionPackage>(
 // Enable soft delete plugin
 subscriptionPackageSchema.plugin(softDeletePlugin);
 
-export const SubscriptionPackage = model<TSubscriptionPackage, SubscriptionPackageModel>(
-  "SubscriptionPackage",
-  subscriptionPackageSchema,
-);
+export const SubscriptionPackage = model<
+  TSubscriptionPackage,
+  SubscriptionPackageModel
+>("SubscriptionPackage", subscriptionPackageSchema);

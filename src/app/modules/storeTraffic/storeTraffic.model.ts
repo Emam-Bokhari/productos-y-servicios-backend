@@ -26,4 +26,7 @@ const storeTrafficSchema = new Schema<IStoreTraffic>(
 // Compound index on storeId and date for unique constraints
 storeTrafficSchema.index({ storeId: 1, date: 1 }, { unique: true });
 
-export const StoreTraffic = model<IStoreTraffic>("StoreTraffic", storeTrafficSchema);
+export const StoreTraffic = model<IStoreTraffic>(
+  "StoreTraffic",
+  storeTrafficSchema,
+);

@@ -17,7 +17,6 @@ import { AdvertisementRoutes } from "../modules/advertisement/advertisement.rout
 import { CityAdConfigurationRoutes } from "../modules/cityAdConfiguration/cityAdConfiguration.route";
 import { SubscriptionPackageRoutes } from "../modules/subscriptionPackage/subscriptionPackage.route";
 
-
 import { ProductRoutes } from "../modules/product/product.routes";
 import { ServiceRoutes } from "../modules/service/service.routes";
 import { FavoriteRoutes } from "../modules/favorite/favorite.routes";

@@ -10,7 +10,6 @@ import stripe from "../../../config/stripe";
 import Stripe from "stripe";
 import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
 
-
 // ----------------------------------------------------
 // Stripe Connected Account for Sellers (Onboarding)
 // ----------------------------------------------------
@@ -174,7 +173,8 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
         const subscriptionId = session.subscription as string;
 
         if (subscriptionId) {
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const subscription =
+            await stripe.subscriptions.retrieve(subscriptionId);
           const stripeCustomerId = subscription.customer as string;
           const status = subscription.status;
           const expiresAt = new Date(subscription.current_period_end * 1000);
@@ -242,10 +242,7 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
 
       await User.findOneAndUpdate(
         {
-          $or: [
-            { stripeCustomerId },
-            { stripeSubscriptionId: subscriptionId },
-          ],
+          $or: [{ stripeCustomerId }, { stripeSubscriptionId: subscriptionId }],
         },
         updateData,
       );

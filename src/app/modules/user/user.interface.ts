@@ -33,7 +33,13 @@ export type IUser = {
   totalRatings?: number;
   totalReviews?: number;
   activeRole?: "user" | "seller";
-  subscriptionStatus?: "active" | "inactive" | "trialing" | "past_due" | "canceled" | "none";
+  subscriptionStatus?:
+    | "active"
+    | "inactive"
+    | "trialing"
+    | "past_due"
+    | "canceled"
+    | "none";
   subscriptionPackageId?: Types.ObjectId | string;
   stripeSubscriptionId?: string;
   subscriptionExpiresAt?: Date;

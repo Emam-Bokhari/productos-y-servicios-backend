@@ -444,7 +444,10 @@ const updateStoreVerificationInDB = async (
 const getSellerDashboardFromDB = async (ownerId: string) => {
   const store = await Store.findOne({ owner: ownerId });
   if (!store) {
-    throw new ApiError(StatusCodes.NOT_FOUND, "Store not found for this seller.");
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      "Store not found for this seller.",
+    );
   }
 
   const totalProducts = await Product.countDocuments({ storeId: store._id });
@@ -473,9 +476,7 @@ const getSellerDashboardFromDB = async (ownerId: string) => {
     const dayDate = startOfWeek.plus({ days: index }).toUTC().toJSDate();
     const dayTime = dayDate.getTime();
 
-    const record = trafficRecords.find(
-      (r) => r.date.getTime() === dayTime,
-    );
+    const record = trafficRecords.find((r) => r.date.getTime() === dayTime);
 
     return {
       day,

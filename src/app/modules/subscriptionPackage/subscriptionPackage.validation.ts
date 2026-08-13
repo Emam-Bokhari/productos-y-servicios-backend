@@ -2,12 +2,16 @@ import { z } from "zod";
 
 const createSubscriptionPackageSchema = z.object({
   body: z.object({
-    name: z.string({
-      required_error: "Name is required",
-    }).min(1, "Name cannot be empty"),
-    price: z.number({
-      required_error: "Price is required",
-    }).nonnegative("Price must be a positive number"),
+    name: z
+      .string({
+        required_error: "Name is required",
+      })
+      .min(1, "Name cannot be empty"),
+    price: z
+      .number({
+        required_error: "Price is required",
+      })
+      .nonnegative("Price must be a positive number"),
     duration: z.enum(["1 month", "3 month", "6 month", "1 year"], {
       required_error: "Duration is required",
     }),

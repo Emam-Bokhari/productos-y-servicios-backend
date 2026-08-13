@@ -4,7 +4,11 @@ import { StoreController } from "./store.controller";
 import { StoreValidation } from "./store.validation";
 import fileUploadHandler from "../../middlewares/flieUploadHandler";
 import { parseFileData } from "../../middlewares/parseFileData";
-import { isAdmin, isAuthenticated, isSeller } from "../../../helpers/authHelper";
+import {
+  isAdmin,
+  isAuthenticated,
+  isSeller,
+} from "../../../helpers/authHelper";
 
 const router = express.Router();
 

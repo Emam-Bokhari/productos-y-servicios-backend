@@ -18,22 +18,22 @@ router.get(
 router.post(
   "/",
   isAdmin,
-  validateRequest(SubscriptionPackageValidation.createSubscriptionPackageSchema),
+  validateRequest(
+    SubscriptionPackageValidation.createSubscriptionPackageSchema,
+  ),
   SubscriptionPackageController.createPackage,
 );
 
 router.patch(
   "/:id",
   isAdmin,
-  validateRequest(SubscriptionPackageValidation.updateSubscriptionPackageSchema),
+  validateRequest(
+    SubscriptionPackageValidation.updateSubscriptionPackageSchema,
+  ),
   SubscriptionPackageController.updatePackage,
 );
 
-router.delete(
-  "/:id",
-  isAdmin,
-  SubscriptionPackageController.deletePackage,
-);
+router.delete("/:id", isAdmin, SubscriptionPackageController.deletePackage);
 
 router.patch(
   "/:id/status",

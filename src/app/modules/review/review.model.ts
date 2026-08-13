@@ -13,7 +13,7 @@ const replySchema = new Schema<IReply>(
       default: Date.now,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const reviewSchema = new Schema<IReview>(
@@ -50,7 +50,7 @@ const reviewSchema = new Schema<IReview>(
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 // Apply soft delete plugin

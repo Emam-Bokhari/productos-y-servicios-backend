@@ -58,9 +58,10 @@ const updatePackage = catchAsync(async (req: Request, res: Response) => {
 });
 
 const deletePackage = catchAsync(async (req: Request, res: Response) => {
-  const result = await SubscriptionPackageService.deleteSubscriptionPackageFromDB(
-    req.params.id,
-  );
+  const result =
+    await SubscriptionPackageService.deleteSubscriptionPackageFromDB(
+      req.params.id,
+    );
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
