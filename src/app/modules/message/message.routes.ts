@@ -1,11 +1,8 @@
 import express from "express";
 import { MessageController } from "./message.controller";
-import { USER_ROLES } from "../../../enums/user";
 import { FOLDER_NAMES } from "../../../enums/files";
-import auth from "../../middlewares/auth";
 import validateRequest from "../../middlewares/validateRequest";
 import { messageValidation } from "./message.validation";
-
 import { parseFileData } from "../../middlewares/parseFileData";
 import fileUploadHandler from "../../middlewares/flieUploadHandler";
 import { isAuthenticated } from "../../../helpers/authHelper";
