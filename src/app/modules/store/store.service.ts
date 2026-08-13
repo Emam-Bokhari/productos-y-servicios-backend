@@ -13,7 +13,6 @@ import QueryBuilder from "../../builder/queryBuilder";
 import { CityAdConfiguration } from "../cityAdConfiguration/cityAdConfiguration.model";
 import { SLOT_CONFIG_STATUS } from "../cityAdConfiguration/cityAdConfiguration.constant";
 
-
 const createStoreToDB = async (ownerId: string, payload: any) => {
   // Check if user already has a store
   const existingStore = await Store.findOne({ owner: ownerId });
@@ -180,7 +179,10 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
   }
 
   // Validate city exists in active configurations if changing
-  if (payload.city && payload.city.trim().toLowerCase() !== store.city?.toLowerCase()) {
+  if (
+    payload.city &&
+    payload.city.trim().toLowerCase() !== store.city?.toLowerCase()
+  ) {
     const activeCity = await CityAdConfiguration.findOne({
       city: { $regex: `^${payload.city.trim()}$`, $options: "i" },
       status: SLOT_CONFIG_STATUS.ACTIVE,
@@ -281,9 +283,15 @@ const getStoreDetailsFromDB = async (storeId: string) => {
   let services: any[] = [];
 
   if (store.storeType === STORE_TYPE.PRODUCT_STORE) {
-    products = await Product.find({ storeId: store._id, status: PRODUCT_STATUS.ACTIVE });
+    products = await Product.find({
+      storeId: store._id,
+      status: PRODUCT_STATUS.ACTIVE,
+    });
   } else if (store.storeType === STORE_TYPE.SERVICE_STORE) {
-    services = await Service.find({ storeId: store._id, status: SERVICE_STATUS.ACTIVE });
+    services = await Service.find({
+      storeId: store._id,
+      status: SERVICE_STATUS.ACTIVE,
+    });
   }
 
   return {
@@ -340,7 +348,12 @@ const getAllStoresFromDB = async (query: Record<string, unknown>) => {
   // Otherwise, if any location-related filters were passed but not matched, return empty results.
   if (cityConfig) {
     filterQuery.city = { $regex: `^${cityConfig.city.trim()}$`, $options: "i" };
-  } else if (query.latitude || query.longitude || query.city || query.location) {
+  } else if (
+    query.latitude ||
+    query.longitude ||
+    query.city ||
+    query.location
+  ) {
     filterQuery.city = "NON_EXISTENT_CITY_FALLBACK_VAL_12345";
   }
 
@@ -357,6 +370,58 @@ const getAllStoresFromDB = async (query: Record<string, unknown>) => {
   return { data, meta };
 };
 
+const verifyStoreIdentityInDB = async (
+  ownerId: string,
+  payload: {
+    documentType: "nid" | "passport";
+    documentFront: string;
+    documentBack?: string;
+  },
+) => {
+  const store = await Store.findOne({ owner: ownerId });
+  if (!store) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "Store not found.");
+  }
+
+  // Update the identity verification fields and reset isVerified to false
+  const updatedStore = await Store.findOneAndUpdate(
+    { owner: ownerId },
+    {
+      $set: {
+        documentType: payload.documentType,
+        documentFront: payload.documentFront,
+        documentBack: payload.documentBack || undefined,
+        isVerified: false,
+      },
+    },
+    { new: true },
+  );
+
+  if (!updatedStore) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "Failed to submit verification details",
+    );
+  }
+
+  return updatedStore;
+};
+
+const updateStoreVerificationInDB = async (
+  storeId: string,
+  isVerified: boolean,
+) => {
+  const store = await Store.findById(storeId);
+  if (!store) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "Store not found.");
+  }
+
+  store.isVerified = isVerified;
+  await store.save();
+
+  return store;
+};
+
 export const StoreService = {
   createStoreToDB,
   updateStoreInDB,
@@ -364,5 +429,6 @@ export const StoreService = {
   updateStoreStatusInDB,
   getStoreDetailsFromDB,
   getAllStoresFromDB,
+  verifyStoreIdentityInDB,
+  updateStoreVerificationInDB,
 };
-

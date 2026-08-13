@@ -1,6 +1,6 @@
 import { Schema } from "mongoose";
 import { ISoftDeleteModel } from "../../../types/softDelete";
-import { STORE_STATUS, STORE_TYPE } from "./store.constant";
+import { STORE_STATUS, STORE_TYPE, DOCUMENT_TYPE } from "./store.constant";
 
 export type IStore = {
   owner: Schema.Types.ObjectId;
@@ -22,6 +22,10 @@ export type IStore = {
   tradeLicense?: string;
   tinNumber?: string;
   status: STORE_STATUS;
+  documentType?: DOCUMENT_TYPE;
+  documentFront?: string;
+  documentBack?: string;
+  isVerified?: boolean;
 };
 
 export type StoreModel = ISoftDeleteModel<IStore>;

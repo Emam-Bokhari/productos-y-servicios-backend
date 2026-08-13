@@ -77,6 +77,36 @@ const getAllStores = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const verifyIdentity = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user.id;
+  const result = await StoreService.verifyStoreIdentityInDB(userId, req.body);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Store identity verification documents submitted successfully",
+    data: result,
+  });
+});
+
+const updateStoreVerification = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { isVerified } = req.body;
+    const result = await StoreService.updateStoreVerificationInDB(
+      id,
+      isVerified,
+    );
+
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: "Store verification status updated successfully",
+      data: result,
+    });
+  },
+);
+
 export const StoreController = {
   createStore,
   updateStore,
@@ -84,5 +114,6 @@ export const StoreController = {
   updateStoreStatus,
   getStoreDetails,
   getAllStores,
+  verifyIdentity,
+  updateStoreVerification,
 };
-

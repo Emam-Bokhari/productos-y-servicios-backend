@@ -13,3 +13,10 @@ export const STORE_TYPE = {
 } as const;
 
 export type STORE_TYPE = (typeof STORE_TYPE)[keyof typeof STORE_TYPE];
+
+export const DOCUMENT_TYPE = {
+  NID: "nid",
+  PASSPORT: "passport",
+} as const;
+
+export type DOCUMENT_TYPE = (typeof DOCUMENT_TYPE)[keyof typeof DOCUMENT_TYPE];

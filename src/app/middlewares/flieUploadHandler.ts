@@ -143,6 +143,16 @@ export const FILE_CONFIG = {
       "application/pdf",
     ]),
   },
+  documentFront: {
+    dir: "documentFront",
+    maxCount: 1,
+    mimeTypes: new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]),
+  },
+  documentBack: {
+    dir: "documentBack",
+    maxCount: 1,
+    mimeTypes: new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]),
+  },
   audio: {
     dir: "audio",
     maxCount: 5,

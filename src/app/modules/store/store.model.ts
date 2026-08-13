@@ -1,7 +1,7 @@
 import { model, Schema } from "mongoose";
 import { IStore, StoreModel } from "./store.interface";
 import { softDeletePlugin } from "../../../DB/plugins/softDeletePlugin";
-import { STORE_STATUS, STORE_TYPE } from "./store.constant";
+import { STORE_STATUS, STORE_TYPE, DOCUMENT_TYPE } from "./store.constant";
 
 const storeSchema = new Schema<IStore>(
   {
@@ -91,6 +91,23 @@ const storeSchema = new Schema<IStore>(
       type: String,
       enum: Object.values(STORE_STATUS),
       default: STORE_STATUS.UNDER_REVIEW,
+    },
+    documentType: {
+      type: String,
+      enum: Object.values(DOCUMENT_TYPE),
+      required: false,
+    },
+    documentFront: {
+      type: String,
+      required: false,
+    },
+    documentBack: {
+      type: String,
+      required: false,
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
     },
   },
   {

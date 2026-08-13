@@ -1,12 +1,10 @@
 import express from "express";
-import auth from "../../middlewares/auth";
 import validateRequest from "../../middlewares/validateRequest";
-import { USER_ROLES } from "../../../enums/user";
 import { StoreController } from "./store.controller";
 import { StoreValidation } from "./store.validation";
 import fileUploadHandler from "../../middlewares/flieUploadHandler";
 import { parseFileData } from "../../middlewares/parseFileData";
-import { isAuthenticated } from "../../../helpers/authHelper";
+import { isAdmin, isAuthenticated } from "../../../helpers/authHelper";
 
 const router = express.Router();
 
@@ -54,28 +52,40 @@ router.patch(
   StoreController.updateStore,
 );
 
-router.get(
-  "/me",
+router.get("/me", isAuthenticated, StoreController.getMyStore);
+
+router.get("/", isAuthenticated, StoreController.getAllStores);
+
+router.get("/:id", isAuthenticated, StoreController.getStoreDetails);
+
+router.patch(
+  "/verify-identity",
   isAuthenticated,
-  StoreController.getMyStore,
+  fileUploadHandler(),
+  parseFileData(
+    {
+      fieldName: "documentFront",
+      mode: "single",
+    },
+    {
+      fieldName: "documentBack",
+      mode: "single",
+    },
+  ),
+  validateRequest(StoreValidation.verifyIdentitySchema),
+  StoreController.verifyIdentity,
 );
 
-router.get(
-  "/",
-  isAuthenticated,
-  StoreController.getAllStores,
+router.patch(
+  "/verify/:id",
+  isAdmin,
+  validateRequest(StoreValidation.updateStoreVerificationSchema),
+  StoreController.updateStoreVerification,
 );
-
-router.get(
-  "/:id",
-  isAuthenticated,
-  StoreController.getStoreDetails,
-);
-
 
 router.patch(
   "/status/:id",
-  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  isAdmin,
   validateRequest(StoreValidation.updateStoreStatusSchema),
   StoreController.updateStoreStatus,
 );

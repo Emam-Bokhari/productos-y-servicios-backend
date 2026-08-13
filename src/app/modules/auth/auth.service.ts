@@ -81,7 +81,10 @@ const loginUserFromDB = async (payload: ILoginData) => {
   );
 
   // Check if seller profile exists and is active
-  const seller = await Seller.findOne({ user: isExistUser._id, status: STATUS.ACTIVE });
+  const seller = await Seller.findOne({
+    user: isExistUser._id,
+    status: STATUS.ACTIVE,
+  });
 
   const result = {
     token: createToken,

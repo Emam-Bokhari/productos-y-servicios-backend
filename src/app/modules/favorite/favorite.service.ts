@@ -73,8 +73,8 @@ const getMyFavoritesFromDB = async (
     const rawTypes = Array.isArray(typeParam)
       ? typeParam
       : typeof typeParam === "string"
-      ? typeParam.split(",")
-      : [];
+        ? typeParam.split(",")
+        : [];
 
     rawTypes.forEach((t) => {
       if (typeof t === "string") {

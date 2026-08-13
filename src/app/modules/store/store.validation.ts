@@ -101,8 +101,30 @@ const updateStoreStatusSchema = z.object({
   }),
 });
 
+const verifyIdentitySchema = z.object({
+  body: z.object({
+    documentType: z.enum(["nid", "passport"], {
+      required_error: "Document type must be either nid or passport",
+    }),
+    documentFront: z.string({
+      required_error: "Front side document image is required",
+    }),
+    documentBack: z.string().optional(),
+  }),
+});
+
+const updateStoreVerificationSchema = z.object({
+  body: z.object({
+    isVerified: z.boolean({
+      required_error: "isVerified boolean status is required",
+    }),
+  }),
+});
+
 export const StoreValidation = {
   createStoreSchema,
   updateStoreSchema,
   updateStoreStatusSchema,
+  verifyIdentitySchema,
+  updateStoreVerificationSchema,
 };
