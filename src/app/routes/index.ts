@@ -19,6 +19,7 @@ import { CityAdConfigurationRoutes } from "../modules/cityAdConfiguration/cityAd
 import { ProductRoutes } from "../modules/product/product.routes";
 import { ServiceRoutes } from "../modules/service/service.routes";
 import { FavoriteRoutes } from "../modules/favorite/favorite.routes";
+import { ReviewRoutes } from "../modules/review/review.route";
 
 const router = express.Router();
 
@@ -99,6 +100,10 @@ const apiRoutes = [
   {
     path: "/favorites",
     route: FavoriteRoutes,
+  },
+  {
+    path: "/reviews",
+    route: ReviewRoutes,
   },
 ];
 
