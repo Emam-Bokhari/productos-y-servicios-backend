@@ -4,6 +4,15 @@ import { Store } from "./store.model";
 import { StoreCategory } from "../storeCategory/storeCategory.model";
 import { Seller } from "../seller/seller.model";
 import { User } from "../user/user.model";
+import { STORE_STATUS, STORE_TYPE } from "./store.constant";
+import { Product } from "../product/product.model";
+import { PRODUCT_STATUS } from "../product/product.constant";
+import { Service } from "../service/service.model";
+import { SERVICE_STATUS } from "../service/service.constant";
+import QueryBuilder from "../../builder/queryBuilder";
+import { CityAdConfiguration } from "../cityAdConfiguration/cityAdConfiguration.model";
+import { SLOT_CONFIG_STATUS } from "../cityAdConfiguration/cityAdConfiguration.constant";
+
 
 const createStoreToDB = async (ownerId: string, payload: any) => {
   // Check if user already has a store
@@ -57,6 +66,20 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
       StatusCodes.CONFLICT,
       "Business License Number is already registered by another store",
     );
+  }
+
+  // Validate city exists in active configurations
+  if (payload.city) {
+    const activeCity = await CityAdConfiguration.findOne({
+      city: { $regex: `^${payload.city.trim()}$`, $options: "i" },
+      status: SLOT_CONFIG_STATUS.ACTIVE,
+    });
+    if (!activeCity) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        `The selected city "${payload.city}" is not configured or active for stores.`,
+      );
+    }
   }
 
   // Create a new store (status defaults to under_review)
@@ -156,6 +179,20 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
     }
   }
 
+  // Validate city exists in active configurations if changing
+  if (payload.city && payload.city.trim().toLowerCase() !== store.city?.toLowerCase()) {
+    const activeCity = await CityAdConfiguration.findOne({
+      city: { $regex: `^${payload.city.trim()}$`, $options: "i" },
+      status: SLOT_CONFIG_STATUS.ACTIVE,
+    });
+    if (!activeCity) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        `The selected city "${payload.city}" is not configured or active for stores.`,
+      );
+    }
+  }
+
   // Filter out undefined values to support partial patching
   const cleanedUpdateData = Object.fromEntries(
     Object.entries(payload).filter(([_, v]) => v !== undefined),
@@ -224,9 +261,102 @@ const updateStoreStatusInDB = async (storeId: string, status: string) => {
   return store;
 };
 
+const getStoreDetailsFromDB = async (storeId: string) => {
+  const store = await Store.findById(storeId).populate("categoryId");
+  if (!store) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "Store not found");
+  }
+
+  if (store.status !== STORE_STATUS.ACTIVE) {
+    throw new ApiError(StatusCodes.FORBIDDEN, "Store is not active");
+  }
+
+  let products: any[] = [];
+  let services: any[] = [];
+
+  if (store.storeType === STORE_TYPE.PRODUCT_STORE) {
+    products = await Product.find({ storeId: store._id, status: PRODUCT_STATUS.ACTIVE });
+  } else if (store.storeType === STORE_TYPE.SERVICE_STORE) {
+    services = await Service.find({ storeId: store._id, status: SERVICE_STATUS.ACTIVE });
+  }
+
+  return {
+    store,
+    products,
+    services,
+  };
+};
+
+const getAllStoresFromDB = async (query: Record<string, unknown>) => {
+  const filterQuery: Record<string, any> = {
+    status: STORE_STATUS.ACTIVE,
+    sort: "displayName",
+    ...query,
+  };
+
+  // Handle city configuration filtering via latitude/longitude or city/location name fallback
+  let cityConfig = null;
+
+  if (filterQuery.latitude && filterQuery.longitude) {
+    const lat = parseFloat(filterQuery.latitude as string);
+    const lng = parseFloat(filterQuery.longitude as string);
+    delete filterQuery.latitude;
+    delete filterQuery.longitude;
+
+    if (!isNaN(lat) && !isNaN(lng)) {
+      cityConfig = await CityAdConfiguration.findOne({
+        latitude: lat,
+        longitude: lng,
+        status: SLOT_CONFIG_STATUS.ACTIVE,
+      });
+    }
+  } else if (filterQuery.city) {
+    const cityStr = filterQuery.city as string;
+    delete filterQuery.city;
+    if (cityStr) {
+      cityConfig = await CityAdConfiguration.findOne({
+        city: { $regex: `^${cityStr.trim()}$`, $options: "i" },
+        status: SLOT_CONFIG_STATUS.ACTIVE,
+      });
+    }
+  } else if (filterQuery.location) {
+    const locationStr = filterQuery.location as string;
+    delete filterQuery.location;
+    if (locationStr) {
+      cityConfig = await CityAdConfiguration.findOne({
+        city: { $regex: `^${locationStr.trim()}$`, $options: "i" },
+        status: SLOT_CONFIG_STATUS.ACTIVE,
+      });
+    }
+  }
+
+  // If a city config was successfully resolved, filter stores by its city name.
+  // Otherwise, if any location-related filters were passed but not matched, return empty results.
+  if (cityConfig) {
+    filterQuery.city = { $regex: `^${cityConfig.city.trim()}$`, $options: "i" };
+  } else if (query.latitude || query.longitude || query.city || query.location) {
+    filterQuery.city = "NON_EXISTENT_CITY_FALLBACK_VAL_12345";
+  }
+
+  const builder = new QueryBuilder(Store.find(), filterQuery)
+    .search(["displayName", "city", "streetAddress", "phone"])
+    .filter()
+    .sort()
+    .paginate()
+    .fields();
+
+  const data = await builder.modelQuery.populate("categoryId");
+  const meta = await builder.countTotal();
+
+  return { data, meta };
+};
+
 export const StoreService = {
   createStoreToDB,
   updateStoreInDB,
   getMyStoreFromDB,
   updateStoreStatusInDB,
+  getStoreDetailsFromDB,
+  getAllStoresFromDB,
 };
+

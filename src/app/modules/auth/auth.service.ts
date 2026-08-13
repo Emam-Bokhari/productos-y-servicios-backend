@@ -80,9 +80,13 @@ const loginUserFromDB = async (payload: ILoginData) => {
     config.jwt.jwt_expire_in as string,
   );
 
+  // Check if seller profile exists and is active
+  const seller = await Seller.findOne({ user: isExistUser._id, status: STATUS.ACTIVE });
+
   const result = {
     token: createToken,
     user: isExistUser,
+    hasSellerAccount: !!seller,
   };
 
   return result;

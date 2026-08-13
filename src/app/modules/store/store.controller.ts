@@ -53,9 +53,36 @@ const updateStoreStatus = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getStoreDetails = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const result = await StoreService.getStoreDetailsFromDB(id);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Store details and listings retrieved successfully",
+    data: result,
+  });
+});
+
+const getAllStores = catchAsync(async (req: Request, res: Response) => {
+  const result = await StoreService.getAllStoresFromDB(req.query);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Stores retrieved successfully",
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
 export const StoreController = {
   createStore,
   updateStore,
   getMyStore,
   updateStoreStatus,
+  getStoreDetails,
+  getAllStores,
 };
+

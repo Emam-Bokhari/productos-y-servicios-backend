@@ -6,12 +6,13 @@ import { StoreController } from "./store.controller";
 import { StoreValidation } from "./store.validation";
 import fileUploadHandler from "../../middlewares/flieUploadHandler";
 import { parseFileData } from "../../middlewares/parseFileData";
+import { isAuthenticated } from "../../../helpers/authHelper";
 
 const router = express.Router();
 
 router.post(
   "/",
-  auth(USER_ROLES.USER, USER_ROLES.SELLER),
+  isAuthenticated,
   fileUploadHandler(),
   parseFileData(
     {
@@ -33,7 +34,7 @@ router.post(
 
 router.patch(
   "/",
-  auth(USER_ROLES.USER, USER_ROLES.SELLER),
+  isAuthenticated,
   fileUploadHandler(),
   parseFileData(
     {
@@ -55,9 +56,22 @@ router.patch(
 
 router.get(
   "/me",
-  auth(USER_ROLES.USER, USER_ROLES.SELLER),
+  isAuthenticated,
   StoreController.getMyStore,
 );
+
+router.get(
+  "/",
+  isAuthenticated,
+  StoreController.getAllStores,
+);
+
+router.get(
+  "/:id",
+  isAuthenticated,
+  StoreController.getStoreDetails,
+);
+
 
 router.patch(
   "/status/:id",

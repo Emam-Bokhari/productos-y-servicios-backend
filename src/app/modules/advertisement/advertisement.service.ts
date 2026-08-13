@@ -550,7 +550,7 @@ const getUserAdvertisementsFromDB = async (
   latitudeStr?: string,
   longitudeStr?: string,
   storeType?: string,
-): Promise<{ featured: IAdvertisement[] }> => {
+): Promise<IAdvertisement[]> => {
   let latitude: number | undefined;
   let longitude: number | undefined;
 
@@ -584,7 +584,7 @@ const getUserAdvertisementsFromDB = async (
     status: SLOT_CONFIG_STATUS.ACTIVE,
   });
   if (activeCities.length === 0) {
-    return { featured: [] };
+    return [];
   }
 
   const hasValidCoordinates =
@@ -661,7 +661,7 @@ const getUserAdvertisementsFromDB = async (
         closestCity.featuredEnabled,
     );
 
-    return { featured };
+    return featured;
   } else {
     // If coordinates are not provided, return active featured advertisements across all active cities
     const featuredCityConfigIds = activeCities
@@ -687,7 +687,7 @@ const getUserAdvertisementsFromDB = async (
         featuredCityConfigIds.includes(ad.cityAdConfigId.toString()),
     );
 
-    return { featured };
+    return featured;
   }
 };
 
