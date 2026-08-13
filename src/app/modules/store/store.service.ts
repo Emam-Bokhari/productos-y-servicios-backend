@@ -230,10 +230,16 @@ const getMyStoreFromDB = async (ownerId: string) => {
   const store = await Store.findOne({ owner: ownerId });
   const seller = await Seller.findOne({ user: ownerId });
 
+  if (!store) {
+    return {
+      seller: seller || null,
+      status: null,
+    };
+  }
+
   return {
-    store: store || null,
+    ...store.toObject(),
     seller: seller || null,
-    status: store ? store.status : null,
   };
 };
 
