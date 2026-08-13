@@ -62,8 +62,60 @@ const getMyFavoritesFromDB = async (
   userId: string,
   query: Record<string, unknown>,
 ) => {
-  const filterQuery = { userId, ...query };
-  const builder = new QueryBuilder(Favorite.find(), filterQuery)
+  const filterQuery: Record<string, any> = { userId };
+
+  // Parse types from various potential query formats
+  const targetTypes = new Set<string>();
+
+  // 1. Check direct query parameters for type/targetType
+  const typeParam = query.targetType || query.type;
+  if (typeParam) {
+    const rawTypes = Array.isArray(typeParam)
+      ? typeParam
+      : typeof typeParam === "string"
+      ? typeParam.split(",")
+      : [];
+
+    rawTypes.forEach((t) => {
+      if (typeof t === "string") {
+        const cleaned = t.trim().toLowerCase();
+        if (Object.values(FAVORITE_TYPE).includes(cleaned as FAVORITE_TYPE)) {
+          targetTypes.add(cleaned);
+        }
+      }
+    });
+  }
+
+  // 2. Check individual boolean parameters like ?store=true, ?product=true, ?service=true
+  Object.values(FAVORITE_TYPE).forEach((favType) => {
+    if (
+      query[favType] !== undefined &&
+      (query[favType] === "true" ||
+        query[favType] === true ||
+        query[favType] === "1" ||
+        query[favType] === "")
+    ) {
+      targetTypes.add(favType);
+    }
+  });
+
+  // Apply targetType filter if specified
+  if (targetTypes.size > 0) {
+    filterQuery.targetType = { $in: Array.from(targetTypes) };
+  }
+
+  // Clean the query to avoid passing raw type/targetType/store/product/service to QueryBuilder
+  const cleanQuery = { ...query };
+  delete cleanQuery.type;
+  delete cleanQuery.targetType;
+  Object.values(FAVORITE_TYPE).forEach((favType) => {
+    delete cleanQuery[favType];
+  });
+
+  const builder = new QueryBuilder(Favorite.find(), {
+    ...filterQuery,
+    ...cleanQuery,
+  })
     .filter()
     .sort()
     .paginate()
