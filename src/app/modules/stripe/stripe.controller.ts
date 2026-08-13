@@ -6,6 +6,10 @@ import { User } from "../user/user.model";
 import stripeService from "./stripe.service";
 import config from "../../../config";
 import ApiError from "../../../errors/ApiErrors";
+import stripe from "../../../config/stripe";
+import Stripe from "stripe";
+import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
+
 
 // ----------------------------------------------------
 // Stripe Connected Account for Sellers (Onboarding)
@@ -121,6 +125,21 @@ const refundTransaction = catchAsync(async (req: Request, res: Response) => {
 // ----------------------------------------------------
 // Stripe Webhook Event Handler (Stubbed for template use)
 // ----------------------------------------------------
+const mapStripeStatusToLocal = (status: string) => {
+  switch (status) {
+    case "active":
+      return "active";
+    case "trialing":
+      return "trialing";
+    case "past_due":
+      return "past_due";
+    case "canceled":
+      return "canceled";
+    default:
+      return "inactive";
+  }
+};
+
 const handleWebhook = catchAsync(async (req: Request, res: Response) => {
   const signature = req.headers["stripe-signature"] as string;
 
@@ -130,11 +149,131 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
       .send("Missing stripe-signature header");
   }
 
-  // A basic webhook listener that can be updated for orders/products later
+  let event: Stripe.Event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.rawBody,
+      signature,
+      config.stripe.webhookSecret,
+    );
+  } catch (err: any) {
+    return res
+      .status(StatusCodes.BAD_REQUEST)
+      .send(`Webhook Verification Failed: ${err.message}`);
+  }
+
+  console.log(`[Stripe Webhook] Event received: ${event.type}`);
+
+  switch (event.type) {
+    case "checkout.session.completed": {
+      const session = event.data.object as Stripe.Checkout.Session;
+      if (session.mode === "subscription") {
+        const userId = session.metadata?.userId;
+        const packageId = session.metadata?.packageId;
+        const subscriptionId = session.subscription as string;
+
+        if (subscriptionId) {
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const stripeCustomerId = subscription.customer as string;
+          const status = subscription.status;
+          const expiresAt = new Date(subscription.current_period_end * 1000);
+
+          const priceId = subscription.items.data[0]?.price.id;
+          let pkg = null;
+
+          if (packageId) {
+            pkg = await SubscriptionPackage.findById(packageId);
+          } else if (priceId) {
+            pkg = await SubscriptionPackage.findOne({ stripePriceId: priceId });
+          }
+
+          const updateData: Record<string, any> = {
+            subscriptionStatus: mapStripeStatusToLocal(status),
+            stripeSubscriptionId: subscriptionId,
+            subscriptionExpiresAt: expiresAt,
+          };
+
+          if (pkg) {
+            updateData.subscriptionPackageId = pkg._id;
+          }
+          if (stripeCustomerId) {
+            updateData.stripeCustomerId = stripeCustomerId;
+          }
+
+          if (userId) {
+            await User.findByIdAndUpdate(userId, updateData);
+          } else {
+            await User.findOneAndUpdate(
+              {
+                $or: [
+                  { stripeCustomerId },
+                  { email: session.customer_details?.email },
+                ],
+              },
+              updateData,
+            );
+          }
+        }
+      }
+      break;
+    }
+
+    case "customer.subscription.created":
+    case "customer.subscription.updated": {
+      const subscription = event.data.object as Stripe.Subscription;
+      const subscriptionId = subscription.id;
+      const stripeCustomerId = subscription.customer as string;
+      const status = subscription.status;
+      const expiresAt = new Date(subscription.current_period_end * 1000);
+
+      const priceId = subscription.items.data[0]?.price.id;
+      const pkg = await SubscriptionPackage.findOne({ stripePriceId: priceId });
+
+      const updateData: Record<string, any> = {
+        subscriptionStatus: mapStripeStatusToLocal(status),
+        stripeSubscriptionId: subscriptionId,
+        subscriptionExpiresAt: expiresAt,
+      };
+
+      if (pkg) {
+        updateData.subscriptionPackageId = pkg._id;
+      }
+
+      await User.findOneAndUpdate(
+        {
+          $or: [
+            { stripeCustomerId },
+            { stripeSubscriptionId: subscriptionId },
+          ],
+        },
+        updateData,
+      );
+      break;
+    }
+
+    case "customer.subscription.deleted": {
+      const subscription = event.data.object as Stripe.Subscription;
+      const subscriptionId = subscription.id;
+
+      await User.findOneAndUpdate(
+        { stripeSubscriptionId: subscriptionId },
+        {
+          subscriptionStatus: "canceled",
+          subscriptionExpiresAt: new Date(),
+        },
+      );
+      break;
+    }
+
+    default:
+      console.log(`[Stripe Webhook] Unhandled event: ${event.type}`);
+  }
+
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: "Webhook event received and logged",
+    message: "Webhook event processed",
     data: {},
   });
 });

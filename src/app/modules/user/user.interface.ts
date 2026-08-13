@@ -1,4 +1,4 @@
-import { Model } from "mongoose";
+import { Model, Types } from "mongoose";
 import { GENDER, STATUS, USER_ROLES } from "../../../enums/user";
 import { ISoftDeleteModel } from "../../../types/softDelete";
 
@@ -33,6 +33,10 @@ export type IUser = {
   totalRatings?: number;
   totalReviews?: number;
   activeRole?: "user" | "seller";
+  subscriptionStatus?: "active" | "inactive" | "trialing" | "past_due" | "canceled" | "none";
+  subscriptionPackageId?: Types.ObjectId | string;
+  stripeSubscriptionId?: string;
+  subscriptionExpiresAt?: Date;
 };
 
 export type UserModal = {

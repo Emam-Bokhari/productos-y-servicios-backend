@@ -136,6 +136,24 @@ const userSchema = new Schema<IUser, IUserModel>(
       type: Number,
       default: 0,
     },
+    subscriptionStatus: {
+      type: String,
+      enum: ["active", "inactive", "trialing", "past_due", "canceled", "none"],
+      default: "none",
+    },
+    subscriptionPackageId: {
+      type: Schema.Types.ObjectId,
+      ref: "SubscriptionPackage",
+      required: false,
+    },
+    stripeSubscriptionId: {
+      type: String,
+      required: false,
+    },
+    subscriptionExpiresAt: {
+      type: Date,
+      required: false,
+    },
   },
   {
     timestamps: true,
