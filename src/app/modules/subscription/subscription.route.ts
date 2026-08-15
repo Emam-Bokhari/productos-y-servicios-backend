@@ -11,4 +11,10 @@ router.get(
   SubscriptionController.getMySubscriptions
 );
 
+router.get(
+  "/:id",
+  isAuthenticated,
+  SubscriptionController.getSingleSubscription
+);
+
 export const SubscriptionRoutes = router;

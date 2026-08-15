@@ -287,11 +287,18 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
       if (session.mode === "subscription") {
         const subscriptionId = session.subscription as string;
         if (subscriptionId) {
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+            expand: ["latest_invoice"],
+          });
           const stripeCustomerId = subscription.customer as string;
           const status = subscription.status;
           const periodEnd = subscription.current_period_end || subscription.trial_end;
           const expiresAt = periodEnd ? new Date(periodEnd * 1000) : new Date();
+
+          const latestInvoice = subscription.latest_invoice as Stripe.Invoice;
+          const trxId = typeof latestInvoice === "object" && latestInvoice !== null
+            ? (latestInvoice.payment_intent as string || "")
+            : "";
 
           await Subscription.findOneAndUpdate(
             { stripeSubscriptionId: subscriptionId },
@@ -304,7 +311,7 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
               stripeSubscriptionId: subscriptionId,
               stripeSessionId: session.id,
               amountPaid: session.amount_total ? session.amount_total / 100 : 0,
-              trxId: session.payment_intent as string || "",
+              trxId,
             },
             { upsert: true, new: true }
           );
@@ -343,7 +350,9 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
       const subscriptionId = eventSubscription.id;
 
       // Retrieve live subscription from Stripe to ensure current_period_end and trial_end are fully populated
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+        expand: ["latest_invoice"],
+      });
       const stripeCustomerId = subscription.customer as string;
       const status = subscription.status;
       const periodEnd = subscription.current_period_end || subscription.trial_end;
@@ -352,11 +361,21 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
       const priceId = subscription.items.data[0]?.price.id;
       const pkg = await SubscriptionPackage.findOne({ stripePriceId: priceId });
 
+      const latestInvoice = subscription.latest_invoice as Stripe.Invoice;
+      const trxId = typeof latestInvoice === "object" && latestInvoice !== null
+        ? (latestInvoice.payment_intent as string || "")
+        : "";
+      const amountPaid = typeof latestInvoice === "object" && latestInvoice !== null
+        ? (latestInvoice.amount_paid ? latestInvoice.amount_paid / 100 : 0)
+        : 0;
+
       const localSub = await Subscription.findOneAndUpdate(
         { stripeSubscriptionId: subscriptionId },
         {
           status: mapStripeStatusToLocal(status),
           expiresAt,
+          trxId,
+          amountPaid,
         },
         { new: true }
       );
@@ -385,6 +404,8 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
               status: mapStripeStatusToLocal(status),
               expiresAt,
               stripeSubscriptionId: subscriptionId,
+              trxId,
+              amountPaid,
             },
             { upsert: true }
           );
