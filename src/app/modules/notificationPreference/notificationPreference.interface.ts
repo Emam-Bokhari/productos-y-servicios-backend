@@ -7,14 +7,12 @@ export interface INotificationPreference {
   // Channel preferences
   email: boolean;
   push: boolean;
-  // sms: boolean;
 
   // Event preferences
   chatMessages: boolean;
   subscriptionUpdates: boolean;
   advertisementUpdates: boolean;
   reviewUpdates: boolean;
-  promotions: boolean;
 
   createdAt?: Date;
   updatedAt?: Date;

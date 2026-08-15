@@ -25,10 +25,6 @@ const notificationPreferenceSchema = new Schema<
       type: Boolean,
       default: true,
     },
-    // sms: {
-    //   type: Boolean,
-    //   default: true,
-    // },
     chatMessages: {
       type: Boolean,
       default: true,
@@ -42,10 +38,6 @@ const notificationPreferenceSchema = new Schema<
       default: true,
     },
     reviewUpdates: {
-      type: Boolean,
-      default: true,
-    },
-    promotions: {
       type: Boolean,
       default: true,
     },
