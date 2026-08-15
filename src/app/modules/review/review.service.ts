@@ -4,6 +4,8 @@ import ApiError from "../../../errors/ApiErrors";
 import { Store } from "../store/store.model";
 import { Review } from "./review.model";
 import QueryBuilder from "../../builder/queryBuilder";
+import { sendNotifications } from "../../../helpers/notificationsHelper";
+import { NOTIFICATION_TYPE } from "../notification/notification.constant";
 
 // Helper function to update store average rating and review count
 const updateStoreRatings = async (storeId: string) => {
@@ -73,6 +75,16 @@ const createReviewInDB = async (
   // Recalculate average rating and total reviews on the store
   await updateStoreRatings(storeId);
 
+  await sendNotifications({
+    receiver: store.owner.toString(),
+    sender: new Types.ObjectId(userId),
+    title: "New Review on Your Store",
+    text: `A user has left a ${rating}-star review on your store "${store.displayName}".`,
+    type: NOTIFICATION_TYPE.REVIEW_UPDATE,
+    referenceId: review._id,
+    referenceModel: "Review",
+  });
+
   return review;
 };
 
@@ -107,6 +119,17 @@ const replyAsStoreOwnerInDB = async (
   };
 
   await review.save();
+
+  await sendNotifications({
+    receiver: review.userId.toString(),
+    sender: new Types.ObjectId(userId),
+    title: "Store Owner Replied to Your Review",
+    text: `The owner of "${store.displayName}" has replied to your review.`,
+    type: NOTIFICATION_TYPE.REVIEW_UPDATE,
+    referenceId: review._id,
+    referenceModel: "Review",
+  });
+
   return review;
 };
 
@@ -147,6 +170,20 @@ const replyAsReviewerInDB = async (
   };
 
   await review.save();
+
+  const store = await Store.findById(review.storeId);
+  if (store) {
+    await sendNotifications({
+      receiver: store.owner.toString(),
+      sender: new Types.ObjectId(userId),
+      title: "New Reply on Review",
+      text: `A user has replied to your response on their review for "${store.displayName}".`,
+      type: NOTIFICATION_TYPE.REVIEW_UPDATE,
+      referenceId: review._id,
+      referenceModel: "Review",
+    });
+  }
+
   return review;
 };
 

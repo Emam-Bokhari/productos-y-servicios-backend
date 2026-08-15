@@ -18,6 +18,8 @@ import QueryBuilder from "../../builder/queryBuilder";
 import { Subscription } from "../subscription/subscription.model";
 import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
 import { DateTime } from "luxon";
+import { sendNotifications } from "../../../helpers/notificationsHelper";
+import { NOTIFICATION_TYPE } from "../notification/notification.constant";
 
 // helper to calculate maximum concurrent bookings for a given date range
 export const getOverlappingBookedSlots = async (
@@ -407,6 +409,15 @@ const createAdvertisementToDB = async (
       );
       activePostSub = createdSubs[0];
       activePostSub.packageId = trialPackage as any;
+
+      await sendNotifications({
+        receiver: sellerId,
+        title: "Trial Subscription Activated",
+        text: `Your post advertisement free trial has been activated.`,
+        type: NOTIFICATION_TYPE.SUBSCRIPTION_UPDATE,
+        referenceId: activePostSub._id,
+        referenceModel: "Subscription",
+      });
     }
 
     const packageInfo = activePostSub.packageId as any;
@@ -472,6 +483,16 @@ const createAdvertisementToDB = async (
     const [newAd] = await Advertisement.create([payload], { session });
 
     await session.commitTransaction();
+
+    await sendNotifications({
+      receiver: sellerId,
+      title: "Advertisement Booked",
+      text: `Your advertisement campaign "${newAd.campaignName}" has been successfully booked and is now active.`,
+      type: NOTIFICATION_TYPE.ADVERTISEMENT_UPDATE,
+      referenceId: newAd._id,
+      referenceModel: "Advertisement",
+    });
+
     return newAd!;
   } catch (error) {
     await session.abortTransaction();
@@ -555,6 +576,15 @@ const cancelAdvertisementInDB = async (
       "Failed to cancel advertisement",
     );
   }
+
+  await sendNotifications({
+    receiver: sellerId,
+    title: "Advertisement Cancelled",
+    text: `Your advertisement campaign "${result.campaignName}" has been cancelled.`,
+    type: NOTIFICATION_TYPE.ADVERTISEMENT_UPDATE,
+    referenceId: result._id,
+    referenceModel: "Advertisement",
+  });
 
   return result;
 };

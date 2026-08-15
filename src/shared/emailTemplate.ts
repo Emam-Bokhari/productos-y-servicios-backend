@@ -612,8 +612,41 @@ Please review the request and respond as soon as possible.
   };
 };
 
+const genericNotification = (values: { to: string; subject: string; text: string }) => {
+  const content = `
+<tr>
+<td
+style="
+padding:20px 22px;
+font-size:14px;
+line-height:1.8;
+color:${COLORS.secondary};
+"
+>
+
+<b style="color:${COLORS.text};">
+${values.subject}
+</b>
+
+<br><br>
+
+${values.text}
+
+</td>
+
+</tr>
+`;
+
+  return {
+    to: values.to,
+    subject: values.subject,
+    html: baseLayout(values.subject, content),
+  };
+};
+
 export const emailTemplate = {
   createAccount,
   resetPassword,
   supportNotification,
+  genericNotification,
 };

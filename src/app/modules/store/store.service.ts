@@ -16,6 +16,8 @@ import { DateTime } from "luxon";
 import { StoreTraffic } from "../storeTraffic/storeTraffic.model";
 import { Subscription } from "../subscription/subscription.model";
 import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
+import { sendNotifications } from "../../../helpers/notificationsHelper";
+import { NOTIFICATION_TYPE } from "../notification/notification.constant";
 
 const createStoreToDB = async (ownerId: string, payload: any) => {
   // Check if user already has a store
@@ -88,6 +90,15 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
       subscriptionStatus: "trialing",
       subscriptionPackageId: trialPackage._id,
       subscriptionExpiresAt: expiresAt,
+    });
+
+    await sendNotifications({
+      receiver: ownerId.toString(),
+      title: "Trial Subscription Activated",
+      text: `Your ${trialDays}-day free trial has been successfully activated.`,
+      type: NOTIFICATION_TYPE.SUBSCRIPTION_UPDATE,
+      referenceId: activeSubscription._id,
+      referenceModel: "Subscription",
     });
   }
 

@@ -8,7 +8,10 @@ export const sendNotifications = async (
 ): Promise<INotification | any> => {
   if (
     data.type === NOTIFICATION_TYPE.USER ||
-    data.type === NOTIFICATION_TYPE.SELLER
+    data.type === NOTIFICATION_TYPE.SELLER ||
+    data.type === NOTIFICATION_TYPE.SUBSCRIPTION_UPDATE ||
+    data.type === NOTIFICATION_TYPE.ADVERTISEMENT_UPDATE ||
+    data.type === NOTIFICATION_TYPE.REVIEW_UPDATE
   ) {
     // For User and Seller, use the Push Notification Helper (which also saves to DB)
     if (!data.receiver) return;

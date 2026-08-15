@@ -11,6 +11,8 @@ import Stripe from "stripe";
 import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
 import { Subscription } from "../subscription/subscription.model";
 import { CityAdConfiguration } from "../cityAdConfiguration/cityAdConfiguration.model";
+import { sendNotifications } from "../../../helpers/notificationsHelper";
+import { NOTIFICATION_TYPE } from "../notification/notification.constant";
 
 // ----------------------------------------------------
 // Stripe Connected Account for Sellers (Onboarding)
@@ -300,7 +302,7 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
             ? (latestInvoice.payment_intent as string || "")
             : "";
 
-          await Subscription.findOneAndUpdate(
+          const localSub = await Subscription.findOneAndUpdate(
             { stripeSubscriptionId: subscriptionId },
             {
               userId,
@@ -323,12 +325,24 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
             stripeSubscriptionId: subscriptionId,
             stripeCustomerId,
           });
+
+          if (localSub) {
+            const pkg = await SubscriptionPackage.findById(packageId);
+            await sendNotifications({
+              receiver: userId,
+              title: "Subscription Activated",
+              text: `Your subscription to "${pkg ? pkg.name : "Subscription Plan"}" has been successfully activated.`,
+              type: NOTIFICATION_TYPE.SUBSCRIPTION_UPDATE,
+              referenceId: localSub._id,
+              referenceModel: "Subscription",
+            });
+          }
         }
       } else if (session.mode === "payment" && packageType === "post_add") {
         const pkg = await SubscriptionPackage.findById(packageId);
         if (pkg) {
           const expiresAt = calculateExpirationDate(pkg.duration);
-          await Subscription.create({
+          const createdSub = await Subscription.create({
             userId,
             packageId,
             packageType: "post_add",
@@ -339,6 +353,17 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
             amountPaid: session.amount_total ? session.amount_total / 100 : 0,
             trxId: session.payment_intent as string || "",
           });
+
+          if (createdSub) {
+            await sendNotifications({
+              receiver: userId,
+              title: "Subscription Activated",
+              text: `Your post advertisement subscription pack "${pkg.name}" has been successfully activated.`,
+              type: NOTIFICATION_TYPE.SUBSCRIPTION_UPDATE,
+              referenceId: createdSub._id,
+              referenceModel: "Subscription",
+            });
+          }
         }
       }
       break;
@@ -432,14 +457,36 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
           subscriptionStatus: "canceled",
           subscriptionExpiresAt: new Date(),
         });
+
+        await sendNotifications({
+          receiver: localSub.userId.toString(),
+          title: "Subscription Cancelled",
+          text: "Your subscription has been cancelled.",
+          type: NOTIFICATION_TYPE.SUBSCRIPTION_UPDATE,
+          referenceId: localSub._id,
+          referenceModel: "Subscription",
+        });
       } else {
-        await User.findOneAndUpdate(
+        const user = await User.findOneAndUpdate(
           { stripeSubscriptionId: subscriptionId },
           {
             subscriptionStatus: "canceled",
             subscriptionExpiresAt: new Date(),
           },
+          { new: true }
         );
+
+        const findSub = await Subscription.findOne({ stripeSubscriptionId: subscriptionId });
+        if (user && findSub) {
+          await sendNotifications({
+            receiver: user._id.toString(),
+            title: "Subscription Cancelled",
+            text: "Your subscription has been cancelled.",
+            type: NOTIFICATION_TYPE.SUBSCRIPTION_UPDATE,
+            referenceId: findSub._id,
+            referenceModel: "Subscription",
+          });
+        }
       }
       break;
     }
