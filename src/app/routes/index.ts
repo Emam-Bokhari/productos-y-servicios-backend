@@ -17,6 +17,7 @@ import { AdvertisementRoutes } from "../modules/advertisement/advertisement.rout
 import { CityAdConfigurationRoutes } from "../modules/cityAdConfiguration/cityAdConfiguration.route";
 import { SubscriptionPackageRoutes } from "../modules/subscriptionPackage/subscriptionPackage.route";
 import { SubscriptionRoutes } from "../modules/subscription/subscription.route";
+import { DashboardRoutes } from "../modules/dashboard/dashboard.route";
 
 import { ProductRoutes } from "../modules/product/product.routes";
 import { ServiceRoutes } from "../modules/service/service.routes";
@@ -114,6 +115,10 @@ const apiRoutes = [
   {
     path: "/subscriptions",
     route: SubscriptionRoutes,
+  },
+  {
+    path: "/dashboard",
+    route: DashboardRoutes,
   },
 ];
 
