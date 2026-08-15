@@ -9,13 +9,12 @@ export interface INotificationPreference {
   push: boolean;
   // sms: boolean;
 
-  // Ride-sharing event preferences
-  newRideRequests: boolean; // For drivers
-  rideUpdates: boolean; // For passengers
-  chatMessages: boolean; // For both
-  paymentUpdates: boolean; // For both
-  promotions: boolean; // Marketing
-  emergencyAlerts: boolean; // SOS triggers
+  // Event preferences
+  chatMessages: boolean;
+  subscriptionUpdates: boolean;
+  advertisementUpdates: boolean;
+  reviewUpdates: boolean;
+  promotions: boolean;
 
   createdAt?: Date;
   updatedAt?: Date;

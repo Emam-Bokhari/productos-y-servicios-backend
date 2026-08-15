@@ -12,14 +12,7 @@ const getNotificationFromDB = async (
   const baseQuery = Notification.find({ receiver: user.id }).populate([
     { path: "receiver" },
     { path: "sender" },
-    {
-      path: "referenceId",
-      populate: {
-        path: "carId",
-        model: "Car",
-        strictPopulate: false,
-      },
-    },
+    { path: "referenceId" },
   ]);
 
   const unreadCount = await Notification.countDocuments({
@@ -59,14 +52,7 @@ const getRecentActivitiesFromDB = async (user: JwtPayload) => {
     .populate([
       { path: "receiver" },
       { path: "sender" },
-      {
-        path: "referenceId",
-        populate: {
-          path: "carId",
-          model: "Car",
-          strictPopulate: false,
-        },
-      },
+      { path: "referenceId" },
     ])
     .sort({ createdAt: -1 })
     .limit(5);
@@ -81,14 +67,7 @@ const adminNotificationFromDB = async (query: any) => {
   }).populate([
     { path: "receiver" },
     { path: "sender" },
-    {
-      path: "referenceId",
-      populate: {
-        path: "carId",
-        model: "Car",
-        strictPopulate: false,
-      },
-    },
+    { path: "referenceId" },
   ]);
 
   const unreadCount = await Notification.countDocuments({
@@ -127,14 +106,7 @@ const adminRecentActivitiesFromDB = async () => {
     .populate([
       { path: "receiver" },
       { path: "sender" },
-      {
-        path: "referenceId",
-        populate: {
-          path: "carId",
-          model: "Car",
-          strictPopulate: false,
-        },
-      },
+      { path: "referenceId" },
     ])
     .sort({ createdAt: -1 })
     .limit(5);
@@ -153,14 +125,7 @@ const getSingleNotificationFromDB = async (
   }).populate([
     { path: "receiver" },
     { path: "sender" },
-    {
-      path: "referenceId",
-      populate: {
-        path: "carId",
-        model: "Car",
-        strictPopulate: false,
-      },
-    },
+    { path: "referenceId" },
   ]);
 
   return result;
@@ -190,14 +155,7 @@ const adminGetSingleNotificationFromDB = async (
   }).populate([
     { path: "receiver" },
     { path: "sender" },
-    {
-      path: "referenceId",
-      populate: {
-        path: "carId",
-        model: "Car",
-        strictPopulate: false,
-      },
-    },
+    { path: "referenceId" },
   ]);
 
   return result;

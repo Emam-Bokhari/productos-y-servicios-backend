@@ -30,7 +30,19 @@ const notificationSchema = new Schema<INotification, NotificationModel>(
     referenceModel: {
       type: String,
       required: false,
-      enum: ["Car", "Review", "User", "Ride", "Wallet"],
+      enum: [
+        "Store",
+        "Product",
+        "Service",
+        "Advertisement",
+        "Review",
+        "User",
+        "Subscription",
+        "Transaction",
+        "Support",
+        "Chat",
+        "Message",
+      ],
     },
     read: {
       type: Boolean,

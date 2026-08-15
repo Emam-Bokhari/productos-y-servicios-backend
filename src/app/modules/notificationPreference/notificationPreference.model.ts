@@ -29,27 +29,23 @@ const notificationPreferenceSchema = new Schema<
     //   type: Boolean,
     //   default: true,
     // },
-    newRideRequests: {
-      type: Boolean,
-      default: true,
-    },
-    rideUpdates: {
-      type: Boolean,
-      default: true,
-    },
     chatMessages: {
       type: Boolean,
       default: true,
     },
-    paymentUpdates: {
+    subscriptionUpdates: {
+      type: Boolean,
+      default: true,
+    },
+    advertisementUpdates: {
+      type: Boolean,
+      default: true,
+    },
+    reviewUpdates: {
       type: Boolean,
       default: true,
     },
     promotions: {
-      type: Boolean,
-      default: true,
-    },
-    emergencyAlerts: {
       type: Boolean,
       default: true,
     },

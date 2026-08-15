@@ -9,13 +9,17 @@ export type INotification = {
   read: boolean;
   referenceId?: Types.ObjectId | string;
   referenceModel?:
-    | "Car"
+    | "Store"
+    | "Product"
+    | "Service"
+    | "Advertisement"
     | "Review"
     | "User"
-    | "Ride"
-    | "Wallet"
-    | "Payout"
-    | "LostFound";
+    | "Subscription"
+    | "Transaction"
+    | "Support"
+    | "Chat"
+    | "Message";
   type?: string;
 };
 
