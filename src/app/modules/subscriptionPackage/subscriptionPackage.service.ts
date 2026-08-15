@@ -4,16 +4,22 @@ import stripe from "../../../config/stripe";
 import ApiError from "../../../errors/ApiErrors";
 import { TSubscriptionPackage } from "./subscriptionPackage.interface";
 import { SubscriptionPackage } from "./subscriptionPackage.model";
+import {
+  SUBSCRIPTION_PACKAGE_DURATION,
+  SUBSCRIPTION_PACKAGE_STATUS,
+} from "./subscriptionPackage.constant";
 
 const mapDurationToStripeRecurring = (duration: string) => {
   switch (duration) {
-    case "1 month":
+    case SUBSCRIPTION_PACKAGE_DURATION.SEVEN_DAYS:
+      return { interval: "day" as const, interval_count: 7 };
+    case SUBSCRIPTION_PACKAGE_DURATION.ONE_MONTH:
       return { interval: "month" as const, interval_count: 1 };
-    case "3 month":
+    case SUBSCRIPTION_PACKAGE_DURATION.THREE_MONTH:
       return { interval: "month" as const, interval_count: 3 };
-    case "6 month":
+    case SUBSCRIPTION_PACKAGE_DURATION.SIX_MONTH:
       return { interval: "month" as const, interval_count: 6 };
-    case "1 year":
+    case SUBSCRIPTION_PACKAGE_DURATION.ONE_YEAR:
       return { interval: "year" as const, interval_count: 1 };
     default:
       throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid duration option");
@@ -21,26 +27,35 @@ const mapDurationToStripeRecurring = (duration: string) => {
 };
 
 const createSubscriptionPackageInDB = async (payload: TSubscriptionPackage) => {
+  const status = payload.status || SUBSCRIPTION_PACKAGE_STATUS.ACTIVE;
+  const isActive = status === SUBSCRIPTION_PACKAGE_STATUS.ACTIVE;
+
   // 1. Create product in Stripe
   const stripeProduct = await stripe.products.create({
     name: payload.name,
     description: `Subscription package: ${payload.name} (${payload.duration})`,
-    active: payload.status === "active",
+    active: isActive,
   });
 
   // 2. Map recurring duration and create price in Stripe
-  const recurring = mapDurationToStripeRecurring(payload.duration);
-  const stripePrice = await stripe.prices.create({
+  const priceParams: any = {
     product: stripeProduct.id,
     unit_amount: Math.round(payload.price * 100), // convert dollars to cents
     currency: "usd",
-    recurring,
-    active: payload.status === "active",
-  });
+    active: isActive,
+  };
+
+  if (payload.packageType === "store_creation") {
+    priceParams.recurring = mapDurationToStripeRecurring(payload.duration);
+  }
+
+  const stripePrice = await stripe.prices.create(priceParams);
+
 
   // 3. Save to database
   const subscriptionPackage = await SubscriptionPackage.create({
     ...payload,
+    status,
     stripeProductId: stripeProduct.id,
     stripePriceId: stripePrice.id,
   });
@@ -92,7 +107,11 @@ const updateSubscriptionPackageInDB = async (
 
   const updateData: Partial<TSubscriptionPackage> = { ...payload };
 
-  // 1. If name changed, update Stripe Product
+  const finalStatus =
+    payload.status !== undefined ? payload.status : existingPackage.status;
+  const isStripeActive = finalStatus === SUBSCRIPTION_PACKAGE_STATUS.ACTIVE;
+
+  // 1. If name changed, update Stripe Product name
   if (
     payload.name &&
     payload.name !== existingPackage.name &&
@@ -103,7 +122,18 @@ const updateSubscriptionPackageInDB = async (
     });
   }
 
-  // 2. If price or duration changed, create a new Stripe Price
+  // 2. If status changed, update Stripe Product active status
+  if (
+    payload.status !== undefined &&
+    payload.status !== existingPackage.status &&
+    existingPackage.stripeProductId
+  ) {
+    await stripe.products.update(existingPackage.stripeProductId, {
+      active: isStripeActive,
+    });
+  }
+
+  // 3. If price or duration changed, create a new Stripe Price
   const hasPriceChanged =
     payload.price !== undefined && payload.price !== existingPackage.price;
   const hasDurationChanged =
@@ -120,18 +150,23 @@ const updateSubscriptionPackageInDB = async (
       payload.duration !== undefined
         ? payload.duration
         : existingPackage.duration;
+    const updatedPackageType =
+      payload.packageType !== undefined
+        ? payload.packageType
+        : existingPackage.packageType;
 
-    const recurring = mapDurationToStripeRecurring(updatedDuration);
-    const stripePrice = await stripe.prices.create({
+    const priceParams: any = {
       product: existingPackage.stripeProductId,
       unit_amount: Math.round(updatedPrice * 100),
       currency: "usd",
-      recurring,
-      active:
-        payload.status !== undefined
-          ? payload.status === "active"
-          : existingPackage.status === "active",
-    });
+      active: isStripeActive,
+    };
+
+    if (updatedPackageType === "store_creation") {
+      priceParams.recurring = mapDurationToStripeRecurring(updatedDuration);
+    }
+
+    const stripePrice = await stripe.prices.create(priceParams);
 
     // Deactivate the old price in Stripe
     if (existingPackage.stripePriceId) {
@@ -141,19 +176,13 @@ const updateSubscriptionPackageInDB = async (
     }
 
     updateData.stripePriceId = stripePrice.id;
-  }
-
-  // If status is updated in the payload, sync active status with Stripe
-  if (
-    payload.status !== undefined &&
-    payload.status !== existingPackage.status &&
-    existingPackage.stripeProductId
-  ) {
-    const isStripeActive = payload.status === "active";
-    await stripe.products.update(existingPackage.stripeProductId, {
-      active: isStripeActive,
-    });
-    if (existingPackage.stripePriceId) {
+  } else {
+    // If price/duration did not change but status did, sync the existing Price active status
+    if (
+      payload.status !== undefined &&
+      payload.status !== existingPackage.status &&
+      existingPackage.stripePriceId
+    ) {
       await stripe.prices.update(existingPackage.stripePriceId, {
         active: isStripeActive,
       });
@@ -212,7 +241,7 @@ const deleteSubscriptionPackageFromDB = async (id: string) => {
 
 const updateSubscriptionPackageStatusInDB = async (
   id: string,
-  status: "active" | "inactive",
+  status: SUBSCRIPTION_PACKAGE_STATUS,
 ) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid ID");
@@ -226,12 +255,12 @@ const updateSubscriptionPackageStatusInDB = async (
   // Update Stripe Product and Price status
   if (existingPackage.stripeProductId) {
     await stripe.products.update(existingPackage.stripeProductId, {
-      active: status === "active",
+      active: status === SUBSCRIPTION_PACKAGE_STATUS.ACTIVE,
     });
   }
   if (existingPackage.stripePriceId) {
     await stripe.prices.update(existingPackage.stripePriceId, {
-      active: status === "active",
+      active: status === SUBSCRIPTION_PACKAGE_STATUS.ACTIVE,
     });
   }
 
@@ -247,7 +276,7 @@ const updateSubscriptionPackageStatusInDB = async (
 
   return updatedPackage;
 };
-
+  
 export const SubscriptionPackageService = {
   createSubscriptionPackageInDB,
   subscriptionPackagesFromDB,

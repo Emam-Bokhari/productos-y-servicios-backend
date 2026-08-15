@@ -6,6 +6,7 @@ import { Store } from "../store/store.model";
 import { PRODUCT_SEARCHABLE_FIELDS, PRODUCT_STATUS } from "./product.constant";
 import { IProduct } from "./product.interface";
 import { Product } from "./product.model";
+import { validateStoreCreationSubscription } from "../subscription/subscription.utils";
 
 const createProductToDB = async (
   sellerId: string,
@@ -25,6 +26,9 @@ const createProductToDB = async (
       `Your store status is "${store.status}". It must be active to publish products.`,
     );
   }
+
+  // Check active store creation subscription and listing limits
+  await validateStoreCreationSubscription(sellerId, store._id.toString(), "product");
 
   if (store.storeType !== STORE_TYPE.PRODUCT_STORE) {
     throw new ApiError(

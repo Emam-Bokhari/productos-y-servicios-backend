@@ -2,9 +2,9 @@ import { StatusCodes } from "http-status-codes";
 import Stripe from "stripe";
 import ApiError from "../errors/ApiErrors";
 import stripe from "../config/stripe";
-const User: any = "";
-const PricingPlan: any = "";
-const Subscription: any = "";
+import { User } from "../app/modules/user/user.model";
+import { SubscriptionPackage } from "../app/modules/subscriptionPackage/subscriptionPackage.model";
+import { Subscription } from "../app/modules/subscription/subscription.model";
 
 export const handleSubscriptionCreated = async (data: Stripe.Subscription) => {
   // Retrieve the subscription from Stripe
@@ -24,14 +24,14 @@ export const handleSubscriptionCreated = async (data: Stripe.Subscription) => {
   );
 
   const trxId = invoice?.payment_intent;
-  const amountPaid = invoice?.total / 100;
+  const amountPaid = invoice?.total ? invoice.total / 100 : 0;
 
   if (customer?.email) {
     const existingUser = await User.findOne({ email: customer?.email });
 
     if (existingUser) {
-      // Find the pricing plan by priceId
-      const pricingPlan = await PricingPlan.findOne({ priceId });
+      // Find the pricing plan by stripePriceId
+      const pricingPlan = await SubscriptionPackage.findOne({ stripePriceId: priceId });
 
       if (pricingPlan) {
         // Find the current active subscription
@@ -47,14 +47,18 @@ export const handleSubscriptionCreated = async (data: Stripe.Subscription) => {
           );
         }
 
+        const expiresAt = new Date(subscription.current_period_end * 1000);
+
         // Create a new subscription record
         const newSubscription = new Subscription({
           userId: existingUser._id,
-          customerId: customer?.id,
           packageId: pricingPlan._id,
-          status: "active",
+          packageType: "store_creation",
+          status: subscription.status === "trialing" ? "trialing" : "active",
+          expiresAt,
+          stripeSubscriptionId: subscription.id,
           amountPaid,
-          trxId,
+          trxId: (trxId as string) || "",
         });
 
         await newSubscription.save();
@@ -63,8 +67,11 @@ export const handleSubscriptionCreated = async (data: Stripe.Subscription) => {
         await User.findByIdAndUpdate(
           existingUser._id,
           {
-            isSubscribed: true,
-            hasAccess: true,
+            subscriptionStatus: subscription.status === "trialing" ? "trialing" : "active",
+            subscriptionPackageId: pricingPlan._id,
+            subscriptionExpiresAt: expiresAt,
+            stripeSubscriptionId: subscription.id,
+            stripeCustomerId: customer.id,
           },
           { new: true },
         );

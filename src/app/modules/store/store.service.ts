@@ -14,6 +14,8 @@ import { CityAdConfiguration } from "../cityAdConfiguration/cityAdConfiguration.
 import { SLOT_CONFIG_STATUS } from "../cityAdConfiguration/cityAdConfiguration.constant";
 import { DateTime } from "luxon";
 import { StoreTraffic } from "../storeTraffic/storeTraffic.model";
+import { Subscription } from "../subscription/subscription.model";
+import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
 
 const createStoreToDB = async (ownerId: string, payload: any) => {
   // Check if user already has a store
@@ -23,6 +25,70 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
       StatusCodes.BAD_REQUEST,
       `You already have a store which is in ${existingStore.status} status.`,
     );
+  }
+
+  // Check if user has an active store creation subscription
+  let activeSubscription = await Subscription.findOne({
+    userId: ownerId,
+    packageType: "store_creation",
+    status: { $in: ["active", "trialing"] },
+    expiresAt: { $gt: new Date() },
+  });
+
+  if (!activeSubscription) {
+    // Check if user has ever had any store_creation subscription in the past
+    const hasHadSubscription = await Subscription.findOne({
+      userId: ownerId,
+      packageType: "store_creation",
+    });
+
+    if (hasHadSubscription) {
+      throw new ApiError(
+        StatusCodes.PAYMENT_REQUIRED,
+        "You must have an active store creation subscription to create a store.",
+      );
+    }
+
+    // Since they have never had any store_creation subscription, they get a one-time free trial
+    const trialPackage = await SubscriptionPackage.findOne({
+      packageType: "store_creation",
+      trialEnabled: true,
+      status: "active",
+    });
+
+    if (!trialPackage) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "No active trial package configured for store creation.",
+      );
+    }
+
+    const trialDays = trialPackage.trialPeriodDays || 0;
+    if (trialDays <= 0) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "Trial period duration must be greater than 0 days.",
+      );
+    }
+
+    const expiresAt = DateTime.now().plus({ days: trialDays }).toJSDate();
+
+    // Create the trial subscription
+    activeSubscription = await Subscription.create({
+      userId: ownerId,
+      packageId: trialPackage._id,
+      packageType: "store_creation",
+      status: "trialing",
+      expiresAt,
+      trxId: "trial_activated",
+    });
+
+    // Update user subscription details
+    await User.findByIdAndUpdate(ownerId, {
+      subscriptionStatus: "trialing",
+      subscriptionPackageId: trialPackage._id,
+      subscriptionExpiresAt: expiresAt,
+    });
   }
 
   const { categoryId, displayName, phone, businessLicenseNumber } = payload;

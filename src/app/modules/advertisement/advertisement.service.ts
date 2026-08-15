@@ -15,6 +15,9 @@ import { Advertisement } from "./advertisement.model";
 import { Store } from "../store/store.model";
 import { User } from "../user/user.model";
 import QueryBuilder from "../../builder/queryBuilder";
+import { Subscription } from "../subscription/subscription.model";
+import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
+import { DateTime } from "luxon";
 
 // helper to calculate maximum concurrent bookings for a given date range
 export const getOverlappingBookedSlots = async (
@@ -302,7 +305,6 @@ const createAdvertisementToDB = async (
   }
 
   const startDate = new Date(payload.startDate!);
-  const endDate = new Date(payload.endDate!);
 
   // Mongoose Session for transactional lock to prevent race condition overbooking
   const session = await mongoose.startSession();
@@ -341,6 +343,104 @@ const createAdvertisementToDB = async (
       );
     }
 
+    // Check active post subscription for this city
+    let activePostSub = await Subscription.findOne({
+      userId: sellerId,
+      packageType: "post_add",
+      status: { $in: ["active", "trialing"] },
+      cityConfigId: cityConfig._id,
+      expiresAt: { $gt: new Date() },
+    }).populate("packageId");
+
+    if (!activePostSub) {
+      // Check if they have ever had any post_add subscription in any city configuration
+      const hasHadPostSub = await Subscription.findOne({
+        userId: sellerId,
+        packageType: "post_add",
+      });
+
+      if (hasHadPostSub) {
+        throw new ApiError(
+          StatusCodes.PAYMENT_REQUIRED,
+          `You do not have an active post subscription for the city: ${cityConfig.city}. Please purchase a package first.`,
+        );
+      }
+
+      // Since they have never had any post_add subscription, they get a one-time free trial
+      const trialPackage = await SubscriptionPackage.findOne({
+        packageType: "post_add",
+        trialEnabled: true,
+        status: "active",
+      });
+
+      if (!trialPackage) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          "No active trial package configured for advertisement posting.",
+        );
+      }
+
+      const trialDays = trialPackage.trialPeriodDays || 0;
+      if (trialDays <= 0) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          "Trial period duration must be greater than 0 days.",
+        );
+      }
+
+      const expiresAt = DateTime.now().plus({ days: trialDays }).toJSDate();
+
+      // Create the trial subscription inside the transaction
+      const createdSubs = await Subscription.create(
+        [
+          {
+            userId: sellerId,
+            packageId: trialPackage._id,
+            packageType: "post_add",
+            status: "trialing",
+            expiresAt,
+            cityConfigId: cityConfig._id,
+            trxId: "trial_activated",
+          },
+        ],
+        { session }
+      );
+      activePostSub = createdSubs[0];
+      activePostSub.packageId = trialPackage as any;
+    }
+
+    const packageInfo = activePostSub.packageId as any;
+    const isTrial = activePostSub.status === "trialing";
+    const calculatedEndDate = new Date(startDate);
+
+    if (isTrial && packageInfo?.trialPeriodDays) {
+      calculatedEndDate.setDate(calculatedEndDate.getDate() + packageInfo.trialPeriodDays);
+    } else if (packageInfo?.duration) {
+      switch (packageInfo.duration) {
+        case "seven_days":
+          calculatedEndDate.setDate(calculatedEndDate.getDate() + 7);
+          break;
+        case "one_month":
+          calculatedEndDate.setMonth(calculatedEndDate.getMonth() + 1);
+          break;
+        case "three_month":
+          calculatedEndDate.setMonth(calculatedEndDate.getMonth() + 3);
+          break;
+        case "six_month":
+          calculatedEndDate.setMonth(calculatedEndDate.getMonth() + 6);
+          break;
+        case "one_year":
+          calculatedEndDate.setFullYear(calculatedEndDate.getFullYear() + 1);
+          break;
+        default:
+          calculatedEndDate.setMonth(calculatedEndDate.getMonth() + 1);
+      }
+    } else {
+      calculatedEndDate.setMonth(calculatedEndDate.getMonth() + 1);
+    }
+
+    payload.endDate = calculatedEndDate;
+
     const totalSlots = cityConfig.featuredCapacity;
 
     // Check booked slots inside the session transaction
@@ -348,7 +448,7 @@ const createAdvertisementToDB = async (
       cityConfig._id as Types.ObjectId,
       advertisementType,
       startDate,
-      endDate,
+      calculatedEndDate,
       session,
     );
 

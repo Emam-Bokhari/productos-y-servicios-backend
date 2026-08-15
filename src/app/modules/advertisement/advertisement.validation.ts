@@ -23,13 +23,12 @@ const createAdvertisementSchema = z.object({
       startDate: z.string({
         required_error: "Start Date is required",
       }),
-      endDate: z.string({
-        required_error: "End Date is required",
-      }),
+      endDate: z.string().optional(),
       featuredImage: z.string().optional(),
     })
     .refine(
       (data) => {
+        if (!data.endDate) return true;
         const start = new Date(data.startDate);
         const end = new Date(data.endDate);
         return start < end;

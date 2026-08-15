@@ -6,6 +6,7 @@ import { Store } from "../store/store.model";
 import { SERVICE_SEARCHABLE_FIELDS, SERVICE_STATUS } from "./service.constant";
 import { IService } from "./service.interface";
 import { Service } from "./service.model";
+import { validateStoreCreationSubscription } from "../subscription/subscription.utils";
 
 const createServiceToDB = async (
   sellerId: string,
@@ -25,6 +26,9 @@ const createServiceToDB = async (
       `Your store status is "${store.status}". It must be active to publish services.`,
     );
   }
+
+  // Check active store creation subscription and listing limits
+  await validateStoreCreationSubscription(sellerId, store._id.toString(), "service");
 
   if (store.storeType !== STORE_TYPE.SERVICE_STORE) {
     throw new ApiError(

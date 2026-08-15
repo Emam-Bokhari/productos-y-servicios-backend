@@ -1,10 +1,19 @@
 import { ISoftDeleteModel } from "../../../types/softDelete";
+import {
+  SUBSCRIPTION_PACKAGE_DURATION,
+  SUBSCRIPTION_PACKAGE_STATUS,
+  SUBSCRIPTION_PACKAGE_TYPE,
+} from "./subscriptionPackage.constant";
 
 export type TSubscriptionPackage = {
   name: string;
   price: number;
-  duration: "1 month" | "3 month" | "6 month" | "1 year";
-  status: "active" | "inactive";
+  duration: SUBSCRIPTION_PACKAGE_DURATION;
+  status: SUBSCRIPTION_PACKAGE_STATUS;
+  packageType: SUBSCRIPTION_PACKAGE_TYPE;
+  listingLimit?: number;
+  isUnlimitedListings?: boolean;
+  trialEnabled?: boolean;
   trialPeriodDays?: number;
   stripeProductId?: string;
   stripePriceId?: string;
@@ -12,3 +21,6 @@ export type TSubscriptionPackage = {
 };
 
 export type SubscriptionPackageModel = ISoftDeleteModel<TSubscriptionPackage>;
+
+
+

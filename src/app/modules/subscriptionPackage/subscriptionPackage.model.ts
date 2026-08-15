@@ -4,6 +4,11 @@ import {
   SubscriptionPackageModel,
 } from "./subscriptionPackage.interface";
 import { softDeletePlugin } from "../../../DB/plugins/softDeletePlugin";
+import {
+  SUBSCRIPTION_PACKAGE_DURATION,
+  SUBSCRIPTION_PACKAGE_STATUS,
+  SUBSCRIPTION_PACKAGE_TYPE,
+} from "./subscriptionPackage.constant";
 
 const subscriptionPackageSchema = new Schema<TSubscriptionPackage>(
   {
@@ -19,13 +24,30 @@ const subscriptionPackageSchema = new Schema<TSubscriptionPackage>(
     },
     duration: {
       type: String,
-      enum: ["1 month", "3 month", "6 month", "1 year"],
+      enum: Object.values(SUBSCRIPTION_PACKAGE_DURATION),
       required: true,
     },
     status: {
       type: String,
-      enum: ["active", "inactive"],
-      default: "active",
+      enum: Object.values(SUBSCRIPTION_PACKAGE_STATUS),
+      default: SUBSCRIPTION_PACKAGE_STATUS.ACTIVE,
+    },
+    packageType: {
+      type: String,
+      enum: Object.values(SUBSCRIPTION_PACKAGE_TYPE),
+      required: true,
+    },
+    listingLimit: {
+      type: Number,
+      default: 0,
+    },
+    isUnlimitedListings: {
+      type: Boolean,
+      default: false,
+    },
+    trialEnabled: {
+      type: Boolean,
+      default: false,
     },
     trialPeriodDays: {
       type: Number,
