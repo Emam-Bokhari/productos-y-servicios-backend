@@ -194,11 +194,32 @@ const updateProfileToDB = async (
   return updateDoc;
 };
 
+const getUsersFromDB = async (query: Record<string, unknown>) => {
+  const baseQuery = User.find({
+    role: { $in: [USER_ROLES.USER, USER_ROLES.SELLER] },
+  }).populate("store","displayName _id");
+
+  const queryBuilder = new QueryBuilder<IUser>(baseQuery, query)
+    .search(["name", "email"])
+    .filter()
+    .sort()
+    .fields()
+    .paginate();
+
+  const users = await queryBuilder.modelQuery;
+  const meta = await queryBuilder.countTotal();
+
+  return {
+    data: users,
+    meta,
+  };
+};
+
 const getUserByIdFromDB = async (id: string) => {
   const result = await User.findOne({
     _id: id,
-    role: USER_ROLES.USER,
-  });
+    role: { $in: [USER_ROLES.USER, USER_ROLES.SELLER] },
+  }).populate("store");
 
   if (!result)
     throw new ApiError(404, "No user is found in the database by this ID");
@@ -216,7 +237,7 @@ const updateUserStatusByIdToDB = async (
 
   const user = await User.findOne({
     _id: id,
-    role: USER_ROLES.USER,
+    role: { $in: [USER_ROLES.USER, USER_ROLES.SELLER] },
   });
   if (!user) {
     throw new ApiError(404, "No user is found by this user ID");
@@ -233,11 +254,11 @@ const updateUserStatusByIdToDB = async (
 const deleteUserByIdFromD = async (id: string) => {
   const user = await User.findOne({
     _id: id,
-    role: USER_ROLES.USER,
+    role: { $in: [USER_ROLES.USER, USER_ROLES.SELLER] },
   });
 
   if (!user) {
-    throw new ApiError(404, "User doest not exist in the database");
+    throw new ApiError(404, "User does not exist in the database");
   }
 
   const result = await User.findByIdAndDelete(id);
@@ -273,6 +294,7 @@ const deleteProfileFromDB = async (id: string, password: string) => {
 
 export const UserService = {
   createUserToDB,
+  getUsersFromDB,
   getAdminFromDB,
   deleteAdminFromDB,
   getUserByIdFromDB,

@@ -32,9 +32,10 @@ router.post(
 router.get("/admins", isSuperAdmin, UserController.getAdmin);
 router.delete("/admins/:id", isSuperAdmin, UserController.deleteAdmin);
 
-/* ---------------------------- USER CREATE & UPDATE ---------------------- */
+/* ---------------------------- USER CREATE & UPDATE & LIST ---------------------- */
 router
   .route("/")
+  .get(isAdmin, UserController.getUsers)
   .post(UserController.createUser)
 
   .patch(

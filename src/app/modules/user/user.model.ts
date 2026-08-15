@@ -178,6 +178,14 @@ const userSchema = new Schema<IUser, IUserModel>(
 /* ================= PLUGIN ================= */
 userSchema.plugin(softDeletePlugin);
 
+// Link User to Store virtual relation
+userSchema.virtual("store", {
+  ref: "Store",
+  localField: "_id",
+  foreignField: "owner",
+  justOne: true,
+});
+
 //exist user check
 userSchema.statics.isExistUserById = async (id: string) => {
   const isExist = await User.findById(id);

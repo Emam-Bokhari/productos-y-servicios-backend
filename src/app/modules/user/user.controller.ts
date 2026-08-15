@@ -88,6 +88,18 @@ const updateProfile = catchAsync(async (req, res) => {
   });
 });
 
+const getUsers = catchAsync(async (req: Request, res: Response) => {
+  const result = await UserService.getUsersFromDB(req.query);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Users retrieved successfully",
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
 const getUserById = catchAsync(async (req, res) => {
   const { id } = req.params;
   const result = await UserService.getUserByIdFromDB(id);
@@ -172,6 +184,7 @@ const deleteProfile = catchAsync(async (req, res) => {
 export const UserController = {
   createUser,
   createAdmin,
+  getUsers,
   getAdmin,
   deleteAdmin,
   updateProfile,
