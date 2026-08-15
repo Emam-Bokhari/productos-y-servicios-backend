@@ -58,11 +58,11 @@ router.patch(
 
 router.get("/me", isAuthenticated, StoreController.getMyStore);
 
-router.get("/", isAuthenticated, StoreController.getAllStores);
+router.get("/", isAdmin, StoreController.getAllStores);
 
 router.get("/seller/dashboard", isSeller, StoreController.getSellerDashboard);
 
-router.get("/:id", isAuthenticated, StoreController.getStoreDetails);
+router.get("/:id", isAdmin, StoreController.getStoreDetails);
 
 router.patch(
   "/verify-identity",

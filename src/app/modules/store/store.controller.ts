@@ -55,7 +55,7 @@ const updateStoreStatus = catchAsync(async (req: Request, res: Response) => {
 
 const getStoreDetails = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const result = await StoreService.getStoreDetailsFromDB(id);
+  const result = await StoreService.getStoreDetailsFromDB(id, req.user);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
@@ -66,7 +66,7 @@ const getStoreDetails = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllStores = catchAsync(async (req: Request, res: Response) => {
-  const result = await StoreService.getAllStoresFromDB(req.query);
+  const result = await StoreService.getAllStoresFromDB(req.query, req.user);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,

@@ -4,6 +4,7 @@ import { Store } from "./store.model";
 import { StoreCategory } from "../storeCategory/storeCategory.model";
 import { Seller } from "../seller/seller.model";
 import { User } from "../user/user.model";
+import { USER_ROLES } from "../../../enums/user";
 import { STORE_STATUS, STORE_TYPE } from "./store.constant";
 import { Product } from "../product/product.model";
 import { PRODUCT_STATUS } from "../product/product.constant";
@@ -348,12 +349,12 @@ const updateStoreStatusInDB = async (storeId: string, status: string) => {
   return store;
 };
 
-const getStoreDetailsFromDB = async (storeId: string) => {
+const getStoreDetailsFromDB = async (storeId: string, user: any) => {
   const store = await Store.findByIdAndUpdate(
     storeId,
     { $inc: { visitorCount: 1 } },
     { new: true },
-  ).populate("categoryId");
+  ).populate("categoryId").populate("owner", "name profileImage email phone");
   if (!store) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Store not found");
   }
@@ -371,7 +372,10 @@ const getStoreDetailsFromDB = async (storeId: string) => {
     console.error("Failed to increment store traffic log:", err);
   });
 
-  if (store.status !== STORE_STATUS.ACTIVE) {
+  const isAdminOrSuperAdmin =
+    user && (user.role === USER_ROLES.ADMIN || user.role === USER_ROLES.SUPER_ADMIN);
+
+  if (!isAdminOrSuperAdmin && store.status !== STORE_STATUS.ACTIVE) {
     throw new ApiError(StatusCodes.FORBIDDEN, "Store is not active");
   }
 
@@ -381,37 +385,105 @@ const getStoreDetailsFromDB = async (storeId: string) => {
   if (store.storeType === STORE_TYPE.PRODUCT_STORE) {
     products = await Product.find({
       storeId: store._id,
-      status: PRODUCT_STATUS.ACTIVE,
+      ...(isAdminOrSuperAdmin ? {} : { status: PRODUCT_STATUS.ACTIVE }),
     });
   } else if (store.storeType === STORE_TYPE.SERVICE_STORE) {
     services = await Service.find({
       storeId: store._id,
-      status: SERVICE_STATUS.ACTIVE,
+      ...(isAdminOrSuperAdmin ? {} : { status: SERVICE_STATUS.ACTIVE }),
     });
   }
 
+  // Find active subscription plan
+  const activeSubscription = await Subscription.findOne({
+    userId: store.owner ? (store.owner as any)._id : null,
+    packageType: "store_creation",
+    status: { $in: ["active", "trialing"] },
+    expiresAt: { $gt: new Date() },
+  }).populate("packageId");
+
+  const planName = activeSubscription
+    ? (activeSubscription.packageId as any)?.name || "Starter"
+    : "N/A";
+
+  let listingsCount = 0;
+  if (store.storeType === STORE_TYPE.PRODUCT_STORE) {
+    listingsCount = await Product.countDocuments({ storeId: store._id });
+  } else if (store.storeType === STORE_TYPE.SERVICE_STORE) {
+    listingsCount = await Service.countDocuments({ storeId: store._id });
+  }
+
+  const storeWithDetails = {
+    ...store.toObject(),
+    plan: planName,
+    listings: listingsCount,
+  };
+
   return {
-    store,
+    store: storeWithDetails,
     products,
     services,
   };
 };
 
-const getAllStoresFromDB = async (query: Record<string, unknown>) => {
-  const filterQuery: Record<string, any> = {
-    status: STORE_STATUS.ACTIVE,
-    sort: "displayName",
-    ...query,
-  };
+const getAllStoresFromDB = async (query: Record<string, unknown>, user: any) => {
+  const { searchTerm, status, storeType, ...remainingQuery } = query;
+
+  const filter: Record<string, any> = {};
+
+  const isAdminOrSuperAdmin =
+    user && (user.role === USER_ROLES.ADMIN || user.role === USER_ROLES.SUPER_ADMIN);
+
+  // Status filtering logic
+  if (isAdminOrSuperAdmin) {
+    if (status && status !== "all") {
+      filter.status = status;
+    }
+  } else {
+    filter.status = STORE_STATUS.ACTIVE;
+  }
+
+  // Store type filtering logic
+  if (storeType && storeType !== "all") {
+    if (storeType === "product") {
+      filter.storeType = STORE_TYPE.PRODUCT_STORE;
+    } else if (storeType === "service") {
+      filter.storeType = STORE_TYPE.SERVICE_STORE;
+    } else {
+      filter.storeType = storeType;
+    }
+  }
+
+  // Search term logic
+  if (searchTerm) {
+    const categories = await StoreCategory.find({
+      name: { $regex: searchTerm, $options: "i" },
+    }).select("_id");
+    const categoryIds = categories.map((c) => c._id);
+
+    const users = await User.find({
+      name: { $regex: searchTerm, $options: "i" },
+    }).select("_id");
+    const userIds = users.map((u) => u._id);
+
+    filter.$or = [
+      { displayName: { $regex: searchTerm, $options: "i" } },
+      { phone: { $regex: searchTerm, $options: "i" } },
+      { city: { $regex: searchTerm, $options: "i" } },
+      { streetAddress: { $regex: searchTerm, $options: "i" } },
+      { categoryId: { $in: categoryIds } },
+      { owner: { $in: userIds } },
+    ];
+  }
 
   // Handle city configuration filtering via latitude/longitude or city/location name fallback
   let cityConfig = null;
 
-  if (filterQuery.latitude && filterQuery.longitude) {
-    const lat = parseFloat(filterQuery.latitude as string);
-    const lng = parseFloat(filterQuery.longitude as string);
-    delete filterQuery.latitude;
-    delete filterQuery.longitude;
+  if (remainingQuery.latitude && remainingQuery.longitude) {
+    const lat = parseFloat(remainingQuery.latitude as string);
+    const lng = parseFloat(remainingQuery.longitude as string);
+    delete remainingQuery.latitude;
+    delete remainingQuery.longitude;
 
     if (!isNaN(lat) && !isNaN(lng)) {
       cityConfig = await CityAdConfiguration.findOne({
@@ -420,18 +492,18 @@ const getAllStoresFromDB = async (query: Record<string, unknown>) => {
         status: SLOT_CONFIG_STATUS.ACTIVE,
       });
     }
-  } else if (filterQuery.city) {
-    const cityStr = filterQuery.city as string;
-    delete filterQuery.city;
+  } else if (remainingQuery.city) {
+    const cityStr = remainingQuery.city as string;
+    delete remainingQuery.city;
     if (cityStr) {
       cityConfig = await CityAdConfiguration.findOne({
         city: { $regex: `^${cityStr.trim()}$`, $options: "i" },
         status: SLOT_CONFIG_STATUS.ACTIVE,
       });
     }
-  } else if (filterQuery.location) {
-    const locationStr = filterQuery.location as string;
-    delete filterQuery.location;
+  } else if (remainingQuery.location) {
+    const locationStr = remainingQuery.location as string;
+    delete remainingQuery.location;
     if (locationStr) {
       cityConfig = await CityAdConfiguration.findOne({
         city: { $regex: `^${locationStr.trim()}$`, $options: "i" },
@@ -440,28 +512,60 @@ const getAllStoresFromDB = async (query: Record<string, unknown>) => {
     }
   }
 
-  // If a city config was successfully resolved, filter stores by its city name.
-  // Otherwise, if any location-related filters were passed but not matched, return empty results.
   if (cityConfig) {
-    filterQuery.city = { $regex: `^${cityConfig.city.trim()}$`, $options: "i" };
+    filter.city = { $regex: `^${cityConfig.city.trim()}$`, $options: "i" };
   } else if (
     query.latitude ||
     query.longitude ||
     query.city ||
     query.location
   ) {
-    filterQuery.city = "NON_EXISTENT_CITY_FALLBACK_VAL_12345";
+    filter.city = "NON_EXISTENT_CITY_FALLBACK_VAL_12345";
   }
 
-  const builder = new QueryBuilder(Store.find(), filterQuery)
-    .search(["displayName", "city", "streetAddress", "phone"])
+  const builder = new QueryBuilder(Store.find(), remainingQuery)
     .filter()
     .sort()
     .paginate()
     .fields();
 
-  const data = await builder.modelQuery.populate("categoryId");
+  builder.modelQuery = builder.modelQuery.find(filter);
+
+  const rawStores = await builder.modelQuery
+    .populate("categoryId")
+    .populate("owner", "name profileImage email phone");
+
   const meta = await builder.countTotal();
+
+  const data = await Promise.all(
+    rawStores.map(async (store) => {
+      const storeObj = store.toObject();
+
+      const activeSubscription = await Subscription.findOne({
+        userId: store.owner ? (store.owner as any)._id : null,
+        packageType: "store_creation",
+        status: { $in: ["active", "trialing"] },
+        expiresAt: { $gt: new Date() },
+      }).populate("packageId");
+
+      const planName = activeSubscription
+        ? (activeSubscription.packageId as any)?.name || "Starter"
+        : "N/A";
+
+      let listingsCount = 0;
+      if (store.storeType === STORE_TYPE.PRODUCT_STORE) {
+        listingsCount = await Product.countDocuments({ storeId: store._id });
+      } else if (store.storeType === STORE_TYPE.SERVICE_STORE) {
+        listingsCount = await Service.countDocuments({ storeId: store._id });
+      }
+
+      return {
+        ...storeObj,
+        plan: planName,
+        listings: listingsCount,
+      };
+    })
+  );
 
   return { data, meta };
 };
