@@ -29,7 +29,33 @@ const getSingleSubscription = catchAsync(async (req: Request, res: Response) => 
   });
 });
 
+const getAllSubscriptions = catchAsync(async (req: Request, res: Response) => {
+  const result = await SubscriptionService.getAllSubscriptionsFromDB(req.query);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "All subscriptions retrieved successfully",
+    data: result,
+  });
+});
+
+const cancelSubscription = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const user = req.user;
+  const result = await SubscriptionService.cancelSubscriptionFromDB(id, user);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Subscription cancelled successfully",
+    data: result,
+  });
+});
+
 export const SubscriptionController = {
   getMySubscriptions,
   getSingleSubscription,
+  getAllSubscriptions,
+  cancelSubscription,
 };

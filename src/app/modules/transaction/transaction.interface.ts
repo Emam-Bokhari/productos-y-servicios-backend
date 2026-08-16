@@ -16,6 +16,7 @@ export interface ITransaction {
   bookingId?: Types.ObjectId; // Associated ride/booking if applicable (ref: Ride)
   rideId?: Types.ObjectId; // Associated ride/booking (ref: Ride)
   walletId?: Types.ObjectId; // Associated wallet if applicable (ref: Wallet)
+  packageId?: Types.ObjectId; // Associated subscription package (ref: SubscriptionPackage)
   stripeCustomerId?: string;
   stripeCheckoutSessionId?: string;
   stripePaymentIntentId?: string;

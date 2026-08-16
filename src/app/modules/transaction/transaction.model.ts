@@ -45,6 +45,12 @@ const transactionSchema = new Schema<ITransaction, TransactionModel>(
       required: false,
       index: true,
     },
+    packageId: {
+      type: Schema.Types.ObjectId,
+      ref: "SubscriptionPackage",
+      required: false,
+      index: true,
+    },
     stripeCustomerId: {
       type: String,
       required: false,

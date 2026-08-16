@@ -1,10 +1,16 @@
-import { ClientSession, Types } from "mongoose";
+import mongoose, { ClientSession, Types } from "mongoose";
 import { ITransaction } from "./transaction.interface";
 import { Transaction } from "./transaction.model";
 import { TRANSACTION_TYPE, PAYMENT_STATUS } from "./transaction.constant";
 import { User } from "../user/user.model";
 import { getDayRangeInTimezone } from "../../../shared/timezoneHelper";
 import { DateTime } from "luxon";
+import { Store } from "../store/store.model";
+import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
+import { Subscription } from "../subscription/subscription.model";
+import StripeService from "../stripe/stripe.service";
+import ApiError from "../../../errors/ApiErrors";
+import { StatusCodes } from "http-status-codes";
 
 const generateTransactionId = (): string => {
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -579,8 +585,188 @@ const getTransactions = async (
   };
 };
 
+const getAllSubscriptionTransactions = async (
+  queryOptions: {
+    searchTerm?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }
+): Promise<any> => {
+  const matchQuery: any = {};
+
+  // 1. Status Filter
+  if (queryOptions.status && queryOptions.status !== "all" && queryOptions.status !== "All statuses") {
+    // Map status from friendly name to stored enum values (PAID, FAILED, PENDING, REFUNDED)
+    const normalizedStatus = queryOptions.status.toUpperCase();
+    matchQuery.paymentStatus = normalizedStatus;
+  }
+
+  // 2. Search logic (Search by store display name, plan name, or invoice/transactionId)
+  if (queryOptions.searchTerm) {
+    const searchRegex = new RegExp(queryOptions.searchTerm, "i");
+
+    // A. Match store name
+    const matchingStores = await Store.find({
+      displayName: { $regex: searchRegex },
+    }).select("owner");
+    const ownerIds = matchingStores.map((store) => store.owner);
+
+    // B. Match plan/package name
+    const matchingPackages = await SubscriptionPackage.find({
+      name: { $regex: searchRegex },
+    }).select("_id");
+    const packageIds = matchingPackages.map((pkg) => pkg._id);
+
+    // C. Search condition
+    matchQuery.$or = [
+      { transactionId: { $regex: searchRegex } },
+      { userId: { $in: ownerIds } },
+      { packageId: { $in: packageIds } },
+    ];
+  }
+
+  // Pagination & Sorting setup
+  const page = Number(queryOptions.page) || 1;
+  const limit = Number(queryOptions.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const total = await Transaction.countDocuments(matchQuery);
+  const totalPages = Math.ceil(total / limit);
+
+  // Execute query
+  const transactions = await Transaction.find(matchQuery)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .populate("userId", "name email")
+    .populate("packageId", "name");
+
+  // Format to match exact frontend columns:
+  // INVOICE, STORE, PLAN, METHOD, AMOUNT, DATE, STATUS, Refund action
+  const data = await Promise.all(
+    transactions.map(async (tx) => {
+      const store = await Store.findOne({ owner: tx.userId });
+      
+      // Friendly method name mapping
+      let method = "Card";
+      if (tx.paymentMethod === "WALLET") {
+        method = "Wallet";
+      } else if (tx.paymentMethod === "CASH") {
+        method = "Cash";
+      } else if (tx.paymentMethod === "ONLINE") {
+        method = tx.metadata?.cardType || "Card";
+      }
+
+      // Format date: e.g. "Aug 16, 2026"
+      const dateStr = tx.createdAt
+        ? DateTime.fromJSDate(tx.createdAt).setZone("Asia/Dhaka").toFormat("LLL d, yyyy")
+        : "";
+
+      // Format status (camel case/badge friendly)
+      // e.g. Paid, Failed, Pending, Refunded
+      let status = "Pending";
+      if (tx.paymentStatus === PAYMENT_STATUS.PAID) {
+        status = "Paid";
+      } else if (tx.paymentStatus === PAYMENT_STATUS.FAILED) {
+        status = "Failed";
+      } else if (tx.paymentStatus === PAYMENT_STATUS.REFUNDED) {
+        status = "Refunded";
+      }
+
+      const planName = (tx.packageId as any)?.name || "N/A";
+
+      return {
+        _id: tx._id,
+        invoice: tx.transactionId,
+        store: store ? store.displayName || "N/A" : (tx.userId as any)?.name || "N/A",
+        plan: planName,
+        method,
+        amount: tx.amount,
+        date: dateStr,
+        status,
+        canRefund: tx.paymentStatus === PAYMENT_STATUS.PAID,
+      };
+    })
+  );
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages,
+    },
+    data,
+  };
+};
+
+const refundTransactionFromDB = async (id: string): Promise<any> => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid Transaction ID");
+  }
+
+  const transaction = await Transaction.findById(id);
+  if (!transaction) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "Transaction not found");
+  }
+
+  if (transaction.paymentStatus !== PAYMENT_STATUS.PAID) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "Only paid transactions can be refunded"
+    );
+  }
+
+  const paymentIntentId = transaction.stripePaymentIntentId || transaction.gatewayTransactionId;
+  if (!paymentIntentId) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "No stripe payment intent ID found for this transaction"
+    );
+  }
+
+  try {
+    // Call Stripe refund API
+    const refund = await StripeService.refundPayment(paymentIntentId);
+
+    // Update transaction
+    transaction.paymentStatus = PAYMENT_STATUS.REFUNDED;
+    transaction.stripeRefundId = refund.id;
+    await transaction.save();
+
+    // Cancel the corresponding Subscription
+    const subscription = await Subscription.findOne({
+      $or: [
+        { trxId: paymentIntentId },
+        { stripeSubscriptionId: transaction.stripeCheckoutSessionId },
+      ],
+    });
+
+    if (subscription) {
+      subscription.status = "canceled";
+      await subscription.save();
+
+      // Update user status
+      await User.findByIdAndUpdate(subscription.userId, {
+        subscriptionStatus: "canceled",
+        subscriptionExpiresAt: new Date(),
+      });
+    }
+
+    return transaction;
+  } catch (error: any) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      error.message || "Failed to process refund on Stripe"
+    );
+  }
+};
+
 export const TransactionService = {
   createTransaction,
   getTransactionsByUser,
   getTransactions,
+  getAllSubscriptionTransactions,
+  refundTransactionFromDB,
 };

@@ -13,6 +13,8 @@ import { Subscription } from "../subscription/subscription.model";
 import { CityAdConfiguration } from "../cityAdConfiguration/cityAdConfiguration.model";
 import { sendNotifications } from "../../../helpers/notificationsHelper";
 import { NOTIFICATION_TYPE } from "../notification/notification.constant";
+import { Transaction } from "../transaction/transaction.model";
+import { TransactionService } from "../transaction/transaction.service";
 
 // ----------------------------------------------------
 // Stripe Connected Account for Sellers (Onboarding)
@@ -205,10 +207,18 @@ const getPaymentStatus = catchAsync(async (req: Request, res: Response) => {
 });
 
 const refundTransaction = catchAsync(async (req: Request, res: Response) => {
-  throw new ApiError(
-    StatusCodes.NOT_IMPLEMENTED,
-    "Refund not supported in this template.",
-  );
+  const transactionId = req.body.id || req.body.transactionId;
+  if (!transactionId) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Transaction ID is required in request body.");
+  }
+  const result = await TransactionService.refundTransactionFromDB(transactionId);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Transaction refunded successfully",
+    data: result,
+  });
 });
 
 // ----------------------------------------------------
@@ -326,6 +336,37 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
             stripeCustomerId,
           });
 
+          // Create Transaction record if it does not exist already
+          if (trxId) {
+            const existingTx = await Transaction.findOne({
+              $or: [
+                { stripePaymentIntentId: trxId },
+                { gatewayTransactionId: trxId }
+              ]
+            });
+            if (!existingTx) {
+              const count = await Transaction.countDocuments({
+                transactionId: { $regex: "^INV-" }
+              });
+              const invoiceNumber = 1000 + count;
+              const generatedTxId = `INV-${new Date().getFullYear()}-${invoiceNumber}`;
+
+              await Transaction.create({
+                transactionId: generatedTxId,
+                userId,
+                packageId,
+                amount: session.amount_total ? session.amount_total / 100 : 0,
+                paymentMethod: "ONLINE",
+                paymentStatus: "PAID",
+                transactionType: "booking_payment",
+                stripeCustomerId,
+                stripeCheckoutSessionId: session.id,
+                stripePaymentIntentId: trxId,
+                gatewayTransactionId: trxId,
+              });
+            }
+          }
+
           if (localSub) {
             const pkg = await SubscriptionPackage.findById(packageId);
             await sendNotifications({
@@ -353,6 +394,36 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
             amountPaid: session.amount_total ? session.amount_total / 100 : 0,
             trxId: session.payment_intent as string || "",
           });
+
+          const trxId = session.payment_intent as string || "";
+          if (trxId) {
+            const existingTx = await Transaction.findOne({
+              $or: [
+                { stripePaymentIntentId: trxId },
+                { gatewayTransactionId: trxId }
+              ]
+            });
+            if (!existingTx) {
+              const count = await Transaction.countDocuments({
+                transactionId: { $regex: "^INV-" }
+              });
+              const invoiceNumber = 1000 + count;
+              const generatedTxId = `INV-${new Date().getFullYear()}-${invoiceNumber}`;
+
+              await Transaction.create({
+                transactionId: generatedTxId,
+                userId,
+                packageId,
+                amount: session.amount_total ? session.amount_total / 100 : 0,
+                paymentMethod: "ONLINE",
+                paymentStatus: "PAID",
+                transactionType: "booking_payment",
+                stripeCheckoutSessionId: session.id,
+                stripePaymentIntentId: trxId,
+                gatewayTransactionId: trxId,
+              });
+            }
+          }
 
           if (createdSub) {
             await sendNotifications({
@@ -404,6 +475,46 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
         },
         { new: true }
       );
+
+      // Create Transaction record if it does not exist already
+      if (trxId) {
+        const existingTx = await Transaction.findOne({
+          $or: [
+            { stripePaymentIntentId: trxId },
+            { gatewayTransactionId: trxId }
+          ]
+        });
+        if (!existingTx) {
+          let resolvedUserId = localSub?.userId;
+          let resolvedPackageId = localSub?.packageId || pkg?._id;
+
+          if (!resolvedUserId && stripeCustomerId) {
+            const user = await User.findOne({ stripeCustomerId });
+            if (user) resolvedUserId = user._id;
+          }
+
+          if (resolvedUserId && resolvedPackageId) {
+            const count = await Transaction.countDocuments({
+              transactionId: { $regex: "^INV-" }
+            });
+            const invoiceNumber = 1000 + count;
+            const generatedTxId = `INV-${new Date().getFullYear()}-${invoiceNumber}`;
+
+            await Transaction.create({
+              transactionId: generatedTxId,
+              userId: resolvedUserId,
+              packageId: resolvedPackageId,
+              amount: amountPaid,
+              paymentMethod: "ONLINE",
+              paymentStatus: "PAID",
+              transactionType: "booking_payment",
+              stripeCustomerId,
+              stripePaymentIntentId: trxId,
+              gatewayTransactionId: trxId,
+            });
+          }
+        }
+      }
 
       if (localSub) {
         await User.findByIdAndUpdate(localSub.userId, {
