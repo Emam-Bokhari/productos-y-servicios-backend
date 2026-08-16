@@ -287,7 +287,10 @@ class NotificationHelper {
 
       await Promise.allSettled(emailTasks);
     } catch (error) {
-      logger.error(colors.red("Email Send Error inside NotificationHelper:"), error);
+      logger.error(
+        colors.red("Email Send Error inside NotificationHelper:"),
+        error,
+      );
     }
   }
 }

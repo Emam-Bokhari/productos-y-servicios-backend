@@ -31,7 +31,9 @@ export const handleSubscriptionCreated = async (data: Stripe.Subscription) => {
 
     if (existingUser) {
       // Find the pricing plan by stripePriceId
-      const pricingPlan = await SubscriptionPackage.findOne({ stripePriceId: priceId });
+      const pricingPlan = await SubscriptionPackage.findOne({
+        stripePriceId: priceId,
+      });
 
       if (pricingPlan) {
         // Find the current active subscription
@@ -67,7 +69,8 @@ export const handleSubscriptionCreated = async (data: Stripe.Subscription) => {
         await User.findByIdAndUpdate(
           existingUser._id,
           {
-            subscriptionStatus: subscription.status === "trialing" ? "trialing" : "active",
+            subscriptionStatus:
+              subscription.status === "trialing" ? "trialing" : "active",
             subscriptionPackageId: pricingPlan._id,
             subscriptionExpiresAt: expiresAt,
             stripeSubscriptionId: subscription.id,

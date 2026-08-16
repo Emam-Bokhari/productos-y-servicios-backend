@@ -612,7 +612,11 @@ Please review the request and respond as soon as possible.
   };
 };
 
-const genericNotification = (values: { to: string; subject: string; text: string }) => {
+const genericNotification = (values: {
+  to: string;
+  subject: string;
+  text: string;
+}) => {
   const content = `
 <tr>
 <td

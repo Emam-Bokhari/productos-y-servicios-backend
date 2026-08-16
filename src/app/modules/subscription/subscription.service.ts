@@ -15,10 +15,7 @@ const getMySubscriptionsFromDB = async (userId: string) => {
     .populate("cityConfigId");
 };
 
-const getSingleSubscriptionFromDB = async (
-  id: string,
-  user: JwtPayload
-) => {
+const getSingleSubscriptionFromDB = async (id: string, user: JwtPayload) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid ID");
   }
@@ -99,13 +96,15 @@ const getAllSubscriptionsFromDB = async (query: Record<string, unknown>) => {
   const data = await Promise.all(
     subscriptions.map(async (sub) => {
       const subObj = sub.toObject();
-      const store = await Store.findOne({ owner: sub.userId?._id })
-        .populate("categoryId", "name");
+      const store = await Store.findOne({ owner: sub.userId?._id }).populate(
+        "categoryId",
+        "name",
+      );
       return {
         ...subObj,
         store: store ? store.toObject() : null,
       };
-    })
+    }),
   );
 
   return {
@@ -131,14 +130,14 @@ const cancelSubscriptionFromDB = async (id: string, user: JwtPayload) => {
   if (!isAdmin && subscription.userId.toString() !== user.id) {
     throw new ApiError(
       StatusCodes.FORBIDDEN,
-      "You do not have permission to cancel this subscription"
+      "You do not have permission to cancel this subscription",
     );
   }
 
   if (subscription.status === "canceled") {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      "Subscription is already canceled"
+      "Subscription is already canceled",
     );
   }
 
@@ -150,7 +149,7 @@ const cancelSubscriptionFromDB = async (id: string, user: JwtPayload) => {
       if (error.code !== "resource_missing") {
         throw new ApiError(
           StatusCodes.BAD_REQUEST,
-          error.message || "Failed to cancel subscription on Stripe"
+          error.message || "Failed to cancel subscription on Stripe",
         );
       }
     }
@@ -176,4 +175,3 @@ export const SubscriptionService = {
   getAllSubscriptionsFromDB,
   cancelSubscriptionFromDB,
 };
-

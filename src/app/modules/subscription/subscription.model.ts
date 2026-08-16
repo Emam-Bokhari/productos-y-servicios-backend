@@ -22,7 +22,14 @@ const subscriptionSchema = new Schema<TSubscription>(
     },
     status: {
       type: String,
-      enum: ["active", "inactive", "trialing", "past_due", "canceled", "expired"],
+      enum: [
+        "active",
+        "inactive",
+        "trialing",
+        "past_due",
+        "canceled",
+        "expired",
+      ],
       required: true,
       index: true,
     },
@@ -52,9 +59,12 @@ const subscriptionSchema = new Schema<TSubscription>(
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 subscriptionSchema.plugin(softDeletePlugin);
 
-export const Subscription = model<TSubscription, SubscriptionModel>("Subscription", subscriptionSchema);
+export const Subscription = model<TSubscription, SubscriptionModel>(
+  "Subscription",
+  subscriptionSchema,
+);

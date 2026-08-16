@@ -197,7 +197,7 @@ const updateProfileToDB = async (
 const getUsersFromDB = async (query: Record<string, unknown>) => {
   const baseQuery = User.find({
     role: { $in: [USER_ROLES.USER, USER_ROLES.SELLER] },
-  }).populate("store","displayName _id");
+  }).populate("store", "displayName _id");
 
   const queryBuilder = new QueryBuilder<IUser>(baseQuery, query)
     .search(["name", "email"])

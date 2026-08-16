@@ -354,7 +354,9 @@ const getStoreDetailsFromDB = async (storeId: string, user: any) => {
     storeId,
     { $inc: { visitorCount: 1 } },
     { new: true },
-  ).populate("categoryId").populate("owner", "name profileImage email phone");
+  )
+    .populate("categoryId")
+    .populate("owner", "name profileImage email phone");
   if (!store) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Store not found");
   }
@@ -373,7 +375,8 @@ const getStoreDetailsFromDB = async (storeId: string, user: any) => {
   });
 
   const isAdminOrSuperAdmin =
-    user && (user.role === USER_ROLES.ADMIN || user.role === USER_ROLES.SUPER_ADMIN);
+    user &&
+    (user.role === USER_ROLES.ADMIN || user.role === USER_ROLES.SUPER_ADMIN);
 
   if (!isAdminOrSuperAdmin && store.status !== STORE_STATUS.ACTIVE) {
     throw new ApiError(StatusCodes.FORBIDDEN, "Store is not active");
@@ -426,13 +429,17 @@ const getStoreDetailsFromDB = async (storeId: string, user: any) => {
   };
 };
 
-const getAllStoresFromDB = async (query: Record<string, unknown>, user: any) => {
+const getAllStoresFromDB = async (
+  query: Record<string, unknown>,
+  user: any,
+) => {
   const { searchTerm, status, storeType, ...remainingQuery } = query;
 
   const filter: Record<string, any> = {};
 
   const isAdminOrSuperAdmin =
-    user && (user.role === USER_ROLES.ADMIN || user.role === USER_ROLES.SUPER_ADMIN);
+    user &&
+    (user.role === USER_ROLES.ADMIN || user.role === USER_ROLES.SUPER_ADMIN);
 
   // Status filtering logic
   if (isAdminOrSuperAdmin) {
@@ -564,7 +571,7 @@ const getAllStoresFromDB = async (query: Record<string, unknown>, user: any) => 
         plan: planName,
         listings: listingsCount,
       };
-    })
+    }),
   );
 
   return { data, meta };

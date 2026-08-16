@@ -405,7 +405,7 @@ const createAdvertisementToDB = async (
             trxId: "trial_activated",
           },
         ],
-        { session }
+        { session },
       );
       activePostSub = createdSubs[0];
       activePostSub.packageId = trialPackage as any;
@@ -425,7 +425,9 @@ const createAdvertisementToDB = async (
     const calculatedEndDate = new Date(startDate);
 
     if (isTrial && packageInfo?.trialPeriodDays) {
-      calculatedEndDate.setDate(calculatedEndDate.getDate() + packageInfo.trialPeriodDays);
+      calculatedEndDate.setDate(
+        calculatedEndDate.getDate() + packageInfo.trialPeriodDays,
+      );
     } else if (packageInfo?.duration) {
       switch (packageInfo.duration) {
         case "seven_days":

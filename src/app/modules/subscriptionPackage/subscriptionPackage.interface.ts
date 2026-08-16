@@ -21,6 +21,3 @@ export type TSubscriptionPackage = {
 };
 
 export type SubscriptionPackageModel = ISoftDeleteModel<TSubscriptionPackage>;
-
-
-

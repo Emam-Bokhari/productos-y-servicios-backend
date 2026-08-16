@@ -115,7 +115,10 @@ const createCheckoutSession = catchAsync(
 
     const pkg = await SubscriptionPackage.findById(packageId);
     if (!pkg) {
-      throw new ApiError(StatusCodes.NOT_FOUND, "Subscription package not found");
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        "Subscription package not found",
+      );
     }
 
     const targetCityConfigId = cityConfigId;
@@ -150,7 +153,8 @@ const createCheckoutSession = catchAsync(
       userProfile.name,
     );
 
-    const mode = pkg.packageType === "store_creation" ? "subscription" : "payment";
+    const mode =
+      pkg.packageType === "store_creation" ? "subscription" : "payment";
     const line_items = [
       {
         price: pkg.stripePriceId,
@@ -209,9 +213,13 @@ const getPaymentStatus = catchAsync(async (req: Request, res: Response) => {
 const refundTransaction = catchAsync(async (req: Request, res: Response) => {
   const transactionId = req.body.id || req.body.transactionId;
   if (!transactionId) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Transaction ID is required in request body.");
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "Transaction ID is required in request body.",
+    );
   }
-  const result = await TransactionService.refundTransactionFromDB(transactionId);
+  const result =
+    await TransactionService.refundTransactionFromDB(transactionId);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
@@ -239,7 +247,10 @@ const mapStripeStatusToLocal = (status: string) => {
   }
 };
 
-const calculateExpirationDate = (duration: string, startDate = new Date()): Date => {
+const calculateExpirationDate = (
+  duration: string,
+  startDate = new Date(),
+): Date => {
   const d = new Date(startDate);
   switch (duration) {
     case "seven_days":
@@ -299,18 +310,23 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
       if (session.mode === "subscription") {
         const subscriptionId = session.subscription as string;
         if (subscriptionId) {
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
-            expand: ["latest_invoice"],
-          });
+          const subscription = await stripe.subscriptions.retrieve(
+            subscriptionId,
+            {
+              expand: ["latest_invoice"],
+            },
+          );
           const stripeCustomerId = subscription.customer as string;
           const status = subscription.status;
-          const periodEnd = subscription.current_period_end || subscription.trial_end;
+          const periodEnd =
+            subscription.current_period_end || subscription.trial_end;
           const expiresAt = periodEnd ? new Date(periodEnd * 1000) : new Date();
 
           const latestInvoice = subscription.latest_invoice as Stripe.Invoice;
-          const trxId = typeof latestInvoice === "object" && latestInvoice !== null
-            ? (latestInvoice.payment_intent as string || "")
-            : "";
+          const trxId =
+            typeof latestInvoice === "object" && latestInvoice !== null
+              ? (latestInvoice.payment_intent as string) || ""
+              : "";
 
           const localSub = await Subscription.findOneAndUpdate(
             { stripeSubscriptionId: subscriptionId },
@@ -325,7 +341,7 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
               amountPaid: session.amount_total ? session.amount_total / 100 : 0,
               trxId,
             },
-            { upsert: true, new: true }
+            { upsert: true, new: true },
           );
 
           await User.findByIdAndUpdate(userId, {
@@ -341,12 +357,12 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
             const existingTx = await Transaction.findOne({
               $or: [
                 { stripePaymentIntentId: trxId },
-                { gatewayTransactionId: trxId }
-              ]
+                { gatewayTransactionId: trxId },
+              ],
             });
             if (!existingTx) {
               const count = await Transaction.countDocuments({
-                transactionId: { $regex: "^INV-" }
+                transactionId: { $regex: "^INV-" },
               });
               const invoiceNumber = 1000 + count;
               const generatedTxId = `INV-${new Date().getFullYear()}-${invoiceNumber}`;
@@ -392,20 +408,20 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
             cityConfigId: cityConfigId || undefined,
             stripeSessionId: session.id,
             amountPaid: session.amount_total ? session.amount_total / 100 : 0,
-            trxId: session.payment_intent as string || "",
+            trxId: (session.payment_intent as string) || "",
           });
 
-          const trxId = session.payment_intent as string || "";
+          const trxId = (session.payment_intent as string) || "";
           if (trxId) {
             const existingTx = await Transaction.findOne({
               $or: [
                 { stripePaymentIntentId: trxId },
-                { gatewayTransactionId: trxId }
-              ]
+                { gatewayTransactionId: trxId },
+              ],
             });
             if (!existingTx) {
               const count = await Transaction.countDocuments({
-                transactionId: { $regex: "^INV-" }
+                transactionId: { $regex: "^INV-" },
               });
               const invoiceNumber = 1000 + count;
               const generatedTxId = `INV-${new Date().getFullYear()}-${invoiceNumber}`;
@@ -451,19 +467,24 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
       });
       const stripeCustomerId = subscription.customer as string;
       const status = subscription.status;
-      const periodEnd = subscription.current_period_end || subscription.trial_end;
+      const periodEnd =
+        subscription.current_period_end || subscription.trial_end;
       const expiresAt = periodEnd ? new Date(periodEnd * 1000) : new Date();
 
       const priceId = subscription.items.data[0]?.price.id;
       const pkg = await SubscriptionPackage.findOne({ stripePriceId: priceId });
 
       const latestInvoice = subscription.latest_invoice as Stripe.Invoice;
-      const trxId = typeof latestInvoice === "object" && latestInvoice !== null
-        ? (latestInvoice.payment_intent as string || "")
-        : "";
-      const amountPaid = typeof latestInvoice === "object" && latestInvoice !== null
-        ? (latestInvoice.amount_paid ? latestInvoice.amount_paid / 100 : 0)
-        : 0;
+      const trxId =
+        typeof latestInvoice === "object" && latestInvoice !== null
+          ? (latestInvoice.payment_intent as string) || ""
+          : "";
+      const amountPaid =
+        typeof latestInvoice === "object" && latestInvoice !== null
+          ? latestInvoice.amount_paid
+            ? latestInvoice.amount_paid / 100
+            : 0
+          : 0;
 
       const localSub = await Subscription.findOneAndUpdate(
         { stripeSubscriptionId: subscriptionId },
@@ -473,7 +494,7 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
           trxId,
           amountPaid,
         },
-        { new: true }
+        { new: true },
       );
 
       // Create Transaction record if it does not exist already
@@ -481,8 +502,8 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
         const existingTx = await Transaction.findOne({
           $or: [
             { stripePaymentIntentId: trxId },
-            { gatewayTransactionId: trxId }
-          ]
+            { gatewayTransactionId: trxId },
+          ],
         });
         if (!existingTx) {
           let resolvedUserId = localSub?.userId;
@@ -495,7 +516,7 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
 
           if (resolvedUserId && resolvedPackageId) {
             const count = await Transaction.countDocuments({
-              transactionId: { $regex: "^INV-" }
+              transactionId: { $regex: "^INV-" },
             });
             const invoiceNumber = 1000 + count;
             const generatedTxId = `INV-${new Date().getFullYear()}-${invoiceNumber}`;
@@ -528,7 +549,7 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
             subscriptionStatus: mapStripeStatusToLocal(status),
             subscriptionExpiresAt: expiresAt,
           },
-          { new: true }
+          { new: true },
         );
         if (user && pkg) {
           await Subscription.findOneAndUpdate(
@@ -543,7 +564,7 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
               trxId,
               amountPaid,
             },
-            { upsert: true }
+            { upsert: true },
           );
         }
       }
@@ -560,7 +581,7 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
           status: "canceled",
           expiresAt: new Date(),
         },
-        { new: true }
+        { new: true },
       );
 
       if (localSub) {
@@ -584,10 +605,12 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
             subscriptionStatus: "canceled",
             subscriptionExpiresAt: new Date(),
           },
-          { new: true }
+          { new: true },
         );
 
-        const findSub = await Subscription.findOne({ stripeSubscriptionId: subscriptionId });
+        const findSub = await Subscription.findOne({
+          stripeSubscriptionId: subscriptionId,
+        });
         if (user && findSub) {
           await sendNotifications({
             receiver: user._id.toString(),

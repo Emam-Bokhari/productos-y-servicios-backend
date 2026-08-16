@@ -49,7 +49,7 @@ router.patch(
     },
     {
       fieldName: "tradeLicense",
-      mode: "single", 
+      mode: "single",
     },
   ),
   validateRequest(StoreValidation.updateStoreSchema),

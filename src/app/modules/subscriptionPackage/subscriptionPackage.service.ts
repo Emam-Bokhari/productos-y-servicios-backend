@@ -51,7 +51,6 @@ const createSubscriptionPackageInDB = async (payload: TSubscriptionPackage) => {
 
   const stripePrice = await stripe.prices.create(priceParams);
 
-
   // 3. Save to database
   const subscriptionPackage = await SubscriptionPackage.create({
     ...payload,
@@ -276,7 +275,7 @@ const updateSubscriptionPackageStatusInDB = async (
 
   return updatedPackage;
 };
-  
+
 export const SubscriptionPackageService = {
   createSubscriptionPackageInDB,
   subscriptionPackagesFromDB,

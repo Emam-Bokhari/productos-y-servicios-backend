@@ -585,18 +585,20 @@ const getTransactions = async (
   };
 };
 
-const getAllSubscriptionTransactions = async (
-  queryOptions: {
-    searchTerm?: string;
-    status?: string;
-    page?: number;
-    limit?: number;
-  }
-): Promise<any> => {
+const getAllSubscriptionTransactions = async (queryOptions: {
+  searchTerm?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}): Promise<any> => {
   const matchQuery: any = {};
 
   // 1. Status Filter
-  if (queryOptions.status && queryOptions.status !== "all" && queryOptions.status !== "All statuses") {
+  if (
+    queryOptions.status &&
+    queryOptions.status !== "all" &&
+    queryOptions.status !== "All statuses"
+  ) {
     // Map status from friendly name to stored enum values (PAID, FAILED, PENDING, REFUNDED)
     const normalizedStatus = queryOptions.status.toUpperCase();
     matchQuery.paymentStatus = normalizedStatus;
@@ -647,7 +649,7 @@ const getAllSubscriptionTransactions = async (
   const data = await Promise.all(
     transactions.map(async (tx) => {
       const store = await Store.findOne({ owner: tx.userId });
-      
+
       // Friendly method name mapping
       let method = "Card";
       if (tx.paymentMethod === "WALLET") {
@@ -660,7 +662,9 @@ const getAllSubscriptionTransactions = async (
 
       // Format date: e.g. "Aug 16, 2026"
       const dateStr = tx.createdAt
-        ? DateTime.fromJSDate(tx.createdAt).setZone("Asia/Dhaka").toFormat("LLL d, yyyy")
+        ? DateTime.fromJSDate(tx.createdAt)
+            .setZone("Asia/Dhaka")
+            .toFormat("LLL d, yyyy")
         : "";
 
       // Format status (camel case/badge friendly)
@@ -679,7 +683,9 @@ const getAllSubscriptionTransactions = async (
       return {
         _id: tx._id,
         invoice: tx.transactionId,
-        store: store ? store.displayName || "N/A" : (tx.userId as any)?.name || "N/A",
+        store: store
+          ? store.displayName || "N/A"
+          : (tx.userId as any)?.name || "N/A",
         plan: planName,
         method,
         amount: tx.amount,
@@ -687,7 +693,7 @@ const getAllSubscriptionTransactions = async (
         status,
         canRefund: tx.paymentStatus === PAYMENT_STATUS.PAID,
       };
-    })
+    }),
   );
 
   return {
@@ -714,15 +720,16 @@ const refundTransactionFromDB = async (id: string): Promise<any> => {
   if (transaction.paymentStatus !== PAYMENT_STATUS.PAID) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      "Only paid transactions can be refunded"
+      "Only paid transactions can be refunded",
     );
   }
 
-  const paymentIntentId = transaction.stripePaymentIntentId || transaction.gatewayTransactionId;
+  const paymentIntentId =
+    transaction.stripePaymentIntentId || transaction.gatewayTransactionId;
   if (!paymentIntentId) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      "No stripe payment intent ID found for this transaction"
+      "No stripe payment intent ID found for this transaction",
     );
   }
 
@@ -758,7 +765,7 @@ const refundTransactionFromDB = async (id: string): Promise<any> => {
   } catch (error: any) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      error.message || "Failed to process refund on Stripe"
+      error.message || "Failed to process refund on Stripe",
     );
   }
 };

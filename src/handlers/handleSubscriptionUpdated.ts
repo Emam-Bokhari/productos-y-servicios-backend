@@ -47,7 +47,9 @@ export const handleSubscriptionUpdated = async (data: Stripe.Subscription) => {
 
     if (existingUser) {
       // Find the pricing plan by stripePriceId
-      const pricingPlan = await SubscriptionPackage.findOne({ stripePriceId: priceId });
+      const pricingPlan = await SubscriptionPackage.findOne({
+        stripePriceId: priceId,
+      });
 
       if (pricingPlan) {
         const expiresAt = new Date(subscription.current_period_end * 1000);

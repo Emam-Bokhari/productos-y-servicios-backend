@@ -50,15 +50,23 @@ const getDashboardOverview = async (queryYear?: string) => {
   totalMRR = Math.round(totalMRR * 100) / 100;
 
   // 5. Store Types split (Product vs Service)
-  const productStoresCount = await Store.countDocuments({ storeType: "product_store" });
-  const serviceStoresCount = await Store.countDocuments({ storeType: "service_store" });
+  const productStoresCount = await Store.countDocuments({
+    storeType: "product_store",
+  });
+  const serviceStoresCount = await Store.countDocuments({
+    storeType: "service_store",
+  });
   const totalTypedStores = productStoresCount + serviceStoresCount;
 
   let productPercentage = 0;
   let servicePercentage = 0;
   if (totalTypedStores > 0) {
-    productPercentage = Math.round((productStoresCount / totalTypedStores) * 100);
-    servicePercentage = Math.round((serviceStoresCount / totalTypedStores) * 100);
+    productPercentage = Math.round(
+      (productStoresCount / totalTypedStores) * 100,
+    );
+    servicePercentage = Math.round(
+      (serviceStoresCount / totalTypedStores) * 100,
+    );
   }
 
   // 6. Subscription Revenue over the 12 calendar months of the selected/current year
@@ -98,7 +106,7 @@ const getDashboardOverview = async (queryYear?: string) => {
 
     const monthlyRevenue = subscriptions.reduce(
       (sum, sub) => sum + (sub.amountPaid || 0),
-      0
+      0,
     );
 
     revenueChartData.push({
@@ -123,8 +131,6 @@ const getDashboardOverview = async (queryYear?: string) => {
     revenueChart: revenueChartData,
   };
 };
-
-
 
 export const DashboardService = {
   getDashboardOverview,

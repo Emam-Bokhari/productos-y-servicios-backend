@@ -28,7 +28,11 @@ const createProductToDB = async (
   }
 
   // Check active store creation subscription and listing limits
-  await validateStoreCreationSubscription(sellerId, store._id.toString(), "product");
+  await validateStoreCreationSubscription(
+    sellerId,
+    store._id.toString(),
+    "product",
+  );
 
   if (store.storeType !== STORE_TYPE.PRODUCT_STORE) {
     throw new ApiError(

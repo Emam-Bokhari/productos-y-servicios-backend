@@ -4,16 +4,8 @@ import { TransactionController } from "./transaction.controller";
 
 const router = express.Router();
 
-router.get(
-  "/",
-  isAdmin,
-  TransactionController.getAllSubscriptionTransactions
-);
+router.get("/", isAdmin, TransactionController.getAllSubscriptionTransactions);
 
-router.post(
-  "/refund/:id",
-  isAdmin,
-  TransactionController.refundTransaction
-);
+router.post("/refund/:id", isAdmin, TransactionController.refundTransaction);
 
 export const TransactionRoutes = router;
