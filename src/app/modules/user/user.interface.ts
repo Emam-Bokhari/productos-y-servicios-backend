@@ -11,8 +11,8 @@ export type IUser = {
   stripeCustomerId?: string;
   password?: string;
   verified: boolean;
-  phone: string;
-  countryCode: string;
+  phone?: string;
+  countryCode?: string;
   status: STATUS;
   firebaseUid?: string;
   dateOfBirth?: Date;

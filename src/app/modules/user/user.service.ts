@@ -62,7 +62,7 @@ const updateAdminStatusByIdToDB = async (
   status: STATUS.ACTIVE | STATUS.INACTIVE,
 ) => {
   if (![STATUS.ACTIVE, STATUS.INACTIVE].includes(status)) {
-    throw new ApiError(400, "Status must be either 'ACTIVE' or 'INACTIVE'");
+    throw new ApiError(400, "Status must be either 'active' or 'inactive'");
   }
 
   const user = await User.findOne({

@@ -55,11 +55,11 @@ const userSchema = new Schema<IUser, IUserModel>(
     },
     phone: {
       type: String,
-      required: true,
+      required: false,
     },
     countryCode: {
       type: String,
-      required: true,
+      required: false,
     },
     firebaseUid: {
       type: String,
