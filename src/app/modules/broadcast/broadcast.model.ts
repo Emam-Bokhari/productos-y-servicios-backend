@@ -2,19 +2,13 @@ import { softDeletePlugin } from "../../../DB/plugins/softDeletePlugin";
 import { model, Schema } from "mongoose";
 import { IBroadcast, BroadcastModel } from "./broadcast.interface";
 import {
-  BROADCAST_DELIVERY_TYPE,
+  BROADCAST_AUDIENCE,
+  BROADCAST_CHANNEL,
   BROADCAST_STATUS,
-  BROADCAST_TARGET,
-  BROADCAST_TYPE,
 } from "./broadcast.constant";
 
 const broadcastSchema = new Schema<IBroadcast, BroadcastModel>(
   {
-    deliveryType: {
-      type: String,
-      enum: Object.values(BROADCAST_DELIVERY_TYPE),
-      required: true,
-    },
     title: {
       type: String,
       required: true,
@@ -25,38 +19,16 @@ const broadcastSchema = new Schema<IBroadcast, BroadcastModel>(
       required: true,
       trim: true,
     },
-    type: {
+    audience: {
       type: String,
-      enum: Object.values(BROADCAST_TYPE),
+      enum: Object.values(BROADCAST_AUDIENCE),
       required: true,
     },
-    targetAudience: {
+    channel: {
       type: String,
-      enum: Object.values(BROADCAST_TARGET),
+      enum: Object.values(BROADCAST_CHANNEL),
+      default: BROADCAST_CHANNEL.PUSH_NOTIFICATION,
       required: true,
-    },
-    targetFilters: {
-      city: {
-        type: String,
-        trim: true,
-      },
-      state: {
-        type: String,
-        trim: true,
-      },
-      tier: {
-        type: String,
-        trim: true,
-      },
-      userIds: {
-        type: [Schema.Types.ObjectId],
-        ref: "User",
-        default: [],
-      },
-    },
-    scheduledAt: {
-      type: Date,
-      required: false,
     },
     status: {
       type: String,
@@ -94,8 +66,7 @@ const broadcastSchema = new Schema<IBroadcast, BroadcastModel>(
   },
 );
 
-// Indexes to speed up retrieving scheduled messages and active broadcasts
-broadcastSchema.index({ status: 1, scheduledAt: 1 });
+broadcastSchema.index({ status: 1, createdAt: -1 });
 
 broadcastSchema.plugin(softDeletePlugin);
 

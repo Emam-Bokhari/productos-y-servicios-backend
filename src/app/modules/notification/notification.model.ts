@@ -42,6 +42,7 @@ const notificationSchema = new Schema<INotification, NotificationModel>(
         "Support",
         "Chat",
         "Message",
+        "Broadcast",
       ],
     },
     read: {

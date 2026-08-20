@@ -5,6 +5,7 @@ export enum RULE_TYPE {
   TERMS = "terms",
   ABOUT = "about",
   SAFETY = "safety",
+  GUIDELINES = "guidelines",
 }
 
 export type TRule = {

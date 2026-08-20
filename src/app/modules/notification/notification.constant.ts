@@ -7,4 +7,5 @@ export enum NOTIFICATION_TYPE {
   SUBSCRIPTION_UPDATE = "subscription_update",
   ADVERTISEMENT_UPDATE = "advertisement_update",
   REVIEW_UPDATE = "review_update",
+  BROADCAST = "broadcast",
 }

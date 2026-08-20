@@ -95,9 +95,10 @@ class NotificationHelper {
         }
 
         // Check channel preferences: email (default to true)
-        // We only send emails for non-chat events (i.e. not MESSAGE_NEW)
+        // We only send emails for non-chat and non-broadcast events (i.e. not MESSAGE_NEW or BROADCAST)
         if (
           payload.type !== NOTIFICATION_TYPE.MESSAGE_NEW &&
+          payload.type !== NOTIFICATION_TYPE.BROADCAST &&
           (!userPref || userPref.email !== false)
         ) {
           emailUsers.push(user);

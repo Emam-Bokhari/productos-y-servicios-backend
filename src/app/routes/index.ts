@@ -19,11 +19,11 @@ import { SubscriptionPackageRoutes } from "../modules/subscriptionPackage/subscr
 import { SubscriptionRoutes } from "../modules/subscription/subscription.route";
 import { DashboardRoutes } from "../modules/dashboard/dashboard.route";
 import { TransactionRoutes } from "../modules/transaction/transaction.route";
-
 import { ProductRoutes } from "../modules/product/product.routes";
 import { ServiceRoutes } from "../modules/service/service.routes";
 import { FavoriteRoutes } from "../modules/favorite/favorite.routes";
 import { ReviewRoutes } from "../modules/review/review.route";
+import { BroadcastRoutes } from "../modules/broadcast/broadcast.routes";
 
 const router = express.Router();
 
@@ -124,6 +124,10 @@ const apiRoutes = [
   {
     path: "/transactions",
     route: TransactionRoutes,
+  },
+  {
+    path: "/announcements",
+    route: BroadcastRoutes,
   },
 ];
 

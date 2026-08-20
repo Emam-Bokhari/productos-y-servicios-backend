@@ -19,7 +19,8 @@ export type INotification = {
     | "Transaction"
     | "Support"
     | "Chat"
-    | "Message";
+    | "Message"
+    | "Broadcast";
   type?: string;
 };
 
