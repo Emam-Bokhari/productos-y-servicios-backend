@@ -2,6 +2,7 @@ import { model, Schema } from "mongoose";
 import { IStore, StoreModel } from "./store.interface";
 import { softDeletePlugin } from "../../../DB/plugins/softDeletePlugin";
 import { STORE_STATUS, STORE_TYPE, DOCUMENT_TYPE } from "./store.constant";
+import { DAYS } from "../../../constants/days";
 
 const storeSchema = new Schema<IStore>(
   {
@@ -120,6 +121,23 @@ const storeSchema = new Schema<IStore>(
     ratingCount: {
       type: Number,
       default: 0,
+    },
+    workingDays: {
+      type: [String],
+      enum: Object.values(DAYS),
+      required: false,
+    },
+    openingTime: {
+      type: String,
+      required: false,
+    },
+    closingTime: {
+      type: String,
+      required: false,
+    },
+    isOpen24Hours: {
+      type: Boolean,
+      default: false,
     },
   },
   {

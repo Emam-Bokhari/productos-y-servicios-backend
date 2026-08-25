@@ -15,7 +15,12 @@ router.post(
 );
 
 // Check if specific target is favorited
-router.get("/check", isAuthenticated, FavoriteController.checkIsFavorited);
+router.get(
+  "/check",
+  isAuthenticated,
+  validateRequest(FavoriteValidation.checkIsFavoritedSchema),
+  FavoriteController.checkIsFavorited,
+);
 
 // Get user's favorites list (can filter by ?targetType=store|product|service, ?type=store|product|service, or by flags like ?store=true)
 router.get("/", isAuthenticated, FavoriteController.getMyFavorites);

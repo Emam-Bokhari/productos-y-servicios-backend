@@ -32,7 +32,8 @@ const favoriteSchema = new Schema<IFavorite>(
 // Virtual property mapping lowercase enum value to registered Mongoose model name
 favoriteSchema.virtual("targetModel").get(function () {
   const modelNameMap: Record<string, string> = {
-    [FAVORITE_TYPE.STORE]: "Store",
+    [FAVORITE_TYPE.PRODUCT_STORE]: "Store",
+    [FAVORITE_TYPE.SERVICE_STORE]: "Store",
     [FAVORITE_TYPE.PRODUCT]: "Product",
     [FAVORITE_TYPE.SERVICE]: "Service",
   };

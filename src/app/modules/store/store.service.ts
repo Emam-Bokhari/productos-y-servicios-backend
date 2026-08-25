@@ -433,9 +433,10 @@ const getAllStoresFromDB = async (
   query: Record<string, unknown>,
   user: any,
 ) => {
-  const { searchTerm, status, storeType, ...remainingQuery } = query;
+  const { searchTerm, status, storeType, rating, openNow, ...remainingQuery } = query;
 
   const filter: Record<string, any> = {};
+  const andConditions: any[] = [];
 
   const isAdminOrSuperAdmin =
     user &&
@@ -461,6 +462,47 @@ const getAllStoresFromDB = async (
     }
   }
 
+  // Rating filtering logic
+  if (rating) {
+    const ratingVal = parseInt(rating as string, 10);
+    if (!isNaN(ratingVal)) {
+      filter.averageRating = { $gte: ratingVal };
+    }
+  }
+
+  // Open now filter logic
+  if (openNow === "true" || openNow === true) {
+    const nowInTimezone = DateTime.now().setZone("Asia/Dhaka");
+    const currentDayName = nowInTimezone.toFormat("EEEE").toLowerCase(); // e.g. "monday"
+    const currentTimeStr = nowInTimezone.toFormat("HH:mm");
+
+    andConditions.push({
+      $or: [
+        { isOpen24Hours: true },
+        {
+          isOpen24Hours: { $ne: true },
+          workingDays: currentDayName,
+          $or: [
+            {
+              // Normal operating hours (e.g., 09:00 to 18:00)
+              $expr: { $lte: ["$openingTime", "$closingTime"] },
+              openingTime: { $lte: currentTimeStr },
+              closingTime: { $gte: currentTimeStr },
+            },
+            {
+              // Overnight operating hours (e.g., 22:00 to 02:00)
+              $expr: { $gt: ["$openingTime", "$closingTime"] },
+              $or: [
+                { openingTime: { $lte: currentTimeStr } },
+                { closingTime: { $gte: currentTimeStr } },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  }
+
   // Search term logic
   if (searchTerm) {
     const categories = await StoreCategory.find({
@@ -473,14 +515,20 @@ const getAllStoresFromDB = async (
     }).select("_id");
     const userIds = users.map((u) => u._id);
 
-    filter.$or = [
-      { displayName: { $regex: searchTerm, $options: "i" } },
-      { phone: { $regex: searchTerm, $options: "i" } },
-      { city: { $regex: searchTerm, $options: "i" } },
-      { streetAddress: { $regex: searchTerm, $options: "i" } },
-      { categoryId: { $in: categoryIds } },
-      { owner: { $in: userIds } },
-    ];
+    andConditions.push({
+      $or: [
+        { displayName: { $regex: searchTerm, $options: "i" } },
+        { phone: { $regex: searchTerm, $options: "i" } },
+        { city: { $regex: searchTerm, $options: "i" } },
+        { streetAddress: { $regex: searchTerm, $options: "i" } },
+        { categoryId: { $in: categoryIds } },
+        { owner: { $in: userIds } },
+      ],
+    });
+  }
+
+  if (andConditions.length > 0) {
+    filter.$and = andConditions;
   }
 
   // Handle city configuration filtering via latitude/longitude or city/location name fallback

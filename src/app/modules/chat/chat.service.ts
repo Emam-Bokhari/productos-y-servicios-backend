@@ -28,8 +28,11 @@ const createChatIntoDB = async (
     participants = [participants[0], adminUser._id.toString()];
   }
 
+  // Deduplicate participants to avoid duplicate entries in the array and duplicate socket emissions
+  const uniqueParticipants = [...new Set(participants.map((p) => p.toString()))];
+
   const query: any = {
-    participants: { $all: participants },
+    participants: { $all: uniqueParticipants },
     isDeleted: { $ne: true },
   };
 
@@ -46,7 +49,7 @@ const createChatIntoDB = async (
     return isExistChat;
   }
   const newChat = await Chat.create({
-    participants: participants,
+    participants: uniqueParticipants,
     lastMessage: null,
     communicationType: communicationType || CHAT_COMMUNICATION_TYPE.OTHER,
     referenceId: referenceId
@@ -57,18 +60,47 @@ const createChatIntoDB = async (
     throw new Error("Failed to create chat");
   }
 
-  newChat.participants.forEach((participant) => {
-    chatSocketHelper.emitNewChat(participant.toString(), newChat);
+  uniqueParticipants.forEach((participant) => {
+    chatSocketHelper.emitNewChat(participant, newChat);
   });
   return newChat;
 };
 
 const markChatAsRead = async (userId: string, chatId: string) => {
-  return Chat.findByIdAndUpdate(
+  const result = await Chat.findByIdAndUpdate(
     chatId,
     { $addToSet: { readBy: userId } },
     { new: true },
+  ).lean();
+
+  // Mark all messages in this chat from other participants as read
+  await Message.updateMany(
+    {
+      chatId,
+      sender: { $ne: userId },
+      read: false,
+    },
+    {
+      $set: { read: true, readAt: new Date() },
+    },
   );
+
+  // Emit socket notification to update the unread count/state
+  chatSocketHelper.emitUnreadCountUpdate(userId, {
+    chatId,
+    action: "read",
+  });
+
+  if (result) {
+    return {
+      ...result,
+      read: true,
+      isRead: true,
+      unreadCount: 0,
+    };
+  }
+
+  return result;
 };
 
 // 5. Updated getAllChatsFromDB with better unread count calculation
@@ -119,6 +151,7 @@ const getAllChatsFromDB = async (
         return {
           ...chat,
           participants: otherParticipants,
+          read: unreadCount === 0,
           isRead: unreadCount === 0, // Chat is read if no unread messages
           unreadCount,
         };
@@ -169,6 +202,7 @@ const getAllChatsFromDB = async (
         return {
           ...chat,
           participants: otherParticipants,
+          read: unreadCount === 0,
           isRead: unreadCount === 0,
           unreadCount,
         };

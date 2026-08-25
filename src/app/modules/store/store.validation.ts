@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DAYS } from "../../../constants/days";
 
 const createStoreSchema = z.object({
   body: z.object({
@@ -54,6 +55,10 @@ const createStoreSchema = z.object({
     tinNumber: z.string({
       required_error: "TIN number is required",
     }),
+    workingDays: z.array(z.nativeEnum(DAYS)).optional(),
+    openingTime: z.string().optional(),
+    closingTime: z.string().optional(),
+    isOpen24Hours: z.boolean().optional(),
   }),
 });
 
@@ -90,6 +95,10 @@ const updateStoreSchema = z.object({
     businessLicenseNumber: z.string().optional(),
     tradeLicense: z.string().optional(),
     tinNumber: z.string().optional(),
+    workingDays: z.array(z.nativeEnum(DAYS)).optional(),
+    openingTime: z.string().optional(),
+    closingTime: z.string().optional(),
+    isOpen24Hours: z.boolean().optional(),
   }),
 });
 

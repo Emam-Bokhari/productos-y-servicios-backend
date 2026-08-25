@@ -3,6 +3,42 @@ import mongoose from "mongoose";
 import ApiError from "../../../errors/ApiErrors";
 import { IStoreCategory } from "./storeCategory.interface";
 import { StoreCategory } from "./storeCategory.model";
+import { Store } from "../store/store.model";
+import { Product } from "../product/product.model";
+import { Service } from "../service/service.model";
+import { STORE_STATUS } from "../store/store.constant";
+import { PRODUCT_STATUS } from "../product/product.constant";
+import { SERVICE_STATUS } from "../service/service.constant";
+import { CATEGORY_TYPE } from "./storeCategory.constant";
+
+const getCategoryListingsCount = async (
+  categoryId: mongoose.Types.ObjectId | string,
+  categoryType: string,
+): Promise<number> => {
+  const activeStores = await Store.find({
+    categoryId,
+    status: STORE_STATUS.ACTIVE,
+  });
+
+  const storeIds = activeStores.map((store) => store._id);
+  if (storeIds.length === 0) {
+    return 0;
+  }
+
+  if (categoryType === CATEGORY_TYPE.PRODUCT) {
+    return await Product.countDocuments({
+      storeId: { $in: storeIds },
+      status: PRODUCT_STATUS.ACTIVE,
+    });
+  } else if (categoryType === CATEGORY_TYPE.SERVICE) {
+    return await Service.countDocuments({
+      storeId: { $in: storeIds },
+      status: SERVICE_STATUS.ACTIVE,
+    });
+  }
+
+  return 0;
+};
 
 const createCategoryToDB = async (payload: IStoreCategory) => {
   const isExist = await StoreCategory.findOne({ name: payload.name });
@@ -29,7 +65,21 @@ const getAllCategoriesFromDB = async (query: Record<string, any>) => {
   }
 
   const categories = await StoreCategory.find(filter);
-  return categories;
+  
+  const categoriesWithCount = await Promise.all(
+    categories.map(async (category) => {
+      const listingsCount = await getCategoryListingsCount(
+        category._id,
+        category.type,
+      );
+      return {
+        ...category.toObject(),
+        listingsCount,
+      };
+    })
+  );
+
+  return categoriesWithCount;
 };
 
 const getCategoryByIdFromDB = async (storeCategoryId: string) => {
@@ -41,7 +91,16 @@ const getCategoryByIdFromDB = async (storeCategoryId: string) => {
   if (!category) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Category not found");
   }
-  return category;
+
+  const listingsCount = await getCategoryListingsCount(
+    category._id,
+    category.type,
+  );
+
+  return {
+    ...category.toObject(),
+    listingsCount,
+  };
 };
 
 const updateCategoryInDB = async (

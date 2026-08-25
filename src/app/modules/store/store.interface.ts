@@ -1,6 +1,7 @@
 import { Schema } from "mongoose";
 import { ISoftDeleteModel } from "../../../types/softDelete";
 import { STORE_STATUS, STORE_TYPE, DOCUMENT_TYPE } from "./store.constant";
+import { DAYS } from "../../../constants/days";
 
 export type IStore = {
   owner: Schema.Types.ObjectId;
@@ -29,6 +30,10 @@ export type IStore = {
   visitorCount?: number;
   averageRating?: number;
   ratingCount?: number;
+  workingDays?: DAYS[];
+  openingTime?: string;
+  closingTime?: string;
+  isOpen24Hours?: boolean;
 };
 
 export type StoreModel = ISoftDeleteModel<IStore>;

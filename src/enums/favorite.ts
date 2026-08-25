@@ -1,5 +1,6 @@
 export enum FAVORITE_TYPE {
-  STORE = "store",
+  PRODUCT_STORE = "product_store",
+  SERVICE_STORE = "service_store",
   PRODUCT = "product",
   SERVICE = "service",
 }

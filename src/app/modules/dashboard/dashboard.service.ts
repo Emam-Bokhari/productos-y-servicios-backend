@@ -15,17 +15,18 @@ const getDashboardOverview = async (queryYear?: string) => {
   // 3. Active Subscriptions
   const activeSubscriptionsCount = await Subscription.countDocuments({
     status: "active",
+    expiresAt: { $gt: new Date() },
   });
 
   // 4. MRR (Monthly Recurring Revenue)
-  // Fetch active store creation subscriptions and populate their packages to get duration and price
-  const activeStoreSubscriptions = await Subscription.find({
+  // Fetch active subscriptions and populate their packages to get duration and price
+  const activeSubscriptions = await Subscription.find({
     status: "active",
-    packageType: "store_creation",
+    expiresAt: { $gt: new Date() },
   }).populate("packageId");
 
   let totalMRR = 0;
-  for (const sub of activeStoreSubscriptions) {
+  for (const sub of activeSubscriptions) {
     const pkg = sub.packageId as any;
     if (pkg && typeof pkg.price === "number") {
       const price = pkg.price;

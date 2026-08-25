@@ -9,7 +9,8 @@ import { Store } from "../store/store.model";
 import { Favorite } from "./favorite.model";
 
 const targetModelMap: Record<FAVORITE_TYPE, Model<any>> = {
-  [FAVORITE_TYPE.STORE]: Store,
+  [FAVORITE_TYPE.PRODUCT_STORE]: Store,
+  [FAVORITE_TYPE.SERVICE_STORE]: Store,
   [FAVORITE_TYPE.PRODUCT]: Product,
   [FAVORITE_TYPE.SERVICE]: Service,
 };
@@ -28,6 +29,16 @@ const toggleFavoriteInDB = async (
   const targetExists = await TargetModel.findById(targetId);
   if (!targetExists) {
     throw new ApiError(StatusCodes.NOT_FOUND, `${targetType} not found`);
+  }
+
+  // Verify storeType matches the targetType if the target is a store
+  if (targetType === FAVORITE_TYPE.PRODUCT_STORE || targetType === FAVORITE_TYPE.SERVICE_STORE) {
+    if ((targetExists as any).storeType !== targetType) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        `Store type does not match. Expected ${targetType} but found ${(targetExists as any).storeType || "none"}`,
+      );
+    }
   }
 
   const existingFavorite = await Favorite.findOne({
@@ -79,15 +90,19 @@ const getMyFavoritesFromDB = async (
     rawTypes.forEach((t) => {
       if (typeof t === "string") {
         const cleaned = t.trim().toLowerCase();
-        if (Object.values(FAVORITE_TYPE).includes(cleaned as FAVORITE_TYPE)) {
+        if (cleaned === "store") {
+          targetTypes.add(FAVORITE_TYPE.PRODUCT_STORE);
+          targetTypes.add(FAVORITE_TYPE.SERVICE_STORE);
+        } else if (Object.values(FAVORITE_TYPE).includes(cleaned as FAVORITE_TYPE)) {
           targetTypes.add(cleaned);
         }
       }
     });
   }
 
-  // 2. Check individual boolean parameters like ?store=true, ?product=true, ?service=true
-  Object.values(FAVORITE_TYPE).forEach((favType) => {
+  // 2. Check individual boolean parameters like ?store=true, ?product=true, ?service=true, etc.
+  const allPossibleTypes = [...Object.values(FAVORITE_TYPE), "store"];
+  allPossibleTypes.forEach((favType) => {
     if (
       query[favType] !== undefined &&
       (query[favType] === "true" ||
@@ -95,7 +110,12 @@ const getMyFavoritesFromDB = async (
         query[favType] === "1" ||
         query[favType] === "")
     ) {
-      targetTypes.add(favType);
+      if (favType === "store") {
+        targetTypes.add(FAVORITE_TYPE.PRODUCT_STORE);
+        targetTypes.add(FAVORITE_TYPE.SERVICE_STORE);
+      } else {
+        targetTypes.add(favType);
+      }
     }
   });
 
@@ -104,11 +124,11 @@ const getMyFavoritesFromDB = async (
     filterQuery.targetType = { $in: Array.from(targetTypes) };
   }
 
-  // Clean the query to avoid passing raw type/targetType/store/product/service to QueryBuilder
+  // Clean the query to avoid passing raw type/targetType/store/product/service etc. to QueryBuilder
   const cleanQuery = { ...query };
   delete cleanQuery.type;
   delete cleanQuery.targetType;
-  Object.values(FAVORITE_TYPE).forEach((favType) => {
+  allPossibleTypes.forEach((favType) => {
     delete cleanQuery[favType];
   });
 

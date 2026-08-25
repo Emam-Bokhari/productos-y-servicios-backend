@@ -98,10 +98,11 @@ const sendMessageToDB = async (payload: IMessage): Promise<IMessage> => {
         participant && participant.toString() !== payload.sender.toString(),
     );
 
-    // emit to each participant
-    otherParticipants.forEach((participantId) => {
-      const participantIdStr = participantId.toString();
+    // Deduplicate recipient IDs to ensure socket events are only sent once per unique user
+    const uniqueOtherParticipants = [...new Set(otherParticipants.map((p) => p.toString()))];
 
+    // emit to each participant
+    uniqueOtherParticipants.forEach((participantIdStr) => {
       // emit new message
       chatSocketHelper.emitNewMessage(participantIdStr, populatedMessage);
 

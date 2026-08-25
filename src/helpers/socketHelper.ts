@@ -12,11 +12,37 @@ const socketMap = new Map<string, Socket>();
 const socket = (io: Server) => {
   io.on("connection", async (socket: Socket) => {
     logger.info(colors.blue("A User connected to Socket.IO"));
+    logger.info(`Handshake Query: ${JSON.stringify(socket.handshake.query)}`);
+    logger.info(`Handshake Auth: ${JSON.stringify(socket.handshake.auth)}`);
 
     // Attempt authentication via token in query or auth object
-    const token =
-      (socket.handshake.query?.token as string) ||
-      (socket.handshake.auth?.token as string);
+    let queryToken: string | undefined = undefined;
+    if (socket.handshake.query) {
+      for (const key of Object.keys(socket.handshake.query)) {
+        if (key.trim() === "token") {
+          queryToken = socket.handshake.query[key] as string;
+          break;
+        }
+      }
+    }
+
+    let authToken: string | undefined = undefined;
+    if (socket.handshake.auth) {
+      for (const key of Object.keys(socket.handshake.auth)) {
+        if (key.trim() === "token") {
+          authToken = socket.handshake.auth[key] as string;
+          break;
+        }
+      }
+    }
+
+    let token = queryToken || authToken;
+
+    if (token && token.startsWith("Bearer ")) {
+      token = token.split(" ")[1];
+    }
+
+    logger.info(`Extracted Token: ${token ? (token.substring(0, 15) + "...") : "undefined"}`);
 
     if (token) {
       try {
