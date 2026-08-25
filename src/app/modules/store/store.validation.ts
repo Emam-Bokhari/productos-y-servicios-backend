@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DAYS } from "../../../constants/days";
+import { isValidTimezone } from "../../../shared/timezoneHelper";
 
 const createStoreSchema = z.object({
   body: z.object({
@@ -59,6 +60,9 @@ const createStoreSchema = z.object({
     openingTime: z.string().optional(),
     closingTime: z.string().optional(),
     isOpen24Hours: z.boolean().optional(),
+    timezone: z.string().optional().refine((val) => !val || isValidTimezone(val), {
+      message: "Invalid IANA timezone identifier",
+    }),
   }),
 });
 
@@ -99,6 +103,9 @@ const updateStoreSchema = z.object({
     openingTime: z.string().optional(),
     closingTime: z.string().optional(),
     isOpen24Hours: z.boolean().optional(),
+    timezone: z.string().optional().refine((val) => !val || isValidTimezone(val), {
+      message: "Invalid IANA timezone identifier",
+    }),
   }),
 });
 

@@ -43,6 +43,7 @@ export type IUser = {
   subscriptionPackageId?: Types.ObjectId | string;
   stripeSubscriptionId?: string;
   subscriptionExpiresAt?: Date;
+  timezone?: string;
 };
 
 export type UserModal = {

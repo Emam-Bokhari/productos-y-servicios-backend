@@ -202,6 +202,10 @@ const getTransactions = async (
   // Resolve timezone dynamically
   const defaultTimezone = "Asia/Dhaka";
   let userTimezone = defaultTimezone;
+  const user = await User.findById(userId);
+  if (user && user.timezone) {
+    userTimezone = user.timezone;
+  }
 
   // 1. Role-based matching logic
   if (role === "seller") {
@@ -641,7 +645,7 @@ const getAllSubscriptionTransactions = async (queryOptions: {
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
-    .populate("userId", "name email")
+    .populate("userId", "name email timezone")
     .populate("packageId", "name");
 
   // Format to match exact frontend columns:
@@ -661,9 +665,10 @@ const getAllSubscriptionTransactions = async (queryOptions: {
       }
 
       // Format date: e.g. "Aug 16, 2026"
+      const txTimezone = (tx.userId as any)?.timezone || "Asia/Dhaka";
       const dateStr = tx.createdAt
         ? DateTime.fromJSDate(tx.createdAt)
-            .setZone("Asia/Dhaka")
+            .setZone(txTimezone)
             .toFormat("LLL d, yyyy")
         : "";
 

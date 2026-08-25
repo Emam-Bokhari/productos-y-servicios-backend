@@ -161,6 +161,11 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
     }
   }
 
+  if (payload.timezone) {
+    await User.findByIdAndUpdate(ownerId, { timezone: payload.timezone });
+    delete payload.timezone;
+  }
+
   // Create a new store (status defaults to under_review)
   const store = await Store.create({
     ...payload,
@@ -275,6 +280,11 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
     }
   }
 
+  if (payload.timezone) {
+    await User.findByIdAndUpdate(ownerId, { timezone: payload.timezone });
+    delete payload.timezone;
+  }
+
   // Filter out undefined values to support partial patching
   const cleanedUpdateData = Object.fromEntries(
     Object.entries(payload).filter(([_, v]) => v !== undefined),
@@ -362,9 +372,10 @@ const getStoreDetailsFromDB = async (storeId: string, user: any) => {
   }
 
   // Record daily traffic
-  const defaultTimezone = "Asia/Dhaka";
-  const todayInDhaka = DateTime.now().setZone(defaultTimezone).startOf("day");
-  const todayUtc = todayInDhaka.toUTC().toJSDate();
+  const ownerUser: any = store.owner;
+  const defaultTimezone = ownerUser?.timezone || "Asia/Dhaka";
+  const todayInTimezone = DateTime.now().setZone(defaultTimezone).startOf("day");
+  const todayUtc = todayInTimezone.toUTC().toJSDate();
 
   await StoreTraffic.findOneAndUpdate(
     { storeId: store._id, date: todayUtc },
@@ -472,35 +483,115 @@ const getAllStoresFromDB = async (
 
   // Open now filter logic
   if (openNow === "true" || openNow === true) {
-    const nowInTimezone = DateTime.now().setZone("Asia/Dhaka");
-    const currentDayName = nowInTimezone.toFormat("EEEE").toLowerCase(); // e.g. "monday"
-    const currentTimeStr = nowInTimezone.toFormat("HH:mm");
+    // 1. Get all unique timezones of users who are sellers
+    const distinctTimezones = await User.distinct("timezone");
+    const timezones = distinctTimezones.filter(Boolean);
+    const usersByTimezone: Record<string, any[]> = {};
 
-    andConditions.push({
+    const activeUsers = await User.find({
+      role: USER_ROLES.SELLER,
+      timezone: { $in: timezones },
+    }).select("_id timezone");
+
+    for (const u of activeUsers) {
+      const tz = u.timezone || "Asia/Dhaka";
+      if (!usersByTimezone[tz]) {
+        usersByTimezone[tz] = [];
+      }
+      usersByTimezone[tz].push(u._id);
+    }
+
+    const openTimezoneConditions: any[] = [];
+
+    // 2. Add conditions for each unique timezone
+    for (const tz of Object.keys(usersByTimezone)) {
+      const nowInTimezone = DateTime.now().setZone(tz);
+      if (!nowInTimezone.isValid) continue;
+      const currentDayName = nowInTimezone.toFormat("EEEE").toLowerCase();
+      const currentTimeStr = nowInTimezone.toFormat("HH:mm");
+      const ownerIds = usersByTimezone[tz] || [];
+      if (ownerIds.length === 0) continue;
+
+      openTimezoneConditions.push({
+        owner: { $in: ownerIds },
+        $or: [
+          { isOpen24Hours: true },
+          {
+            isOpen24Hours: { $ne: true },
+            workingDays: currentDayName,
+            $or: [
+              {
+                // Normal operating hours (e.g., 09:00 to 18:00)
+                $expr: { $lte: ["$openingTime", "$closingTime"] },
+                openingTime: { $lte: currentTimeStr },
+                closingTime: { $gte: currentTimeStr },
+              },
+              {
+                // Overnight operating hours (e.g., 22:00 to 02:00)
+                $expr: { $gt: ["$openingTime", "$closingTime"] },
+                $or: [
+                  { openingTime: { $lte: currentTimeStr } },
+                  { closingTime: { $gte: currentTimeStr } },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+    }
+
+    // 3. Fallback for users/stores who do not have a timezone set (defaults to Asia/Dhaka)
+    const usersWithoutTimezone = await User.find({
+      role: USER_ROLES.SELLER,
       $or: [
-        { isOpen24Hours: true },
+        { timezone: { $exists: false } },
+        { timezone: null },
+        { timezone: "Asia/Dhaka" },
+      ],
+    }).select("_id");
+    const ownerIdsWithoutTimezone = usersWithoutTimezone.map((u) => u._id);
+
+    const nowInDhaka = DateTime.now().setZone("Asia/Dhaka");
+    const currentDayNameDhaka = nowInDhaka.toFormat("EEEE").toLowerCase();
+    const currentTimeStrDhaka = nowInDhaka.toFormat("HH:mm");
+
+    openTimezoneConditions.push({
+      $and: [
         {
-          isOpen24Hours: { $ne: true },
-          workingDays: currentDayName,
           $or: [
+            { owner: { $in: ownerIdsWithoutTimezone } },
+            { owner: { $exists: false } },
+          ],
+        },
+        {
+          $or: [
+            { isOpen24Hours: true },
             {
-              // Normal operating hours (e.g., 09:00 to 18:00)
-              $expr: { $lte: ["$openingTime", "$closingTime"] },
-              openingTime: { $lte: currentTimeStr },
-              closingTime: { $gte: currentTimeStr },
-            },
-            {
-              // Overnight operating hours (e.g., 22:00 to 02:00)
-              $expr: { $gt: ["$openingTime", "$closingTime"] },
+              isOpen24Hours: { $ne: true },
+              workingDays: currentDayNameDhaka,
               $or: [
-                { openingTime: { $lte: currentTimeStr } },
-                { closingTime: { $gte: currentTimeStr } },
+                {
+                  // Normal operating hours (e.g., 09:00 to 18:00)
+                  $expr: { $lte: ["$openingTime", "$closingTime"] },
+                  openingTime: { $lte: currentTimeStrDhaka },
+                  closingTime: { $gte: currentTimeStrDhaka },
+                },
+                {
+                  // Overnight operating hours (e.g., 22:00 to 02:00)
+                  $expr: { $gt: ["$openingTime", "$closingTime"] },
+                  $or: [
+                    { openingTime: { $lte: currentTimeStrDhaka } },
+                    { closingTime: { $gte: currentTimeStrDhaka } },
+                  ],
+                },
               ],
             },
           ],
         },
       ],
     });
+
+    andConditions.push({ $or: openTimezoneConditions });
   }
 
   // Search term logic
@@ -692,7 +783,8 @@ const getSellerDashboardFromDB = async (ownerId: string) => {
 
   const totalVisitors = store.visitorCount || 0;
 
-  const defaultTimezone = "Asia/Dhaka";
+  const owner = await User.findById(ownerId);
+  const defaultTimezone = owner?.timezone || "Asia/Dhaka";
   const startOfWeek = DateTime.now().setZone(defaultTimezone).startOf("week");
   const endOfWeek = DateTime.now().setZone(defaultTimezone).endOf("week");
 

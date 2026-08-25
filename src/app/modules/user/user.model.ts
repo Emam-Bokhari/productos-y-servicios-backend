@@ -154,6 +154,10 @@ const userSchema = new Schema<IUser, IUserModel>(
       type: Date,
       required: false,
     },
+    timezone: {
+      type: String,
+      default: "Asia/Dhaka",
+    },
   },
   {
     timestamps: true,
