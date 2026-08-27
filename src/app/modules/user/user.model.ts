@@ -158,6 +158,22 @@ const userSchema = new Schema<IUser, IUserModel>(
       type: String,
       default: "Asia/Dhaka",
     },
+    country: {
+      type: String,
+      required: false,
+    },
+    postalCode: {
+      type: String,
+      required: false,
+    },
+    state: {
+      type: String,
+      required: false,
+    },
+    address: {
+      type: String,
+      required: false,
+    },
   },
   {
     timestamps: true,

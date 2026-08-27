@@ -16,6 +16,7 @@ export type IStore = {
   email?: string;
   streetAddress?: string;
   city?: string;
+  cityId?: Schema.Types.ObjectId;
   postalCode?: string;
   latitude?: number;
   longitude?: number;

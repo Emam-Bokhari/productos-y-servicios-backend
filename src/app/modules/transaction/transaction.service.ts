@@ -398,7 +398,7 @@ const getTransactions = async (
 
       const txType = txObj.transactionType;
 
-      let passengerName = "Passenger";
+      let passengerName = "Passenger"; 
       if (
         ridePopulated &&
         ridePopulated.userId &&

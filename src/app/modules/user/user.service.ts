@@ -14,6 +14,8 @@ import { emailHelper } from "../../../helpers/emailHelper";
 import bcrypt from "bcrypt";
 import { sendNotifications } from "../../../helpers/notificationsHelper";
 import { NOTIFICATION_TYPE } from "../notification/notification.constant";
+import { Subscription } from "../subscription/subscription.model";
+import { Store } from "../store/store.model";
 
 // --- ADMIN SERVICES ---
 const createAdminToDB = async (payload: any): Promise<IUser> => {
@@ -37,12 +39,11 @@ const createAdminToDB = async (payload: any): Promise<IUser> => {
 const getAdminFromDB = async (query: any) => {
   const baseQuery = User.find({
     role: { $in: [USER_ROLES.ADMIN] },
-    status: STATUS.ACTIVE,
-    verified: true,
   }).select("name email role profileImage createdAt updatedAt status");
 
   const queryBuilder = new QueryBuilder<IUser>(baseQuery, query)
     .search(["name", "email"])
+    .filter()
     .sort()
     .fields()
     .paginate();
@@ -170,7 +171,61 @@ const getMyProfileFromDB = async (userId: string) => {
   if (!result) {
     throw new ApiError(StatusCodes.NOT_FOUND, "User not found");
   }
-  return result;
+
+  // Find active store subscription, otherwise latest
+  let storeSubscription = await Subscription.findOne({
+    userId,
+    packageType: "store_creation",
+    status: { $in: ["active", "trialing"] },
+    expiresAt: { $gt: new Date() },
+  });
+  if (!storeSubscription) {
+    storeSubscription = await Subscription.findOne({
+      userId,
+      packageType: "store_creation",
+    }).sort({ createdAt: -1 });
+  }
+
+  // Find active post subscription, otherwise latest
+  let postSubscription = await Subscription.findOne({
+    userId,
+    packageType: "post_add",
+    status: { $in: ["active", "trialing"] },
+    expiresAt: { $gt: new Date() },
+  });
+  if (!postSubscription) {
+    postSubscription = await Subscription.findOne({
+      userId,
+      packageType: "post_add",
+    }).sort({ createdAt: -1 });
+  }
+
+  const store = await Store.findOne({ owner: userId });
+  const isStoreCreated = !!store;
+
+  const isStoreSubscribed = storeSubscription
+    ? ["active", "trialing"].includes(storeSubscription.status) &&
+      storeSubscription.expiresAt > new Date()
+    : false;
+
+  const isPostSubscribed = postSubscription
+    ? ["active", "trialing"].includes(postSubscription.status) &&
+      postSubscription.expiresAt > new Date()
+    : false;
+
+  return {
+    ...result.toObject(),
+    isStoreCreated,
+    isSubscribed: isStoreSubscribed || isPostSubscribed,
+    storeSubscription: {
+      isPurchased: isStoreSubscribed,
+      expiresAt: storeSubscription ? storeSubscription.expiresAt : null,
+    },
+    postSubscription: {
+      isPurchased: isPostSubscribed,
+      expiresAt: postSubscription ? postSubscription.expiresAt : null,
+    },
+  };
 };
 
 const updateProfileToDB = async (
@@ -219,7 +274,12 @@ const getUserByIdFromDB = async (id: string) => {
   const result = await User.findOne({
     _id: id,
     role: { $in: [USER_ROLES.USER, USER_ROLES.SELLER] },
-  }).populate("store");
+  }).populate({
+    path: "store",
+    populate: {
+      path: "cityId",
+    },
+  });
 
   if (!result)
     throw new ApiError(404, "No user is found in the database by this ID");

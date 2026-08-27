@@ -36,17 +36,13 @@ const createStoreSchema = z.object({
         required_error: "Email is required",
       })
       .email("Invalid email format"),
-    streetAddress: z.string({
-      required_error: "Street address is required",
-    }),
-    city: z.string({
-      required_error: "City is required",
-    }),
-    postalCode: z.string({
-      required_error: "Postal code is required",
-    }),
-    latitude: z.number().optional(),
-    longitude: z.number().optional(),
+    cityId: z
+      .string({
+        required_error: "City ID is required",
+      })
+      .refine((val) => /^[0-9a-fA-F]{24}$/.test(val), {
+        message: "Invalid city ID format",
+      }),
     businessLicenseNumber: z.string({
       required_error: "Business License Number is required",
     }),
@@ -91,11 +87,12 @@ const updateStoreSchema = z.object({
       .email("Invalid email format")
       .optional()
       .or(z.literal("")),
-    streetAddress: z.string().optional(),
-    city: z.string().optional(),
-    postalCode: z.string().optional(),
-    latitude: z.number().optional(),
-    longitude: z.number().optional(),
+    cityId: z
+      .string()
+      .refine((val) => /^[0-9a-fA-F]{24}$/.test(val), {
+        message: "Invalid city ID format",
+      })
+      .optional(),
     businessLicenseNumber: z.string().optional(),
     tradeLicense: z.string().optional(),
     tinNumber: z.string().optional(),

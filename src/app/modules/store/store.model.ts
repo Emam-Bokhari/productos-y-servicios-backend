@@ -62,6 +62,11 @@ const storeSchema = new Schema<IStore>(
       type: String,
       required: false,
     },
+    cityId: {
+      type: Schema.Types.ObjectId,
+      ref: "CityAdConfiguration",
+      required: true,
+    },
     postalCode: {
       type: String,
       required: false,

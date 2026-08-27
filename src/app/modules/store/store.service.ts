@@ -1,4 +1,5 @@
 import { StatusCodes } from "http-status-codes";
+import { Types } from "mongoose";
 import ApiError from "../../../errors/ApiErrors";
 import { Store } from "./store.model";
 import { StoreCategory } from "../storeCategory/storeCategory.model";
@@ -148,15 +149,15 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
   }
 
   // Validate city exists in active configurations
-  if (payload.city) {
+  if (payload.cityId) {
     const activeCity = await CityAdConfiguration.findOne({
-      city: { $regex: `^${payload.city.trim()}$`, $options: "i" },
+      _id: payload.cityId,
       status: SLOT_CONFIG_STATUS.ACTIVE,
     });
     if (!activeCity) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        `The selected city "${payload.city}" is not configured or active for stores.`,
+        "The selected city configuration is not configured or active for stores.",
       );
     }
   }
@@ -264,18 +265,15 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
   }
 
   // Validate city exists in active configurations if changing
-  if (
-    payload.city &&
-    payload.city.trim().toLowerCase() !== store.city?.toLowerCase()
-  ) {
+  if (payload.cityId && payload.cityId !== store.cityId?.toString()) {
     const activeCity = await CityAdConfiguration.findOne({
-      city: { $regex: `^${payload.city.trim()}$`, $options: "i" },
+      _id: payload.cityId,
       status: SLOT_CONFIG_STATUS.ACTIVE,
     });
     if (!activeCity) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        `The selected city "${payload.city}" is not configured or active for stores.`,
+        "The selected city configuration is not configured or active for stores.",
       );
     }
   }
@@ -319,7 +317,7 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
 };
 
 const getMyStoreFromDB = async (ownerId: string) => {
-  const store = await Store.findOne({ owner: ownerId });
+  const store = await Store.findOne({ owner: ownerId }).populate("cityId");
   const seller = await Seller.findOne({ user: ownerId });
 
   if (!store) {
@@ -366,7 +364,8 @@ const getStoreDetailsFromDB = async (storeId: string, user: any) => {
     { new: true },
   )
     .populate("categoryId")
-    .populate("owner", "name profileImage email phone");
+    .populate("owner", "name profileImage email phone")
+    .populate("cityId");
   if (!store) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Store not found");
   }
@@ -606,12 +605,16 @@ const getAllStoresFromDB = async (
     }).select("_id");
     const userIds = users.map((u) => u._id);
 
+    const cityAdConfigs = await CityAdConfiguration.find({
+      city: { $regex: searchTerm, $options: "i" },
+    }).select("_id");
+    const cityAdConfigIds = cityAdConfigs.map((c) => c._id);
+
     andConditions.push({
       $or: [
         { displayName: { $regex: searchTerm, $options: "i" } },
         { phone: { $regex: searchTerm, $options: "i" } },
-        { city: { $regex: searchTerm, $options: "i" } },
-        { streetAddress: { $regex: searchTerm, $options: "i" } },
+        { cityId: { $in: cityAdConfigIds } },
         { categoryId: { $in: categoryIds } },
         { owner: { $in: userIds } },
       ],
@@ -620,6 +623,12 @@ const getAllStoresFromDB = async (
 
   if (andConditions.length > 0) {
     filter.$and = andConditions;
+  }
+
+  // Handle direct cityId query parameter
+  if (remainingQuery.cityId) {
+    filter.cityId = remainingQuery.cityId;
+    delete remainingQuery.cityId;
   }
 
   // Handle city configuration filtering via latitude/longitude or city/location name fallback
@@ -659,14 +668,14 @@ const getAllStoresFromDB = async (
   }
 
   if (cityConfig) {
-    filter.city = { $regex: `^${cityConfig.city.trim()}$`, $options: "i" };
+    filter.cityId = cityConfig._id;
   } else if (
     query.latitude ||
     query.longitude ||
     query.city ||
     query.location
   ) {
-    filter.city = "NON_EXISTENT_CITY_FALLBACK_VAL_12345";
+    filter.cityId = new Types.ObjectId();
   }
 
   const builder = new QueryBuilder(Store.find(), remainingQuery)
@@ -679,7 +688,8 @@ const getAllStoresFromDB = async (
 
   const rawStores = await builder.modelQuery
     .populate("categoryId")
-    .populate("owner", "name profileImage email phone");
+    .populate("owner", "name profileImage email phone")
+    .populate("cityId");
 
   const meta = await builder.countTotal();
 

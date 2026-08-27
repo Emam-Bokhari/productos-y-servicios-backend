@@ -76,10 +76,14 @@ const getAllServicesFromDB = async (query: Record<string, unknown>) => {
     .paginate()
     .fields();
 
-  const data = await builder.modelQuery.populate(
-    "storeId",
-    "displayName logo city rating",
-  );
+  const data = await builder.modelQuery.populate({
+    path: "storeId",
+    select: "displayName logo cityId averageRating",
+    populate: {
+      path: "cityId",
+      select: "city country countryCode",
+    },
+  });
   const meta = await builder.countTotal();
 
   return { data, meta };

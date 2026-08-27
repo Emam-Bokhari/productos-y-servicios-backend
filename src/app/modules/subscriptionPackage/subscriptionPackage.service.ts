@@ -74,6 +74,9 @@ const subscriptionPackagesFromDB = async (query: Record<string, any>) => {
   if (query.status) {
     filter.status = query.status;
   }
+  if (query.packageType) {
+    filter.packageType = query.packageType;
+  }
   const packages = await SubscriptionPackage.find(filter);
   return packages;
 };

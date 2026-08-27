@@ -44,7 +44,11 @@ export type IUser = {
   stripeSubscriptionId?: string;
   subscriptionExpiresAt?: Date;
   timezone?: string;
-};
+  country?: string;
+  postalCode?: string;
+  state?: string;
+  address?: string; 
+};              
 
 export type UserModal = {
   isExistUserById(id: string): any;
