@@ -103,6 +103,8 @@ const markChatAsRead = async (userId: string, chatId: string) => {
   return result;
 };
 
+// 
+
 // 5. Updated getAllChatsFromDB with better unread count calculation
 const getAllChatsFromDB = async (
   userId: string,

@@ -20,6 +20,7 @@ export interface IAdvertisement {
   endDate: Date;
   featuredImage?: string;
   status: ADVERTISEMENT_STATUS;
+  price?: number;
   isDeleted?: boolean;
   deletedAt?: Date | null;
 }

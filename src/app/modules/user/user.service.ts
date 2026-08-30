@@ -216,6 +216,7 @@ const getMyProfileFromDB = async (userId: string) => {
   return {
     ...result.toObject(),
     isStoreCreated,
+    storeType: store ? store.storeType : null,
     isSubscribed: isStoreSubscribed || isPostSubscribed,
     storeSubscription: {
       isPurchased: isStoreSubscribed,

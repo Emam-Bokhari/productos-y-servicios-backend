@@ -193,13 +193,6 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
     throw new ApiError(StatusCodes.NOT_FOUND, "Store not found.");
   }
 
-  if (store.status !== "under_review" && store.status !== "rejected") {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      `Cannot update store details when status is ${store.status}`,
-    );
-  }
-
   const { categoryId, displayName, phone, businessLicenseNumber } = payload;
 
   // Validate new category if changing

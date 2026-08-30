@@ -73,6 +73,10 @@ const advertisementSchema = new Schema<IAdvertisement>(
       enum: Object.values(ADVERTISEMENT_STATUS),
       default: ADVERTISEMENT_STATUS.ACTIVE,
     },
+    price: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
