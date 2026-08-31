@@ -50,7 +50,7 @@ router.get(
 
 router.get(
   "/seller/active",
-  isSeller,
+  isAuthenticated,
   CityAdConfigurationController.getSellerActiveCities,
 );
 

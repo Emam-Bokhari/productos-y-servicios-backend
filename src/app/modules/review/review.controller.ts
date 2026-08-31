@@ -48,7 +48,12 @@ const replyAsReviewer = catchAsync(async (req: Request, res: Response) => {
 
 const getStoreReviews = catchAsync(async (req: Request, res: Response) => {
   const { storeId } = req.params;
-  const result = await ReviewService.getStoreReviewsFromDB(storeId, req.query);
+  const userId = req.user?.id;
+  const result = await ReviewService.getStoreReviewsFromDB(
+    storeId,
+    req.query,
+    userId,
+  );
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
@@ -58,6 +63,9 @@ const getStoreReviews = catchAsync(async (req: Request, res: Response) => {
     data: {
       reviews: result.data,
       ratingStats: result.ratingStats,
+      isSeller: result.isSeller,
+      averageRating: result.averageRating,
+      totalReviews: result.totalReviews,
     },
   });
 });

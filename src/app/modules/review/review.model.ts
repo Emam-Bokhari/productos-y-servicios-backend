@@ -59,4 +59,13 @@ reviewSchema.plugin(softDeletePlugin);
 // Create compound unique index to allow only one review per user per store
 reviewSchema.index({ storeId: 1, userId: 1 }, { unique: true });
 
+// Define virtual for isReplied
+reviewSchema.virtual("isReplied").get(function (this: any) {
+  return !!this.ownerReply;
+});
+
+// Enable virtuals in serialization
+reviewSchema.set("toJSON", { virtuals: true });
+reviewSchema.set("toObject", { virtuals: true });
+
 export const Review = model<IReview, ReviewModel>("Review", reviewSchema);

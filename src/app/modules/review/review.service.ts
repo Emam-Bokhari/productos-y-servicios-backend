@@ -190,6 +190,7 @@ const replyAsReviewerInDB = async (
 const getStoreReviewsFromDB = async (
   storeId: string,
   query: Record<string, unknown>,
+  userId?: string,
 ) => {
   if (!storeId) {
     throw new ApiError(
@@ -238,10 +239,18 @@ const getStoreReviewsFromDB = async (
     }
   });
 
+  const store = await Store.findById(storeId);
+  const isSeller = store && userId ? store.owner.toString() === userId : false;
+  const averageRating = store ? store.averageRating : 0;
+  const totalReviews = store ? store.ratingCount : 0;
+
   return {
     data,
     meta,
     ratingStats: breakdown,
+    isSeller,
+    averageRating,
+    totalReviews,
   };
 };
 

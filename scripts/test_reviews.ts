@@ -4,6 +4,7 @@ import { User } from "../src/app/modules/user/user.model";
 import { Store } from "../src/app/modules/store/store.model";
 import { Review } from "../src/app/modules/review/review.model";
 import { ReviewService } from "../src/app/modules/review/review.service";
+import { CityAdConfiguration } from "../src/app/modules/cityAdConfiguration/cityAdConfiguration.model";
 import { USER_ROLES } from "../src/enums/user";
 import {
   STORE_STATUS,
@@ -24,6 +25,18 @@ const testReviews = async () => {
       },
     });
     await Store.deleteMany({ displayName: "Test Rating Store" });
+    await CityAdConfiguration.deleteMany({ city: "Test City" });
+
+    console.log("Creating city configuration...");
+    const cityConfig = await CityAdConfiguration.create({
+      country: "Test Country",
+      countryCode: "TC",
+      city: "Test City",
+      latitude: 10,
+      longitude: 20,
+      featuredCapacity: 5,
+      featuredEnabled: true,
+    });
 
     console.log("Creating store owner...");
     const owner = await User.create({
@@ -62,6 +75,7 @@ const testReviews = async () => {
       status: STORE_STATUS.ACTIVE,
       storeType: STORE_TYPE.PRODUCT_STORE,
       businessLicenseNumber: "LIC-TEST-12345",
+      cityId: cityConfig._id,
     });
 
     console.log(
@@ -247,11 +261,52 @@ const testReviews = async () => {
     console.log(
       "Testing: Get store reviews list and rating breakdown stats...",
     );
-    const reviewsRes = await ReviewService.getStoreReviewsFromDB({
-      storeId: store._id.toString(),
-    });
+    const reviewsRes = await ReviewService.getStoreReviewsFromDB(
+      store._id.toString(),
+      {},
+      owner._id.toString(),
+    );
     console.log("Reviews retrieved count:", reviewsRes.data.length);
     console.log("Rating stats breakdown:", reviewsRes.ratingStats);
+    console.log("IsSeller for owner:", reviewsRes.isSeller);
+    console.log("Average rating evaluated:", reviewsRes.averageRating);
+    console.log("Total reviews evaluated:", reviewsRes.totalReviews);
+    if (!reviewsRes.isSeller) {
+      throw new Error(`FAIL: Expected isSeller to be true for owner.`);
+    }
+    if (reviewsRes.averageRating !== 4.5) {
+      throw new Error(`FAIL: Expected averageRating to be 4.5, got ${reviewsRes.averageRating}`);
+    }
+    if (reviewsRes.totalReviews !== 2) {
+      throw new Error(`FAIL: Expected totalReviews to be 2, got ${reviewsRes.totalReviews}`);
+    }
+
+    const reviewsResNonOwner = await ReviewService.getStoreReviewsFromDB(
+      store._id.toString(),
+      {},
+      reviewer1._id.toString(),
+    );
+    console.log("IsSeller for non-owner:", reviewsResNonOwner.isSeller);
+    if (reviewsResNonOwner.isSeller) {
+      throw new Error(`FAIL: Expected isSeller to be false for non-owner.`);
+    }
+
+    const firstReview = reviewsRes.data.find(
+      (r: any) => r._id.toString() === review1._id.toString(),
+    );
+    console.log("Review 1 isReplied:", firstReview?.isReplied);
+    if (!firstReview || !firstReview.isReplied) {
+      throw new Error(`FAIL: Expected review1.isReplied to be true.`);
+    }
+
+    const secondReview = reviewsRes.data.find(
+      (r: any) => r._id.toString() === review2._id.toString(),
+    );
+    console.log("Review 2 isReplied:", secondReview?.isReplied);
+    if (!secondReview || secondReview.isReplied) {
+      throw new Error(`FAIL: Expected review2.isReplied to be false.`);
+    }
+
     if (reviewsRes.ratingStats[4] !== 1 || reviewsRes.ratingStats[5] !== 1) {
       throw new Error(
         `FAIL: Rating stats not computed correctly. Expected {4:1, 5:1}, got ${JSON.stringify(reviewsRes.ratingStats)}`,
@@ -266,6 +321,7 @@ const testReviews = async () => {
     });
     await Store.deleteMany({ displayName: "Test Rating Store" });
     await Review.deleteMany({ storeId: store._id });
+    await CityAdConfiguration.deleteMany({ city: "Test City" });
 
     console.log("\nALL TESTS PASSED SUCCESSFULLY! ✅");
   } catch (error) {

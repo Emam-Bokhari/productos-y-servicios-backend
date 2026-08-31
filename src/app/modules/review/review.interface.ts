@@ -13,6 +13,7 @@ export type IReview = {
   comment: string;
   ownerReply?: IReply;
   userReply?: IReply;
+  isReplied?: boolean;
 };
 
 export type ReviewModel = ISoftDeleteModel<IReview>;
