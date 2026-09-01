@@ -478,13 +478,12 @@ const getAllStoresFromDB = async (
 
   // Open now filter logic
   if (openNow === "true" || openNow === true) {
-    // 1. Get all unique timezones of users who are sellers
+    // 1. Get all unique timezones of users
     const distinctTimezones = await User.distinct("timezone");
     const timezones = distinctTimezones.filter(Boolean);
     const usersByTimezone: Record<string, any[]> = {};
 
     const activeUsers = await User.find({
-      role: USER_ROLES.SELLER,
       timezone: { $in: timezones },
     }).select("_id timezone");
 
@@ -537,11 +536,9 @@ const getAllStoresFromDB = async (
 
     // 3. Fallback for users/stores who do not have a timezone set (defaults to Asia/Dhaka)
     const usersWithoutTimezone = await User.find({
-      role: USER_ROLES.SELLER,
       $or: [
         { timezone: { $exists: false } },
         { timezone: null },
-        { timezone: "Asia/Dhaka" },
       ],
     }).select("_id");
     const ownerIdsWithoutTimezone = usersWithoutTimezone.map((u) => u._id);
