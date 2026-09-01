@@ -47,8 +47,8 @@ export type IUser = {
   country?: string;
   postalCode?: string;
   state?: string;
-  address?: string; 
-};              
+  address?: string;
+};
 
 export type UserModal = {
   isExistUserById(id: string): any;

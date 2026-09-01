@@ -481,7 +481,7 @@ const createAdvertisementToDB = async (
     payload.latitude = cityConfig.latitude;
     payload.longitude = cityConfig.longitude;
     payload.status = ADVERTISEMENT_STATUS.ACTIVE;
-    payload.price = isTrial ? 0 : (packageInfo?.price || 0);
+    payload.price = isTrial ? 0 : packageInfo?.price || 0;
 
     const [newAd] = await Advertisement.create([payload], { session });
 
@@ -716,7 +716,7 @@ const getUserAdvertisementsFromDB = async (
   const activeCities = await CityAdConfiguration.find({
     status: SLOT_CONFIG_STATUS.ACTIVE,
   });
-  
+
   if (activeCities.length === 0) {
     return [];
   }

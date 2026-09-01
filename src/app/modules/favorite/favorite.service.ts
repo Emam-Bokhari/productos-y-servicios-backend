@@ -32,7 +32,10 @@ const toggleFavoriteInDB = async (
   }
 
   // Verify storeType matches the targetType if the target is a store
-  if (targetType === FAVORITE_TYPE.PRODUCT_STORE || targetType === FAVORITE_TYPE.SERVICE_STORE) {
+  if (
+    targetType === FAVORITE_TYPE.PRODUCT_STORE ||
+    targetType === FAVORITE_TYPE.SERVICE_STORE
+  ) {
     if ((targetExists as any).storeType !== targetType) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
@@ -93,7 +96,9 @@ const getMyFavoritesFromDB = async (
         if (cleaned === "store") {
           targetTypes.add(FAVORITE_TYPE.PRODUCT_STORE);
           targetTypes.add(FAVORITE_TYPE.SERVICE_STORE);
-        } else if (Object.values(FAVORITE_TYPE).includes(cleaned as FAVORITE_TYPE)) {
+        } else if (
+          Object.values(FAVORITE_TYPE).includes(cleaned as FAVORITE_TYPE)
+        ) {
           targetTypes.add(cleaned);
         }
       }

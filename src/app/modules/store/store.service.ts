@@ -366,7 +366,9 @@ const getStoreDetailsFromDB = async (storeId: string, user: any) => {
   // Record daily traffic
   const ownerUser: any = store.owner;
   const defaultTimezone = ownerUser?.timezone || "Asia/Dhaka";
-  const todayInTimezone = DateTime.now().setZone(defaultTimezone).startOf("day");
+  const todayInTimezone = DateTime.now()
+    .setZone(defaultTimezone)
+    .startOf("day");
   const todayUtc = todayInTimezone.toUTC().toJSDate();
 
   await StoreTraffic.findOneAndUpdate(
@@ -436,7 +438,8 @@ const getAllStoresFromDB = async (
   query: Record<string, unknown>,
   user: any,
 ) => {
-  const { searchTerm, status, storeType, rating, openNow, ...remainingQuery } = query;
+  const { searchTerm, status, storeType, rating, openNow, ...remainingQuery } =
+    query;
 
   const filter: Record<string, any> = {};
   const andConditions: any[] = [];

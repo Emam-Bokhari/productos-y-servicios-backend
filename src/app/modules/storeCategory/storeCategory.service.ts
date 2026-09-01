@@ -65,7 +65,7 @@ const getAllCategoriesFromDB = async (query: Record<string, any>) => {
   }
 
   const categories = await StoreCategory.find(filter);
-  
+
   const categoriesWithCount = await Promise.all(
     categories.map(async (category) => {
       const listingsCount = await getCategoryListingsCount(
@@ -76,7 +76,7 @@ const getAllCategoriesFromDB = async (query: Record<string, any>) => {
         ...category.toObject(),
         listingsCount,
       };
-    })
+    }),
   );
 
   return categoriesWithCount;

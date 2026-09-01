@@ -29,7 +29,9 @@ const createChatIntoDB = async (
   }
 
   // Deduplicate participants to avoid duplicate entries in the array and duplicate socket emissions
-  const uniqueParticipants = [...new Set(participants.map((p) => p.toString()))];
+  const uniqueParticipants = [
+    ...new Set(participants.map((p) => p.toString())),
+  ];
 
   const query: any = {
     participants: { $all: uniqueParticipants },
@@ -103,7 +105,7 @@ const markChatAsRead = async (userId: string, chatId: string) => {
   return result;
 };
 
-// 
+//
 
 // 5. Updated getAllChatsFromDB with better unread count calculation
 const getAllChatsFromDB = async (

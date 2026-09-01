@@ -23,7 +23,7 @@ router.get("/admin/bookings", isAdmin, AdvertisementController.getAllBookings);
 // SELLER / USER ROUTES
 // ====================================================
 
-router.get( 
+router.get(
   "/user-ads",
   isUser,
   validateRequest(AdvertisementValidation.getUserAdsQuerySchema),

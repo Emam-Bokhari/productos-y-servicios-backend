@@ -56,9 +56,12 @@ const createStoreSchema = z.object({
     openingTime: z.string().optional(),
     closingTime: z.string().optional(),
     isOpen24Hours: z.boolean().optional(),
-    timezone: z.string().optional().refine((val) => !val || isValidTimezone(val), {
-      message: "Invalid IANA timezone identifier",
-    }),
+    timezone: z
+      .string()
+      .optional()
+      .refine((val) => !val || isValidTimezone(val), {
+        message: "Invalid IANA timezone identifier",
+      }),
   }),
 });
 
@@ -100,9 +103,12 @@ const updateStoreSchema = z.object({
     openingTime: z.string().optional(),
     closingTime: z.string().optional(),
     isOpen24Hours: z.boolean().optional(),
-    timezone: z.string().optional().refine((val) => !val || isValidTimezone(val), {
-      message: "Invalid IANA timezone identifier",
-    }),
+    timezone: z
+      .string()
+      .optional()
+      .refine((val) => !val || isValidTimezone(val), {
+        message: "Invalid IANA timezone identifier",
+      }),
   }),
 });
 

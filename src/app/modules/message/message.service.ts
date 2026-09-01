@@ -99,7 +99,9 @@ const sendMessageToDB = async (payload: IMessage): Promise<IMessage> => {
     );
 
     // Deduplicate recipient IDs to ensure socket events are only sent once per unique user
-    const uniqueOtherParticipants = [...new Set(otherParticipants.map((p) => p.toString()))];
+    const uniqueOtherParticipants = [
+      ...new Set(otherParticipants.map((p) => p.toString())),
+    ];
 
     // emit to each participant
     uniqueOtherParticipants.forEach((participantIdStr) => {

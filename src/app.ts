@@ -17,19 +17,19 @@ app.use(requestContextMiddleware);
 app.set("views", path.join(__dirname, "..", "views"));
 app.set("view engine", "ejs");
 
-// morgan 
+// morgan
 app.use(Morgan.successHandler);
 app.use(Morgan.errorHandler);
 
 //body parser
-app.use( 
+app.use(
   cors({
     origin: [
-      "http://10.10.7.46:3011", 
-      "http://10.10.7.46:3015", 
+      "http://10.10.7.46:3011",
+      "http://10.10.7.46:3015",
       "http://localhost:5173",
       "http://localhost:5174",
-      "http://10.10.26.174:5173"
+      "http://10.10.26.174:5173",
     ],
     credentials: true,
   }),

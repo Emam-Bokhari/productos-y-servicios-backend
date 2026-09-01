@@ -275,10 +275,14 @@ const testReviews = async () => {
       throw new Error(`FAIL: Expected isSeller to be true for owner.`);
     }
     if (reviewsRes.averageRating !== 4.5) {
-      throw new Error(`FAIL: Expected averageRating to be 4.5, got ${reviewsRes.averageRating}`);
+      throw new Error(
+        `FAIL: Expected averageRating to be 4.5, got ${reviewsRes.averageRating}`,
+      );
     }
     if (reviewsRes.totalReviews !== 2) {
-      throw new Error(`FAIL: Expected totalReviews to be 2, got ${reviewsRes.totalReviews}`);
+      throw new Error(
+        `FAIL: Expected totalReviews to be 2, got ${reviewsRes.totalReviews}`,
+      );
     }
 
     const reviewsResNonOwner = await ReviewService.getStoreReviewsFromDB(

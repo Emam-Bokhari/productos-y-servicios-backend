@@ -42,7 +42,9 @@ const socket = (io: Server) => {
       token = token.split(" ")[1];
     }
 
-    logger.info(`Extracted Token: ${token ? (token.substring(0, 15) + "...") : "undefined"}`);
+    logger.info(
+      `Extracted Token: ${token ? token.substring(0, 15) + "..." : "undefined"}`,
+    );
 
     if (token) {
       try {

@@ -2,7 +2,11 @@ import express from "express";
 import validateRequest from "../../middlewares/validateRequest";
 import { CityAdConfigurationController } from "./cityAdConfiguration.controller";
 import { CityAdConfigurationValidation } from "./cityAdConfiguration.validation";
-import { isAdmin, isAuthenticated, isSeller } from "../../../helpers/authHelper";
+import {
+  isAdmin,
+  isAuthenticated,
+  isSeller,
+} from "../../../helpers/authHelper";
 
 const router = express.Router();
 
@@ -17,7 +21,11 @@ router.post(
   CityAdConfigurationController.createCityAdConfig,
 );
 
-router.get("/admin", isAuthenticated, CityAdConfigurationController.getCityAdConfigs);
+router.get(
+  "/admin",
+  isAuthenticated,
+  CityAdConfigurationController.getCityAdConfigs,
+);
 
 router.get(
   "/admin/availability",

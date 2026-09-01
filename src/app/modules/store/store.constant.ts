@@ -18,5 +18,5 @@ export const DOCUMENT_TYPE = {
   NID: "nid",
   PASSPORT: "passport",
 } as const;
- 
+
 export type DOCUMENT_TYPE = (typeof DOCUMENT_TYPE)[keyof typeof DOCUMENT_TYPE];

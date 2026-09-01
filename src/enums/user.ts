@@ -8,7 +8,7 @@ export enum USER_ROLES {
 export enum GENDER {
   MALE = "male",
   FEMALE = "female",
-  OTHER="other"
+  OTHER = "other",
 }
 
 export enum STATUS {

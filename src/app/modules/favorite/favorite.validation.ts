@@ -9,7 +9,10 @@ const toggleFavoriteSchema = z.object({
     targetType: z.nativeEnum(FAVORITE_TYPE, {
       errorMap: (issue, ctx) => {
         if (issue.code === "invalid_enum_value") {
-          return { message: "Target type must be one of product_store, service_store, product, or service" };
+          return {
+            message:
+              "Target type must be one of product_store, service_store, product, or service",
+          };
         }
         return { message: ctx.defaultError };
       },
@@ -25,7 +28,10 @@ const checkIsFavoritedSchema = z.object({
     targetType: z.nativeEnum(FAVORITE_TYPE, {
       errorMap: (issue, ctx) => {
         if (issue.code === "invalid_enum_value") {
-          return { message: "Target type must be one of product_store, service_store, product, or service" };
+          return {
+            message:
+              "Target type must be one of product_store, service_store, product, or service",
+          };
         }
         return { message: ctx.defaultError };
       },

@@ -18,5 +18,5 @@ she koita post dite parbe?
 tahule aita add koro
 
 jeno akjon aktabr one time payment ba trialing ar khetre kebol
-akbar e 
+akbar e
 post add korte pare
