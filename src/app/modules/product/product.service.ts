@@ -91,7 +91,17 @@ const getAllProductsFromDB = async (query: Record<string, unknown>) => {
 
 const getSingleProductFromDB = async (id: string) => {
   const result = await Product.findById(id)
-    .populate("storeId")
+    .populate({
+      path: "storeId",
+      populate: [
+        {
+          path: "categoryId",
+        },
+        {
+          path: "cityId",
+        },
+      ],
+    })
     .populate("sellerId", "name email image");
   if (!result) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Product not found");

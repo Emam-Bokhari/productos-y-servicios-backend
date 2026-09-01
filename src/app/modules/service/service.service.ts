@@ -91,7 +91,17 @@ const getAllServicesFromDB = async (query: Record<string, unknown>) => {
 
 const getSingleServiceFromDB = async (id: string) => {
   const result = await Service.findById(id)
-    .populate("storeId")
+    .populate({
+      path: "storeId",
+      populate: [
+        {
+          path: "categoryId",
+        },
+        {
+          path: "cityId",
+        },
+      ],
+    })
     .populate("sellerId", "name email image");
   if (!result) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Service not found");
