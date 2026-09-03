@@ -58,6 +58,20 @@ const getAdminFromDB = async (query: any) => {
   };
 };
 
+const getSuperAdminFromDB = async () => {
+  const result = await User.findOne({
+    role: USER_ROLES.SUPER_ADMIN,
+  }).select(
+    "-password -authentication -deviceToken -stripeCustomerId -stripeConnectedAccountId",
+  );
+
+  if (!result) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "Super admin not found");
+  }
+
+  return result;
+};
+
 const updateAdminStatusByIdToDB = async (
   id: string,
   status: STATUS.ACTIVE | STATUS.INACTIVE,
@@ -353,10 +367,13 @@ const deleteProfileFromDB = async (id: string, password: string) => {
   return result;
 };
 
+
+
 export const UserService = {
   createUserToDB,
   getUsersFromDB,
   getAdminFromDB,
+  getSuperAdminFromDB,
   deleteAdminFromDB,
   getUserByIdFromDB,
   getMyProfileFromDB,

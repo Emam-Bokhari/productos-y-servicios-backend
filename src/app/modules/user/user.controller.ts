@@ -49,6 +49,16 @@ const getAdmin = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getSuperAdmin = catchAsync(async (req: Request, res: Response) => {
+  const result = await UserService.getSuperAdminFromDB();
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Super admin retrieved successfully",
+    data: result,
+  });
+});
+
 const deleteAdmin = catchAsync(async (req: Request, res: Response) => {
   const payload = req.params.id;
   const result = await UserService.deleteAdminFromDB(payload);
@@ -186,6 +196,7 @@ export const UserController = {
   createAdmin,
   getUsers,
   getAdmin,
+  getSuperAdmin,
   deleteAdmin,
   updateProfile,
   getUserById,

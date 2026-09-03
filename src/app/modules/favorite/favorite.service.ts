@@ -146,7 +146,34 @@ const getMyFavoritesFromDB = async (
     .paginate()
     .fields();
 
-  const data = await builder.modelQuery.populate("targetId");
+  const data = await builder.modelQuery.populate({
+    path: "targetId",
+    strictPopulate: false,
+    populate: [
+      {
+        path: "categoryId",
+        strictPopulate: false,
+      },
+      {
+        path: "cityId",
+        strictPopulate: false,
+      },
+      {
+        path: "storeId",
+        strictPopulate: false,
+        populate: [
+          {
+            path: "categoryId",
+            strictPopulate: false,
+          },
+          {
+            path: "cityId",
+            strictPopulate: false,
+          },
+        ],
+      },
+    ],
+  });
   const meta = await builder.countTotal();
 
   return { data, meta };
