@@ -116,6 +116,7 @@ const createUserToDB = async (payload: any) => {
   const { referredByCode, ...userData } = payload;
 
   const createUser = await User.create(userData);
+  
   if (!createUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Failed to create user");
   }
@@ -179,9 +180,10 @@ const createUserToDB = async (payload: any) => {
 
   return result;
 };
-
+ 
 const getMyProfileFromDB = async (userId: string) => {
   const result = await User.findById(userId);
+
   if (!result) {
     throw new ApiError(StatusCodes.NOT_FOUND, "User not found");
   }
@@ -193,6 +195,7 @@ const getMyProfileFromDB = async (userId: string) => {
     status: { $in: ["active", "trialing"] },
     expiresAt: { $gt: new Date() },
   });
+
   if (!storeSubscription) {
     storeSubscription = await Subscription.findOne({
       userId,

@@ -24,7 +24,7 @@ const toggleFavoriteInDB = async (
   const TargetModel = targetModelMap[targetType];
   if (!TargetModel) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid target type");
-  }
+  } 
 
   const targetExists = await TargetModel.findById(targetId);
   if (!targetExists) {

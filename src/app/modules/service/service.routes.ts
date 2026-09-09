@@ -1,6 +1,4 @@
 import express from "express";
-import { USER_ROLES } from "../../../enums/user";
-import auth from "../../middlewares/auth";
 import fileUploadHandler from "../../middlewares/flieUploadHandler";
 import { parseFileData } from "../../middlewares/parseFileData";
 import validateRequest from "../../middlewares/validateRequest";
@@ -11,7 +9,7 @@ import { isSeller, isUserOrSeller } from "../../../helpers/authHelper";
 const router = express.Router();
 
 router.post(
-  "/",
+  "/", 
   isSeller,
   fileUploadHandler(),
   parseFileData({ fieldName: "images", mode: "multiple" }),

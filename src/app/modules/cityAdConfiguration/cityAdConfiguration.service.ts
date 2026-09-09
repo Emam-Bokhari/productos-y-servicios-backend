@@ -192,7 +192,7 @@ const getCityBookingStatisticsFromDB = async (
   if (!Types.ObjectId.isValid(cityAdConfigId)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid City Slot Config ID");
   }
-
+  
   const config = await CityAdConfiguration.findById(cityAdConfigId);
   if (!config) {
     throw new ApiError(

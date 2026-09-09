@@ -2,13 +2,11 @@ import { Types } from "mongoose";
 import config from "../../../config";
 import ApiError from "../../../errors/ApiErrors";
 import { emailHelper } from "../../../helpers/emailHelper";
-import { ISendEmail } from "../../../types/email";
 import { User } from "../user/user.model";
 import { TSupport } from "./support.interface";
 import { Support } from "./support.model";
 import QueryBuilder from "../../builder/queryBuilder";
 import { emailTemplate } from "../../../shared/emailTemplate";
-import { SUPPORT_PRIORITY } from "./support.constant";
 
 const support = async (id: string, payload: TSupport) => {
   const user = await User.isExistUserById(id);

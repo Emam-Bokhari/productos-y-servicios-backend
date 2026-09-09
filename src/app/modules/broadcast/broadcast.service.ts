@@ -8,7 +8,6 @@ import { Broadcast } from "./broadcast.model";
 import { IBroadcast } from "./broadcast.interface";
 import {
   BROADCAST_AUDIENCE,
-  BROADCAST_CHANNEL,
   BROADCAST_STATUS,
 } from "./broadcast.constant";
 import { notificationHelper } from "../../builder/pushNotification";

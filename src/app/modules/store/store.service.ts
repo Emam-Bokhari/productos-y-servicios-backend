@@ -20,6 +20,7 @@ import { Subscription } from "../subscription/subscription.model";
 import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
 import { sendNotifications } from "../../../helpers/notificationsHelper";
 import { NOTIFICATION_TYPE } from "../notification/notification.constant";
+import { Review } from "../review/review.model";
 
 const createStoreToDB = async (ownerId: string, payload: any) => {
   // Check if user already has a store
@@ -310,19 +311,86 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
 };
 
 const getMyStoreFromDB = async (ownerId: string) => {
-  const store = await Store.findOne({ owner: ownerId }).populate("cityId");
+  const store = await Store.findOne({ owner: ownerId })
+    .populate("cityId")
+    .populate("categoryId");
   const seller = await Seller.findOne({ user: ownerId });
 
   if (!store) {
     return {
       seller: seller || null,
       status: null,
+      products: [],
+      services: [],
+      reviews: [],
+      ratingStats: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      averageRating: 0,
+      ratingCount: 0,
+      totalReviews: 0,
+      plan: "N/A",
+      listings: 0,
     };
   }
+
+  const [products, services, reviews, ratingStats, activeSubscription] =
+    await Promise.all([
+      Product.find({ storeId: store._id }).sort({ createdAt: -1 }),
+      Service.find({ storeId: store._id }).sort({ createdAt: -1 }),
+      Review.find({ storeId: store._id })
+        .populate({
+          path: "userId",
+          select: "name profileImage email role activeRole",
+        })
+        .sort({ createdAt: -1 }),
+      Review.aggregate([
+        {
+          $match: {
+            storeId: new Types.ObjectId(store._id.toString()),
+          },
+        },
+        {
+          $group: {
+            _id: "$rating",
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+      Subscription.findOne({
+        userId: ownerId,
+        packageType: "store_creation",
+        status: { $in: ["active", "trialing"] },
+        expiresAt: { $gt: new Date() },
+      }).populate("packageId"),
+    ]);
+
+  const breakdown: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  ratingStats.forEach((stat: any) => {
+    const r = stat._id as number;
+    if (breakdown[r] !== undefined) {
+      breakdown[r] = stat.count;
+    }
+  });
+
+  const planName = activeSubscription
+    ? (activeSubscription.packageId as any)?.name || "Starter"
+    : "N/A";
+
+  const totalReviews = store.ratingCount || reviews.length;
+  const averageRating = store.averageRating || 0;
+  const listingsCount = products.length + services.length;
 
   return {
     ...store.toObject(),
     seller: seller || null,
+    plan: planName,
+    listings: listingsCount,
+    products,
+    services,
+    reviews,
+    ratingStats: breakdown,
+    averageRating,
+    ratingCount: totalReviews,
+    totalReviews,
   };
 };
 
