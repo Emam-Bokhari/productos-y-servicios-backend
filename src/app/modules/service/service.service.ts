@@ -81,9 +81,10 @@ const getMyServicesFromDB = async (
 
   const data = rawData.map((service: any) => {
     const serviceObj = service.toObject ? service.toObject() : service;
+    const isFav = favoriteIdSet.has(service._id.toString());
     return {
       ...serviceObj,
-      isFavorite: favoriteIdSet.has(service._id.toString()),
+      isFavorite: isFav,
     };
   });
 
@@ -112,11 +113,12 @@ const getAllServicesFromDB = async (
   });
   const meta = await builder.countTotal();
 
+  const currentUserId = user?.id || user?._id;
   let favoriteIdSet = new Set<string>();
-  if (user?.id && rawData.length > 0) {
+  if (currentUserId && rawData.length > 0) {
     const serviceIds = rawData.map((s: any) => s._id);
     const userFavorites = await Favorite.find({
-      userId: user.id,
+      userId: currentUserId,
       targetId: { $in: serviceIds },
       targetType: FAVORITE_TYPE.SERVICE,
     }).select("targetId");
@@ -127,9 +129,12 @@ const getAllServicesFromDB = async (
 
   const data = rawData.map((service: any) => {
     const serviceObj = service.toObject ? service.toObject() : service;
+    const isFav = currentUserId
+      ? favoriteIdSet.has(service._id.toString())
+      : false;
     return {
       ...serviceObj,
-      isFavorite: user?.id ? favoriteIdSet.has(service._id.toString()) : false,
+      isFavorite: isFav,
     };
   });
 
@@ -154,10 +159,11 @@ const getSingleServiceFromDB = async (id: string, user?: any) => {
     throw new ApiError(StatusCodes.NOT_FOUND, "Service not found");
   }
 
+  const currentUserId = user?.id || user?._id;
   let isFavorite = false;
-  if (user?.id) {
+  if (currentUserId) {
     const existing = await Favorite.exists({
-      userId: user.id,
+      userId: currentUserId,
       targetId: result._id,
       targetType: FAVORITE_TYPE.SERVICE,
     });

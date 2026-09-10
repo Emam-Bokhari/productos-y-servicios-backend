@@ -491,10 +491,11 @@ const getStoreDetailsFromDB = async (storeId: string, user: any) => {
     listingsCount = await Service.countDocuments({ storeId: store._id });
   }
 
+  const currentUserId = user?.id || user?._id;
   let isStoreFavorite = false;
-  if (user?.id) {
+  if (currentUserId) {
     const existing = await Favorite.exists({
-      userId: user.id,
+      userId: currentUserId,
       targetId: store._id,
       targetType: {
         $in: [FAVORITE_TYPE.PRODUCT_STORE, FAVORITE_TYPE.SERVICE_STORE],
@@ -515,9 +516,9 @@ const getStoreDetailsFromDB = async (storeId: string, user: any) => {
 
   if (products.length > 0) {
     let favProductSet = new Set<string>();
-    if (user?.id) {
+    if (currentUserId) {
       const favProducts = await Favorite.find({
-        userId: user.id,
+        userId: currentUserId,
         targetId: { $in: products.map((p) => p._id) },
         targetType: FAVORITE_TYPE.PRODUCT,
       }).select("targetId");
@@ -525,17 +526,20 @@ const getStoreDetailsFromDB = async (storeId: string, user: any) => {
         favProducts.map((f: any) => f.targetId.toString()),
       );
     }
-    productsWithFavorite = products.map((p) => ({
-      ...(p.toObject ? p.toObject() : p),
-      isFavorite: user?.id ? favProductSet.has(p._id.toString()) : false,
-    }));
+    productsWithFavorite = products.map((p) => {
+      const isFav = currentUserId ? favProductSet.has(p._id.toString()) : false;
+      return {
+        ...(p.toObject ? p.toObject() : p),
+        isFavorite: isFav,
+      };
+    });
   }
 
   if (services.length > 0) {
     let favServiceSet = new Set<string>();
-    if (user?.id) {
+    if (currentUserId) {
       const favServices = await Favorite.find({
-        userId: user.id,
+        userId: currentUserId,
         targetId: { $in: services.map((s) => s._id) },
         targetType: FAVORITE_TYPE.SERVICE,
       }).select("targetId");
@@ -543,10 +547,13 @@ const getStoreDetailsFromDB = async (storeId: string, user: any) => {
         favServices.map((f: any) => f.targetId.toString()),
       );
     }
-    servicesWithFavorite = services.map((s) => ({
-      ...(s.toObject ? s.toObject() : s),
-      isFavorite: user?.id ? favServiceSet.has(s._id.toString()) : false,
-    }));
+    servicesWithFavorite = services.map((s) => {
+      const isFav = currentUserId ? favServiceSet.has(s._id.toString()) : false;
+      return {
+        ...(s.toObject ? s.toObject() : s),
+        isFavorite: isFav,
+      };
+    });
   }
 
   return {
@@ -808,11 +815,12 @@ const getAllStoresFromDB = async (
 
   const meta = await builder.countTotal();
 
+  const currentUserId = user?.id || user?._id;
   let favoriteStoreIdSet = new Set<string>();
-  if (user?.id && rawStores.length > 0) {
+  if (currentUserId && rawStores.length > 0) {
     const storeIds = rawStores.map((s: any) => s._id);
     const userFavorites = await Favorite.find({
-      userId: user.id,
+      userId: currentUserId,
       targetId: { $in: storeIds },
       targetType: {
         $in: [FAVORITE_TYPE.PRODUCT_STORE, FAVORITE_TYPE.SERVICE_STORE],
@@ -845,13 +853,15 @@ const getAllStoresFromDB = async (
         listingsCount = await Service.countDocuments({ storeId: store._id });
       }
 
+      const isFav = currentUserId
+        ? favoriteStoreIdSet.has(store._id.toString())
+        : false;
+
       return {
         ...storeObj,
         plan: planName,
         listings: listingsCount,
-        isFavorite: user?.id
-          ? favoriteStoreIdSet.has(store._id.toString())
-          : false,
+        isFavorite: isFav,
       };
     }),
   );

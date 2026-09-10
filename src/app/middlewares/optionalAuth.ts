@@ -9,73 +9,73 @@ import { STATUS, USER_ROLES } from "../../enums/user";
 
 const optionalAuth =
   (...roles: string[]) =>
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const tokenWithBearer = req.headers.authorization;
-
-      if (!tokenWithBearer) {
-        return next();
-      }
-
-      if (!tokenWithBearer.startsWith("Bearer ")) {
-        throw new ApiError(
-          StatusCodes.UNAUTHORIZED,
-          "Token format is not valid !!",
-        );
-      }
-
-      const token = tokenWithBearer.split(" ")[1];
-
-      if (!token || token === "null" || token === "undefined") {
-        return next();
-      }
-
-      let verifyUser: any;
+    async (req: Request, res: Response, next: NextFunction) => {
       try {
-        verifyUser = verifyToken(token, config.jwt.jwt_secret as Secret);
+        const tokenWithBearer = req.headers.authorization;
+
+        if (!tokenWithBearer) {
+          return next();
+        }
+
+        if (!tokenWithBearer.startsWith("Bearer ")) {
+          throw new ApiError(
+            StatusCodes.UNAUTHORIZED,
+            "Token format is not valid !!",
+          );
+        }
+
+        const token = tokenWithBearer.split(" ")[1];
+
+        if (!token || token === "null" || token === "undefined") {
+          return next();
+        }
+
+        let verifyUser: any;
+        try {
+          verifyUser = verifyToken(token, config.jwt.jwt_secret as Secret);
+        } catch (error) {
+          throw new ApiError(
+            StatusCodes.UNAUTHORIZED,
+            "You are not authorized !!",
+          );
+        }
+
+        const user = await User.isExistUserById(verifyUser.id);
+
+        if (!user) {
+          throw new ApiError(StatusCodes.NOT_FOUND, "This user is not found !!");
+        }
+
+        if (user?.status === STATUS.INACTIVE) {
+          throw new ApiError(StatusCodes.FORBIDDEN, "This user is blocked !!");
+        }
+
+        if (user?.isDeleted) {
+          throw new ApiError(
+            StatusCodes.FORBIDDEN,
+            "This user account is deleted !!",
+          );
+        }
+
+        // Attach database role to verified user info
+        verifyUser.role = [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN].includes(
+          user.role as any,
+        )
+          ? user.role
+          : user.activeRole || user.role;
+
+        if (roles.length && !roles.includes(verifyUser?.role)) {
+          throw new ApiError(
+            StatusCodes.FORBIDDEN,
+            "You don't have permission to access this api !!",
+          );
+        }
+
+        req.user = verifyUser;
+        next();
       } catch (error) {
-        throw new ApiError(
-          StatusCodes.UNAUTHORIZED,
-          "You are not authorized !!",
-        );
+        next(error);
       }
-
-      const user = await User.isExistUserById(verifyUser.id);
-
-      if (!user) {
-        throw new ApiError(StatusCodes.NOT_FOUND, "This user is not found !!");
-      }
-
-      if (user?.status === STATUS.INACTIVE) {
-        throw new ApiError(StatusCodes.FORBIDDEN, "This user is blocked !!");
-      }
-
-      if (user?.isDeleted) {
-        throw new ApiError(
-          StatusCodes.FORBIDDEN,
-          "This user account is deleted !!",
-        );
-      }
-
-      // Attach database role to verified user info
-      verifyUser.role = [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN].includes(
-        user.role as any,
-      )
-        ? user.role
-        : user.activeRole || user.role;
-
-      if (roles.length && !roles.includes(verifyUser?.role)) {
-        throw new ApiError(
-          StatusCodes.FORBIDDEN,
-          "You don't have permission to access this api !!",
-        );
-      }
-
-      req.user = verifyUser;
-      next();
-    } catch (error) {
-      next(error);
-    }
-  };
+    };
 
 export default optionalAuth;

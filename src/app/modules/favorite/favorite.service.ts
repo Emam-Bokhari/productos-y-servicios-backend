@@ -1,5 +1,5 @@
 import { StatusCodes } from "http-status-codes";
-import { Model } from "mongoose";
+import { Model, Types } from "mongoose";
 import ApiError from "../../../errors/ApiErrors";
 import { FAVORITE_TYPE } from "../../../enums/favorite";
 import QueryBuilder from "../../builder/queryBuilder";
@@ -8,65 +8,86 @@ import { Service } from "../service/service.model";
 import { Store } from "../store/store.model";
 import { Favorite } from "./favorite.model";
 
-const targetModelMap: Record<FAVORITE_TYPE, Model<any>> = {
-  [FAVORITE_TYPE.PRODUCT_STORE]: Store,
-  [FAVORITE_TYPE.SERVICE_STORE]: Store,
-  [FAVORITE_TYPE.PRODUCT]: Product,
-  [FAVORITE_TYPE.SERVICE]: Service,
-};
-
 const toggleFavoriteInDB = async (
   userId: string,
-  payload: { targetId: string; targetType: FAVORITE_TYPE },
+  payload: { targetId: string; targetType?: string },
 ) => {
-  const { targetId, targetType } = payload;
+  const { targetId } = payload;
+  const rawTargetType = payload.targetType?.toLowerCase()?.trim();
 
-  const TargetModel = targetModelMap[targetType];
-  if (!TargetModel) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid target type");
-  } 
+  let resolvedTargetType: FAVORITE_TYPE;
 
-  const targetExists = await TargetModel.findById(targetId);
-  if (!targetExists) {
-    throw new ApiError(StatusCodes.NOT_FOUND, `${targetType} not found`);
-  }
-
-  // Verify storeType matches the targetType if the target is a store
-  if (
-    targetType === FAVORITE_TYPE.PRODUCT_STORE ||
-    targetType === FAVORITE_TYPE.SERVICE_STORE
+  if (rawTargetType === FAVORITE_TYPE.PRODUCT) {
+    const product = await Product.findById(targetId);
+    if (!product) {
+      throw new ApiError(StatusCodes.NOT_FOUND, "Product not found");
+    }
+    resolvedTargetType = FAVORITE_TYPE.PRODUCT;
+  } else if (rawTargetType === FAVORITE_TYPE.SERVICE) {
+    const service = await Service.findById(targetId);
+    if (!service) {
+      throw new ApiError(StatusCodes.NOT_FOUND, "Service not found");
+    }
+    resolvedTargetType = FAVORITE_TYPE.SERVICE;
+  } else if (
+    rawTargetType === FAVORITE_TYPE.PRODUCT_STORE ||
+    rawTargetType === FAVORITE_TYPE.SERVICE_STORE ||
+    rawTargetType === "store"
   ) {
-    if ((targetExists as any).storeType !== targetType) {
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        `Store type does not match. Expected ${targetType} but found ${(targetExists as any).storeType || "none"}`,
-      );
+    const store = await Store.findById(targetId);
+    if (!store) {
+      throw new ApiError(StatusCodes.NOT_FOUND, "Store not found");
+    }
+    resolvedTargetType =
+      (store.storeType as FAVORITE_TYPE) || FAVORITE_TYPE.PRODUCT_STORE;
+  } else {
+    // Auto-detect target model if targetType was omitted
+    const [product, service, store] = await Promise.all([
+      Product.findById(targetId),
+      Service.findById(targetId),
+      Store.findById(targetId),
+    ]);
+
+    if (product) {
+      resolvedTargetType = FAVORITE_TYPE.PRODUCT;
+    } else if (service) {
+      resolvedTargetType = FAVORITE_TYPE.SERVICE;
+    } else if (store) {
+      resolvedTargetType =
+        (store.storeType as FAVORITE_TYPE) || FAVORITE_TYPE.PRODUCT_STORE;
+    } else {
+      throw new ApiError(StatusCodes.NOT_FOUND, "Target item not found");
     }
   }
 
   const existingFavorite = await Favorite.findOne({
     userId,
     targetId,
-    targetType,
+    targetType: resolvedTargetType,
   });
 
   if (existingFavorite) {
     await Favorite.findByIdAndDelete(existingFavorite._id);
     return {
-      isFavorited: false,
-      message: `${targetType} removed from favorites`,
+      isFavorite: false,
+      message: `${resolvedTargetType} removed from favorites`,
       favoriteId: existingFavorite._id,
+      targetId,
+      targetType: resolvedTargetType,
     };
   } else {
     const result = await Favorite.create({
       userId,
       targetId,
-      targetType,
+      targetType: resolvedTargetType,
     });
 
     return {
-      isFavorited: true,
-      message: `${targetType} added to favorites`,
+      isFavorite: true,
+      message: `${resolvedTargetType} added to favorites`,
+      favoriteId: result._id,
+      targetId,
+      targetType: resolvedTargetType,
       data: result,
     };
   }
@@ -176,34 +197,75 @@ const getMyFavoritesFromDB = async (
   });
   const meta = await builder.countTotal();
 
-  return { data, meta };
+  const formattedData = data.map((fav: any) => {
+    const favObj = fav.toObject ? fav.toObject() : fav;
+    if (favObj.targetId && typeof favObj.targetId === "object") {
+      favObj.targetId.isFavorite = true;
+    }
+    return {
+      ...favObj,
+      isFavorite: true,
+    };
+  });
+
+  return { data: formattedData, meta };
 };
 
 const checkIsFavoritedFromDB = async (
   userId: string,
   targetId: string,
-  targetType: FAVORITE_TYPE,
+  targetType?: string,
 ) => {
-  const existingFavorite = await Favorite.findOne({
-    userId,
-    targetId,
-    targetType,
-  });
+  const query: any = { userId, targetId };
+
+  if (targetType) {
+    const cleaned = targetType.toLowerCase().trim();
+    if (cleaned === "store") {
+      query.targetType = {
+        $in: [FAVORITE_TYPE.PRODUCT_STORE, FAVORITE_TYPE.SERVICE_STORE],
+      };
+    } else if (Object.values(FAVORITE_TYPE).includes(cleaned as any)) {
+      query.targetType = cleaned;
+    }
+  }
+
+  const existingFavorite = await Favorite.findOne(query);
 
   return {
-    isFavorited: !!existingFavorite,
+    isFavorite: !!existingFavorite,
     favoriteId: existingFavorite ? existingFavorite._id : null,
+    targetId,
+    targetType: existingFavorite
+      ? existingFavorite.targetType
+      : targetType || null,
   };
 };
 
-const deleteFavoriteFromDB = async (userId: string, favoriteId: string) => {
-  const favorite = await Favorite.findOne({ _id: favoriteId, userId });
+const deleteFavoriteFromDB = async (userId: string, id: string) => {
+  const orConditions: any[] = [];
+  if (Types.ObjectId.isValid(id)) {
+    orConditions.push({ _id: id });
+    orConditions.push({ targetId: id });
+  } else {
+    orConditions.push({ targetId: id });
+  }
+
+  const favorite = await Favorite.findOne({
+    userId,
+    $or: orConditions,
+  });
+
   if (!favorite) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Favorite item not found");
   }
 
-  const result = await Favorite.findByIdAndDelete(favoriteId);
-  return result;
+  await Favorite.findByIdAndDelete(favorite._id);
+  return {
+    isFavorite: false,
+    favoriteId: favorite._id,
+    targetId: favorite.targetId,
+    targetType: favorite.targetType,
+  };
 };
 
 export const FavoriteService = {

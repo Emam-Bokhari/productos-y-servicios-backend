@@ -81,9 +81,10 @@ const getMyProductsFromDB = async (
 
   const data = rawData.map((product: any) => {
     const productObj = product.toObject ? product.toObject() : product;
+    const isFav = favoriteIdSet.has(product._id.toString());
     return {
       ...productObj,
-      isFavorite: favoriteIdSet.has(product._id.toString()),
+      isFavorite: isFav,
     };
   });
 
@@ -112,11 +113,12 @@ const getAllProductsFromDB = async (
   });
   const meta = await builder.countTotal();
 
+  const currentUserId = user?.id || user?._id;
   let favoriteIdSet = new Set<string>();
-  if (user?.id && rawData.length > 0) {
+  if (currentUserId && rawData.length > 0) {
     const productIds = rawData.map((p: any) => p._id);
     const userFavorites = await Favorite.find({
-      userId: user.id,
+      userId: currentUserId,
       targetId: { $in: productIds },
       targetType: FAVORITE_TYPE.PRODUCT,
     }).select("targetId");
@@ -127,9 +129,12 @@ const getAllProductsFromDB = async (
 
   const data = rawData.map((product: any) => {
     const productObj = product.toObject ? product.toObject() : product;
+    const isFav = currentUserId
+      ? favoriteIdSet.has(product._id.toString())
+      : false;
     return {
       ...productObj,
-      isFavorite: user?.id ? favoriteIdSet.has(product._id.toString()) : false,
+      isFavorite: isFav,
     };
   });
 
@@ -154,10 +159,11 @@ const getSingleProductFromDB = async (id: string, user?: any) => {
     throw new ApiError(StatusCodes.NOT_FOUND, "Product not found");
   }
 
+  const currentUserId = user?.id || user?._id;
   let isFavorite = false;
-  if (user?.id) {
+  if (currentUserId) {
     const existing = await Favorite.exists({
-      userId: user.id,
+      userId: currentUserId,
       targetId: result._id,
       targetType: FAVORITE_TYPE.PRODUCT,
     });

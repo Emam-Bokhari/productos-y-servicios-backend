@@ -25,7 +25,8 @@ router.get(
 // Get user's favorites list (can filter by ?targetType=store|product|service, ?type=store|product|service, or by flags like ?store=true)
 router.get("/", isAuthenticated, FavoriteController.getMyFavorites);
 
-// Remove specific favorite by ID
+// Remove specific favorite by ID or targetId
 router.delete("/:id", isAuthenticated, FavoriteController.deleteFavorite);
+router.delete("/", isAuthenticated, FavoriteController.deleteFavorite);
 
 export const FavoriteRoutes = router;

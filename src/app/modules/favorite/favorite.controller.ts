@@ -2,11 +2,12 @@ import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
+import ApiError from "../../../errors/ApiErrors";
 import { FAVORITE_TYPE } from "../../../enums/favorite";
 import { FavoriteService } from "./favorite.service";
 
 const toggleFavorite = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user.id;
+  const userId = req.user.id || req.user._id;
   const result = await FavoriteService.toggleFavoriteInDB(userId, req.body);
 
   sendResponse(res, {
@@ -18,7 +19,7 @@ const toggleFavorite = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getMyFavorites = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user.id;
+  const userId = req.user.id || req.user._id;
   const result = await FavoriteService.getMyFavoritesFromDB(userId, req.query);
 
   sendResponse(res, {
@@ -31,13 +32,13 @@ const getMyFavorites = catchAsync(async (req: Request, res: Response) => {
 });
 
 const checkIsFavorited = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user.id;
+  const userId = req.user.id || req.user._id;
   const { targetId, targetType } = req.query;
 
   const result = await FavoriteService.checkIsFavoritedFromDB(
     userId,
     targetId as string,
-    targetType as FAVORITE_TYPE,
+    targetType as string,
   );
 
   sendResponse(res, {
@@ -49,8 +50,19 @@ const checkIsFavorited = catchAsync(async (req: Request, res: Response) => {
 });
 
 const deleteFavorite = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user.id;
-  const { id } = req.params;
+  const userId = req.user.id || req.user._id;
+  const id =
+    req.params.id ||
+    (req.body?.targetId as string) ||
+    (req.query?.targetId as string) ||
+    (req.body?.id as string);
+
+  if (!id) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "Favorite ID or Target ID is required",
+    );
+  }
 
   const result = await FavoriteService.deleteFavoriteFromDB(userId, id);
 
