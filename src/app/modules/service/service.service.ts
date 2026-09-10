@@ -7,6 +7,8 @@ import { SERVICE_SEARCHABLE_FIELDS, SERVICE_STATUS } from "./service.constant";
 import { IService } from "./service.interface";
 import { Service } from "./service.model";
 import { validateStoreCreationSubscription } from "../subscription/subscription.utils";
+import { Favorite } from "../favorite/favorite.model";
+import { FAVORITE_TYPE } from "../../../enums/favorite";
 
 const createServiceToDB = async (
   sellerId: string,
@@ -61,13 +63,37 @@ const getMyServicesFromDB = async (
     .paginate()
     .fields();
 
-  const data = await builder.modelQuery.populate("storeId");
+  const rawData = await builder.modelQuery.populate("storeId");
   const meta = await builder.countTotal();
+
+  let favoriteIdSet = new Set<string>();
+  if (sellerId && rawData.length > 0) {
+    const serviceIds = rawData.map((s: any) => s._id);
+    const userFavorites = await Favorite.find({
+      userId: sellerId,
+      targetId: { $in: serviceIds },
+      targetType: FAVORITE_TYPE.SERVICE,
+    }).select("targetId");
+    favoriteIdSet = new Set(
+      userFavorites.map((f: any) => f.targetId.toString()),
+    );
+  }
+
+  const data = rawData.map((service: any) => {
+    const serviceObj = service.toObject ? service.toObject() : service;
+    return {
+      ...serviceObj,
+      isFavorite: favoriteIdSet.has(service._id.toString()),
+    };
+  });
 
   return { data, meta };
 };
 
-const getAllServicesFromDB = async (query: Record<string, unknown>) => {
+const getAllServicesFromDB = async (
+  query: Record<string, unknown>,
+  user?: any,
+) => {
   const filterQuery = { status: SERVICE_STATUS.ACTIVE, ...query };
   const builder = new QueryBuilder(Service.find(), filterQuery)
     .search(SERVICE_SEARCHABLE_FIELDS)
@@ -76,7 +102,7 @@ const getAllServicesFromDB = async (query: Record<string, unknown>) => {
     .paginate()
     .fields();
 
-  const data = await builder.modelQuery.populate({
+  const rawData = await builder.modelQuery.populate({
     path: "storeId",
     select: "displayName logo cityId averageRating",
     populate: {
@@ -86,10 +112,31 @@ const getAllServicesFromDB = async (query: Record<string, unknown>) => {
   });
   const meta = await builder.countTotal();
 
+  let favoriteIdSet = new Set<string>();
+  if (user?.id && rawData.length > 0) {
+    const serviceIds = rawData.map((s: any) => s._id);
+    const userFavorites = await Favorite.find({
+      userId: user.id,
+      targetId: { $in: serviceIds },
+      targetType: FAVORITE_TYPE.SERVICE,
+    }).select("targetId");
+    favoriteIdSet = new Set(
+      userFavorites.map((f: any) => f.targetId.toString()),
+    );
+  }
+
+  const data = rawData.map((service: any) => {
+    const serviceObj = service.toObject ? service.toObject() : service;
+    return {
+      ...serviceObj,
+      isFavorite: user?.id ? favoriteIdSet.has(service._id.toString()) : false,
+    };
+  });
+
   return { data, meta };
 };
 
-const getSingleServiceFromDB = async (id: string) => {
+const getSingleServiceFromDB = async (id: string, user?: any) => {
   const result = await Service.findById(id)
     .populate({
       path: "storeId",
@@ -106,7 +153,21 @@ const getSingleServiceFromDB = async (id: string) => {
   if (!result) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Service not found");
   }
-  return result;
+
+  let isFavorite = false;
+  if (user?.id) {
+    const existing = await Favorite.exists({
+      userId: user.id,
+      targetId: result._id,
+      targetType: FAVORITE_TYPE.SERVICE,
+    });
+    isFavorite = !!existing;
+  }
+
+  return {
+    ...(result.toObject ? result.toObject() : result),
+    isFavorite,
+  };
 };
 
 const updateServiceInDB = async (

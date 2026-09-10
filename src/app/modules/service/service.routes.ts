@@ -5,6 +5,7 @@ import validateRequest from "../../middlewares/validateRequest";
 import { ServiceController } from "./service.controller";
 import { ServiceValidation } from "./service.validation";
 import { isSeller, isUserOrSeller } from "../../../helpers/authHelper";
+import optionalAuth from "../../middlewares/optionalAuth";
 
 const router = express.Router();
 
@@ -19,9 +20,9 @@ router.post(
 
 router.get("/my-services", isSeller, ServiceController.getMyServices);
 
-router.get("/", ServiceController.getAllServices);
+router.get("/", optionalAuth(), ServiceController.getAllServices);
 
-router.get("/:id", ServiceController.getSingleService);
+router.get("/:id", optionalAuth(), ServiceController.getSingleService);
 
 router.patch(
   "/:id",

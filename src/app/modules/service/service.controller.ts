@@ -30,7 +30,7 @@ const getMyServices = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllServices = catchAsync(async (req: Request, res: Response) => {
-  const result = await ServiceService.getAllServicesFromDB(req.query);
+  const result = await ServiceService.getAllServicesFromDB(req.query, req.user);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
@@ -43,7 +43,7 @@ const getAllServices = catchAsync(async (req: Request, res: Response) => {
 
 const getSingleService = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const result = await ServiceService.getSingleServiceFromDB(id);
+  const result = await ServiceService.getSingleServiceFromDB(id, req.user);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,

@@ -12,6 +12,7 @@ export type IProduct = {
   additionalInformation?: string;
   images: string[];
   status: PRODUCT_STATUS;
+  isFavorite?: boolean;
 };
 
 export type ProductModel = ISoftDeleteModel<IProduct>;

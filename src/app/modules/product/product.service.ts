@@ -7,6 +7,8 @@ import { PRODUCT_SEARCHABLE_FIELDS, PRODUCT_STATUS } from "./product.constant";
 import { IProduct } from "./product.interface";
 import { Product } from "./product.model";
 import { validateStoreCreationSubscription } from "../subscription/subscription.utils";
+import { Favorite } from "../favorite/favorite.model";
+import { FAVORITE_TYPE } from "../../../enums/favorite";
 
 const createProductToDB = async (
   sellerId: string,
@@ -61,13 +63,37 @@ const getMyProductsFromDB = async (
     .paginate()
     .fields();
 
-  const data = await builder.modelQuery.populate("storeId");
+  const rawData = await builder.modelQuery.populate("storeId");
   const meta = await builder.countTotal();
+
+  let favoriteIdSet = new Set<string>();
+  if (sellerId && rawData.length > 0) {
+    const productIds = rawData.map((p: any) => p._id);
+    const userFavorites = await Favorite.find({
+      userId: sellerId,
+      targetId: { $in: productIds },
+      targetType: FAVORITE_TYPE.PRODUCT,
+    }).select("targetId");
+    favoriteIdSet = new Set(
+      userFavorites.map((f: any) => f.targetId.toString()),
+    );
+  }
+
+  const data = rawData.map((product: any) => {
+    const productObj = product.toObject ? product.toObject() : product;
+    return {
+      ...productObj,
+      isFavorite: favoriteIdSet.has(product._id.toString()),
+    };
+  });
 
   return { data, meta };
 };
 
-const getAllProductsFromDB = async (query: Record<string, unknown>) => {
+const getAllProductsFromDB = async (
+  query: Record<string, unknown>,
+  user?: any,
+) => {
   const filterQuery = { status: PRODUCT_STATUS.ACTIVE, ...query };
   const builder = new QueryBuilder(Product.find(), filterQuery)
     .search(PRODUCT_SEARCHABLE_FIELDS)
@@ -76,7 +102,7 @@ const getAllProductsFromDB = async (query: Record<string, unknown>) => {
     .paginate()
     .fields();
 
-  const data = await builder.modelQuery.populate({
+  const rawData = await builder.modelQuery.populate({
     path: "storeId",
     select: "displayName logo cityId averageRating",
     populate: {
@@ -86,10 +112,31 @@ const getAllProductsFromDB = async (query: Record<string, unknown>) => {
   });
   const meta = await builder.countTotal();
 
+  let favoriteIdSet = new Set<string>();
+  if (user?.id && rawData.length > 0) {
+    const productIds = rawData.map((p: any) => p._id);
+    const userFavorites = await Favorite.find({
+      userId: user.id,
+      targetId: { $in: productIds },
+      targetType: FAVORITE_TYPE.PRODUCT,
+    }).select("targetId");
+    favoriteIdSet = new Set(
+      userFavorites.map((f: any) => f.targetId.toString()),
+    );
+  }
+
+  const data = rawData.map((product: any) => {
+    const productObj = product.toObject ? product.toObject() : product;
+    return {
+      ...productObj,
+      isFavorite: user?.id ? favoriteIdSet.has(product._id.toString()) : false,
+    };
+  });
+
   return { data, meta };
 };
 
-const getSingleProductFromDB = async (id: string) => {
+const getSingleProductFromDB = async (id: string, user?: any) => {
   const result = await Product.findById(id)
     .populate({
       path: "storeId",
@@ -106,7 +153,21 @@ const getSingleProductFromDB = async (id: string) => {
   if (!result) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Product not found");
   }
-  return result;
+
+  let isFavorite = false;
+  if (user?.id) {
+    const existing = await Favorite.exists({
+      userId: user.id,
+      targetId: result._id,
+      targetType: FAVORITE_TYPE.PRODUCT,
+    });
+    isFavorite = !!existing;
+  }
+
+  return {
+    ...(result.toObject ? result.toObject() : result),
+    isFavorite,
+  };
 };
 
 const updateProductInDB = async (

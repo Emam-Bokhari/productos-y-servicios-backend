@@ -5,7 +5,7 @@ import config from "../../config";
 import { User } from "../modules/user/user.model";
 import ApiError from "../../errors/ApiErrors";
 import { verifyToken } from "../../util/verifyToken";
-import { STATUS } from "../../enums/user";
+import { STATUS, USER_ROLES } from "../../enums/user";
 
 const optionalAuth =
   (...roles: string[]) =>
@@ -25,6 +25,10 @@ const optionalAuth =
       }
 
       const token = tokenWithBearer.split(" ")[1];
+
+      if (!token || token === "null" || token === "undefined") {
+        return next();
+      }
 
       let verifyUser: any;
       try {
@@ -52,6 +56,13 @@ const optionalAuth =
           "This user account is deleted !!",
         );
       }
+
+      // Attach database role to verified user info
+      verifyUser.role = [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN].includes(
+        user.role as any,
+      )
+        ? user.role
+        : user.activeRole || user.role;
 
       if (roles.length && !roles.includes(verifyUser?.role)) {
         throw new ApiError(

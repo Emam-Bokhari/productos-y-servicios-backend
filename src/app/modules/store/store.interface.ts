@@ -35,6 +35,7 @@ export type IStore = {
   openingTime?: string;
   closingTime?: string;
   isOpen24Hours?: boolean;
+  isFavorite?: boolean;
 };
 
 export type StoreModel = ISoftDeleteModel<IStore>;

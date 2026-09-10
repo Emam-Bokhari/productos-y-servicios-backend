@@ -21,6 +21,8 @@ import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.
 import { sendNotifications } from "../../../helpers/notificationsHelper";
 import { NOTIFICATION_TYPE } from "../notification/notification.constant";
 import { Review } from "../review/review.model";
+import { Favorite } from "../favorite/favorite.model";
+import { FAVORITE_TYPE } from "../../../enums/favorite";
 
 const createStoreToDB = async (ownerId: string, payload: any) => {
   // Check if user already has a store
@@ -489,16 +491,68 @@ const getStoreDetailsFromDB = async (storeId: string, user: any) => {
     listingsCount = await Service.countDocuments({ storeId: store._id });
   }
 
+  let isStoreFavorite = false;
+  if (user?.id) {
+    const existing = await Favorite.exists({
+      userId: user.id,
+      targetId: store._id,
+      targetType: {
+        $in: [FAVORITE_TYPE.PRODUCT_STORE, FAVORITE_TYPE.SERVICE_STORE],
+      },
+    });
+    isStoreFavorite = !!existing;
+  }
+
   const storeWithDetails = {
     ...store.toObject(),
     plan: planName,
     listings: listingsCount,
+    isFavorite: isStoreFavorite,
   };
+
+  let productsWithFavorite: any[] = [];
+  let servicesWithFavorite: any[] = [];
+
+  if (products.length > 0) {
+    let favProductSet = new Set<string>();
+    if (user?.id) {
+      const favProducts = await Favorite.find({
+        userId: user.id,
+        targetId: { $in: products.map((p) => p._id) },
+        targetType: FAVORITE_TYPE.PRODUCT,
+      }).select("targetId");
+      favProductSet = new Set(
+        favProducts.map((f: any) => f.targetId.toString()),
+      );
+    }
+    productsWithFavorite = products.map((p) => ({
+      ...(p.toObject ? p.toObject() : p),
+      isFavorite: user?.id ? favProductSet.has(p._id.toString()) : false,
+    }));
+  }
+
+  if (services.length > 0) {
+    let favServiceSet = new Set<string>();
+    if (user?.id) {
+      const favServices = await Favorite.find({
+        userId: user.id,
+        targetId: { $in: services.map((s) => s._id) },
+        targetType: FAVORITE_TYPE.SERVICE,
+      }).select("targetId");
+      favServiceSet = new Set(
+        favServices.map((f: any) => f.targetId.toString()),
+      );
+    }
+    servicesWithFavorite = services.map((s) => ({
+      ...(s.toObject ? s.toObject() : s),
+      isFavorite: user?.id ? favServiceSet.has(s._id.toString()) : false,
+    }));
+  }
 
   return {
     store: storeWithDetails,
-    products,
-    services,
+    products: productsWithFavorite,
+    services: servicesWithFavorite,
   };
 };
 
@@ -754,6 +808,21 @@ const getAllStoresFromDB = async (
 
   const meta = await builder.countTotal();
 
+  let favoriteStoreIdSet = new Set<string>();
+  if (user?.id && rawStores.length > 0) {
+    const storeIds = rawStores.map((s: any) => s._id);
+    const userFavorites = await Favorite.find({
+      userId: user.id,
+      targetId: { $in: storeIds },
+      targetType: {
+        $in: [FAVORITE_TYPE.PRODUCT_STORE, FAVORITE_TYPE.SERVICE_STORE],
+      },
+    }).select("targetId");
+    favoriteStoreIdSet = new Set(
+      userFavorites.map((f: any) => f.targetId.toString()),
+    );
+  }
+
   const data = await Promise.all(
     rawStores.map(async (store) => {
       const storeObj = store.toObject();
@@ -780,6 +849,9 @@ const getAllStoresFromDB = async (
         ...storeObj,
         plan: planName,
         listings: listingsCount,
+        isFavorite: user?.id
+          ? favoriteStoreIdSet.has(store._id.toString())
+          : false,
       };
     }),
   );

@@ -5,6 +5,7 @@ import validateRequest from "../../middlewares/validateRequest";
 import { ProductController } from "./product.controller";
 import { ProductValidation } from "./product.validation";
 import { isSeller } from "../../../helpers/authHelper";
+import optionalAuth from "../../middlewares/optionalAuth";
 
 const router = express.Router();
 
@@ -19,9 +20,9 @@ router.post(
 
 router.get("/my-products", isSeller, ProductController.getMyProducts);
 
-router.get("/", ProductController.getAllProducts);
+router.get("/", optionalAuth(), ProductController.getAllProducts);
 
-router.get("/:id", ProductController.getSingleProduct);
+router.get("/:id", optionalAuth(), ProductController.getSingleProduct);
 
 router.patch(
   "/:id",

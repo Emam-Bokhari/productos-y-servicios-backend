@@ -30,7 +30,7 @@ const getMyProducts = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllProducts = catchAsync(async (req: Request, res: Response) => {
-  const result = await ProductService.getAllProductsFromDB(req.query);
+  const result = await ProductService.getAllProductsFromDB(req.query, req.user);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
@@ -43,7 +43,7 @@ const getAllProducts = catchAsync(async (req: Request, res: Response) => {
 
 const getSingleProduct = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const result = await ProductService.getSingleProductFromDB(id);
+  const result = await ProductService.getSingleProductFromDB(id, req.user);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,

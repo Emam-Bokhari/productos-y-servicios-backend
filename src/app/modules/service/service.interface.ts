@@ -12,6 +12,7 @@ export type IService = {
   whatsIncluded?: string[];
   images: string[];
   status: SERVICE_STATUS;
+  isFavorite?: boolean;
 };
 
 export type ServiceModel = ISoftDeleteModel<IService>;
