@@ -260,12 +260,14 @@ const deleteFavoriteFromDB = async (userId: string, id: string) => {
   }
 
   await Favorite.findByIdAndDelete(favorite._id);
+  
   return {
     isFavorite: false,
     favoriteId: favorite._id,
     targetId: favorite.targetId,
     targetType: favorite.targetType,
   };
+  
 };
 
 export const FavoriteService = {
