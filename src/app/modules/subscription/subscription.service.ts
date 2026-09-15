@@ -10,9 +10,28 @@ import stripe from "../../../config/stripe";
 import QueryBuilder from "../../builder/queryBuilder";
 
 const getMySubscriptionsFromDB = async (userId: string) => {
-  return await Subscription.find({ userId })
+  const subscriptions = await Subscription.find({ userId })
     .populate("packageId")
-    .populate("cityConfigId");
+    .populate("cityConfigId")
+    .sort({ createdAt: -1 });
+
+  const now = new Date();
+
+  return subscriptions.map((sub) => {
+    const subObj = sub.toObject();
+    const isExpired = sub.expiresAt ? new Date(sub.expiresAt) <= now : false;
+    const diffMs = sub.expiresAt
+      ? new Date(sub.expiresAt).getTime() - now.getTime()
+      : 0;
+    const remainingDays =
+      diffMs > 0 ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 0;
+
+    return {
+      ...subObj,
+      remainingDays,
+      isExpired,
+    };
+  });
 };
 
 const getSingleSubscriptionFromDB = async (id: string, user: JwtPayload) => {
@@ -36,7 +55,20 @@ const getSingleSubscriptionFromDB = async (id: string, user: JwtPayload) => {
     throw new ApiError(StatusCodes.NOT_FOUND, "Subscription not found");
   }
 
-  return result;
+  const now = new Date();
+  const subObj = result.toObject();
+  const isExpired = subObj.expiresAt ? new Date(subObj.expiresAt) <= now : false;
+  const diffMs = subObj.expiresAt
+    ? new Date(subObj.expiresAt).getTime() - now.getTime()
+    : 0;
+  const remainingDays =
+    diffMs > 0 ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 0;
+
+  return {
+    ...subObj,
+    remainingDays,
+    isExpired,
+  };
 };
 
 const getAllSubscriptionsFromDB = async (query: Record<string, unknown>) => {
@@ -93,6 +125,7 @@ const getAllSubscriptionsFromDB = async (query: Record<string, unknown>) => {
   const meta = await builder.countTotal();
 
   // Look up store details for each subscription
+  const now = new Date();
   const data = await Promise.all(
     subscriptions.map(async (sub) => {
       const subObj = sub.toObject();
@@ -100,8 +133,19 @@ const getAllSubscriptionsFromDB = async (query: Record<string, unknown>) => {
         "categoryId",
         "name",
       );
+      const isExpired = subObj.expiresAt
+        ? new Date(subObj.expiresAt) <= now
+        : false;
+      const diffMs = subObj.expiresAt
+        ? new Date(subObj.expiresAt).getTime() - now.getTime()
+        : 0;
+      const remainingDays =
+        diffMs > 0 ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 0;
+
       return {
         ...subObj,
+        remainingDays,
+        isExpired,
         store: store ? store.toObject() : null,
       };
     }),
@@ -141,17 +185,15 @@ const cancelSubscriptionFromDB = async (id: string, user: JwtPayload) => {
     );
   }
 
-  // If Stripe subscription exists, cancel in Stripe
-  if (subscription.stripeSubscriptionId) {
+  // If legacy Stripe subscription exists, attempt cancel in Stripe
+  if (
+    subscription.stripeSubscriptionId &&
+    subscription.stripeSubscriptionId.startsWith("sub_")
+  ) {
     try {
       await stripe.subscriptions.cancel(subscription.stripeSubscriptionId);
     } catch (error: any) {
-      if (error.code !== "resource_missing") {
-        throw new ApiError(
-          StatusCodes.BAD_REQUEST,
-          error.message || "Failed to cancel subscription on Stripe",
-        );
-      }
+      // Ignore Stripe cancellation error when using Datafast or expired
     }
   }
 

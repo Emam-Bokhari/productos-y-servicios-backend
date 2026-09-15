@@ -138,7 +138,15 @@ const userSchema = new Schema<IUser, IUserModel>(
     },
     subscriptionStatus: {
       type: String,
-      enum: ["active", "inactive", "trialing", "past_due", "canceled", "none"],
+      enum: [
+        "active",
+        "inactive",
+        "trialing",
+        "past_due",
+        "canceled",
+        "expired",
+        "none",
+      ],
       default: "none",
     },
     subscriptionPackageId: {
@@ -147,6 +155,10 @@ const userSchema = new Schema<IUser, IUserModel>(
       required: false,
     },
     stripeSubscriptionId: {
+      type: String,
+      required: false,
+    },
+    datafastRegistrationToken: {
       type: String,
       required: false,
     },

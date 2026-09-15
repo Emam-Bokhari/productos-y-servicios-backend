@@ -35,6 +35,21 @@ export default {
     BASE_URL: process.env.BASE_URL!,
     currency: process.env.CURRENCY!,
   },
+  datafast: {
+    baseUrl: process.env.DATAFAST_BASE_URL || "https://test.oppwa.com",
+    entityId: process.env.DATAFAST_ENTITY_ID || "8a8294185a65bf5e015a6c8b89a10d8d",
+    recurringEntityId:
+      process.env.DATAFAST_RECURRING_ENTITY_ID ||
+      process.env.DATAFAST_ENTITY_ID ||
+      "8a8294185a65bf5e015a6c8b89a10d8d",
+    bearerToken:
+      process.env.DATAFAST_BEARER_TOKEN ||
+      "OGE4Mjk0MTg1MzNjZjMxZDAxNTMzZDA2ZmQwNDA3NDh8WHQ3RjIyUUVOWA==",
+    mid: process.env.DATAFAST_MID || "1000000505",
+    tid: process.env.DATAFAST_TID || "PD100406",
+    eci: process.env.DATAFAST_ECI || "0103910",
+    pserv: process.env.DATAFAST_PSERV || "17913101",
+  },
   email: {
     from: process.env.EMAIL_FROM,
     user: process.env.EMAIL_USER,

@@ -3,8 +3,10 @@ node_modules
 /winston
 .env
 dist
+temp_auto_push.bat
 practice.yaml
 practice
 *.drawio
 docs/erd/**/*.pdf
-docs/erd/**/*.svg
+docs/erd/**/*.svg.gitignore
+branch_structure.json

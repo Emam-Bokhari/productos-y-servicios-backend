@@ -1,6 +1,7 @@
 import express from "express";
 import { USER_ROLES } from "../../../enums/user";
 import { StripeControllers } from "./stripe.controller";
+import { DatafastControllers } from "../datafast/datafast.controller";
 import auth from "../../middlewares/auth";
 import {
   isAdmin,
@@ -31,23 +32,29 @@ router.get(
   StripeControllers.getAccountDetails,
 );
 
-// Payment lifecycle
+// Payment lifecycle (Powered by Datafast)
 router.post(
   "/create-checkout-session",
   isUser,
-  StripeControllers.createCheckoutSession,
+  DatafastControllers.createCheckoutSession,
+);
+
+router.post(
+  "/verify-payment",
+  isAuthenticated,
+  DatafastControllers.verifyPayment,
 );
 
 router.get(
   "/payment-status/:id",
   isAuthenticated,
-  StripeControllers.getPaymentStatus,
+  DatafastControllers.getPaymentStatus,
 );
 
 // Refund (Admins only)
-router.post("/refund", isAdmin, StripeControllers.refundTransaction);
+router.post("/refund", isAdmin, DatafastControllers.refundTransaction);
 
-// Stripe Webhook Endpoint (No Auth, verified cryptographically inside controller)
+// Stripe Webhook Endpoint (Optional / legacy)
 router.post("/webhook", StripeControllers.handleWebhook);
 
 export const StripeRoutes = router;
