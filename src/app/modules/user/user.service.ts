@@ -194,13 +194,15 @@ const getMyProfileFromDB = async (userId: string) => {
     packageType: "store_creation",
     status: { $in: ["active", "trialing"] },
     expiresAt: { $gt: new Date() },
-  });
+  }).populate("packageId");
 
   if (!storeSubscription) {
     storeSubscription = await Subscription.findOne({
       userId,
       packageType: "store_creation",
-    }).sort({ createdAt: -1 });
+    })
+      .sort({ createdAt: -1 })
+      .populate("packageId");
   }
 
   // Find active post subscription, otherwise latest
@@ -209,39 +211,138 @@ const getMyProfileFromDB = async (userId: string) => {
     packageType: "post_add",
     status: { $in: ["active", "trialing"] },
     expiresAt: { $gt: new Date() },
-  });
+  }).populate("packageId");
+
   if (!postSubscription) {
     postSubscription = await Subscription.findOne({
       userId,
       packageType: "post_add",
-    }).sort({ createdAt: -1 });
+    })
+      .sort({ createdAt: -1 })
+      .populate("packageId");
   }
 
   const store = await Store.findOne({ owner: userId });
   const isStoreCreated = !!store;
 
+  const now = new Date();
+
   const isStoreSubscribed = storeSubscription
     ? ["active", "trialing"].includes(storeSubscription.status) &&
-      storeSubscription.expiresAt > new Date()
+      new Date(storeSubscription.expiresAt) > now
     : false;
 
   const isPostSubscribed = postSubscription
     ? ["active", "trialing"].includes(postSubscription.status) &&
-      postSubscription.expiresAt > new Date()
+      new Date(postSubscription.expiresAt) > now
     : false;
+
+  const isSubscribed = isStoreSubscribed || isPostSubscribed;
+
+  const calculateRemainingDays = (
+    expiresAt: Date | null | undefined,
+    isActive: boolean,
+  ): number => {
+    if (!expiresAt || !isActive) return 0;
+    const diffMs = new Date(expiresAt).getTime() - now.getTime();
+    return diffMs > 0 ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 0;
+  };
+
+  const storeRemainingDays = calculateRemainingDays(
+    storeSubscription?.expiresAt,
+    isStoreSubscribed,
+  );
+
+  const postRemainingDays = calculateRemainingDays(
+    postSubscription?.expiresAt,
+    isPostSubscribed,
+  );
+
+  // Synchronized user-level subscription status & expiration (Single Source of Truth)
+  let synchronizedStatus:
+    | "active"
+    | "inactive"
+    | "trialing"
+    | "past_due"
+    | "canceled"
+    | "expired"
+    | "none" = "none";
+  let synchronizedExpiresAt: Date | null = null;
+  let synchronizedPackageId: any = null;
+
+  if (isStoreSubscribed && storeSubscription) {
+    synchronizedStatus = storeSubscription.status as any;
+    synchronizedExpiresAt = storeSubscription.expiresAt;
+    synchronizedPackageId =
+      (storeSubscription.packageId as any)?._id || storeSubscription.packageId;
+  } else if (isPostSubscribed && postSubscription) {
+    synchronizedStatus = postSubscription.status as any;
+    synchronizedExpiresAt = postSubscription.expiresAt;
+    synchronizedPackageId =
+      (postSubscription.packageId as any)?._id || postSubscription.packageId;
+  } else if (storeSubscription) {
+    const isPastExpiry =
+      storeSubscription.expiresAt && new Date(storeSubscription.expiresAt) <= now;
+    synchronizedStatus = isPastExpiry ? "expired" : (storeSubscription.status as any);
+    synchronizedExpiresAt = storeSubscription.expiresAt;
+    synchronizedPackageId =
+      (storeSubscription.packageId as any)?._id || storeSubscription.packageId;
+  } else if (postSubscription) {
+    const isPastExpiry =
+      postSubscription.expiresAt && new Date(postSubscription.expiresAt) <= now;
+    synchronizedStatus = isPastExpiry ? "expired" : (postSubscription.status as any);
+    synchronizedExpiresAt = postSubscription.expiresAt;
+    synchronizedPackageId =
+      (postSubscription.packageId as any)?._id || postSubscription.packageId;
+  }
+
+  // Self-heal: update User document in DB if cached subscription fields are out-of-sync
+  const isStatusChanged = result.subscriptionStatus !== synchronizedStatus;
+  const isExpiresAtChanged =
+    (result.subscriptionExpiresAt
+      ? new Date(result.subscriptionExpiresAt).getTime()
+      : 0) !==
+    (synchronizedExpiresAt ? new Date(synchronizedExpiresAt).getTime() : 0);
+
+  if (isStatusChanged || isExpiresAtChanged) {
+    User.findByIdAndUpdate(userId, {
+      subscriptionStatus: synchronizedStatus,
+      subscriptionExpiresAt: synchronizedExpiresAt || undefined,
+      ...(synchronizedPackageId
+        ? { subscriptionPackageId: synchronizedPackageId }
+        : {}),
+    }).catch(() => {});
+  }
 
   return {
     ...result.toObject(),
+    subscriptionStatus: synchronizedStatus,
+    subscriptionExpiresAt: synchronizedExpiresAt,
+    ...(synchronizedPackageId
+      ? { subscriptionPackageId: synchronizedPackageId }
+      : {}),
     isStoreCreated,
     storeType: store ? store.storeType : null,
-    isSubscribed: isStoreSubscribed || isPostSubscribed,
+    isSubscribed,
     storeSubscription: {
       isPurchased: isStoreSubscribed,
+      status: storeSubscription
+        ? isStoreSubscribed
+          ? storeSubscription.status
+          : "expired"
+        : "none",
       expiresAt: storeSubscription ? storeSubscription.expiresAt : null,
+      remainingDays: storeRemainingDays,
     },
     postSubscription: {
       isPurchased: isPostSubscribed,
+      status: postSubscription
+        ? isPostSubscribed
+          ? postSubscription.status
+          : "expired"
+        : "none",
       expiresAt: postSubscription ? postSubscription.expiresAt : null,
+      remainingDays: postRemainingDays,
     },
   };
 };

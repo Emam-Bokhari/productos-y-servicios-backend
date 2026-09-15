@@ -6,6 +6,7 @@ import colors from "colors";
 import { socketHelper } from "./helpers/socketHelper";
 import { Server } from "socket.io";
 import seedSuperAdmin from "./DB";
+import { initSubscriptionCron } from "./cron/subscriptionRenewalCron";
 
 //uncaught exception
 process.on("uncaughtException", (error) => {
@@ -23,6 +24,9 @@ async function main() {
 
     mongoose.connect(config.database_url as string);
     logger.info(colors.green("🚀 Database connected successfully"));
+
+    // initialize automated subscription renewal cron
+    initSubscriptionCron();
 
     const port =
       typeof config.port === "number" ? config.port : Number(config.port);

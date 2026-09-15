@@ -46,6 +46,10 @@ const subscriptionSchema = new Schema<TSubscription>(
       type: String,
       index: true,
     },
+    datafastRegistrationToken: {
+      type: String,
+      index: true,
+    },
     stripeSessionId: {
       type: String,
     },
