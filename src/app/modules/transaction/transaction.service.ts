@@ -9,6 +9,7 @@ import { Store } from "../store/store.model";
 import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
 import { Subscription } from "../subscription/subscription.model";
 import StripeService from "../stripe/stripe.service";
+import datafastService from "../datafast/datafast.service";
 import ApiError from "../../../errors/ApiErrors";
 import { StatusCodes } from "http-status-codes";
 
@@ -739,12 +740,21 @@ const refundTransactionFromDB = async (id: string): Promise<any> => {
   }
 
   try {
-    // Call Stripe refund API
-    const refund = await StripeService.refundPayment(paymentIntentId);
+    let refundId = "";
+    if (paymentIntentId.startsWith("pi_")) {
+      const refund = await StripeService.refundPayment(paymentIntentId);
+      refundId = refund.id;
+    } else {
+      const refund = await datafastService.refundPayment(
+        paymentIntentId,
+        transaction.amount,
+      );
+      refundId = refund.id;
+    }
 
     // Update transaction
     transaction.paymentStatus = PAYMENT_STATUS.REFUNDED;
-    transaction.stripeRefundId = refund.id;
+    transaction.stripeRefundId = refundId;
     await transaction.save();
 
     // Cancel the corresponding Subscription

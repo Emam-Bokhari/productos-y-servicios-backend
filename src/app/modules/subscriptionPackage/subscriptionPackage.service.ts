@@ -30,33 +30,41 @@ const createSubscriptionPackageInDB = async (payload: TSubscriptionPackage) => {
   const status = payload.status || SUBSCRIPTION_PACKAGE_STATUS.ACTIVE;
   const isActive = status === SUBSCRIPTION_PACKAGE_STATUS.ACTIVE;
 
-  // 1. Create product in Stripe
-  const stripeProduct = await stripe.products.create({
-    name: payload.name,
-    description: `Subscription package: ${payload.name} (${payload.duration})`,
-    active: isActive,
-  });
+  let stripeProductId: string | undefined = undefined;
+  let stripePriceId: string | undefined = undefined;
 
-  // 2. Map recurring duration and create price in Stripe
-  const priceParams: any = {
-    product: stripeProduct.id,
-    unit_amount: Math.round(payload.price * 100), // convert dollars to cents
-    currency: "usd",
-    active: isActive,
-  };
+  // Optional Stripe sync if stripe is configured
+  try {
+    const stripeProduct = await stripe.products.create({
+      name: payload.name,
+      description: `Subscription package: ${payload.name} (${payload.duration})`,
+      active: isActive,
+    });
+    stripeProductId = stripeProduct.id;
 
-  if (payload.packageType === "store_creation") {
-    priceParams.recurring = mapDurationToStripeRecurring(payload.duration);
+    const priceParams: any = {
+      product: stripeProduct.id,
+      unit_amount: Math.round(payload.price * 100),
+      currency: "usd",
+      active: isActive,
+    };
+
+    if (payload.packageType === "store_creation") {
+      priceParams.recurring = mapDurationToStripeRecurring(payload.duration);
+    }
+
+    const stripePrice = await stripe.prices.create(priceParams);
+    stripePriceId = stripePrice.id;
+  } catch (stripeErr) {
+    // Gracefully ignore Stripe error when running on Datafast
   }
 
-  const stripePrice = await stripe.prices.create(priceParams);
-
-  // 3. Save to database
+  // Save to database
   const subscriptionPackage = await SubscriptionPackage.create({
     ...payload,
     status,
-    stripeProductId: stripeProduct.id,
-    stripePriceId: stripePrice.id,
+    stripeProductId,
+    stripePriceId,
   });
 
   if (!subscriptionPackage) {
@@ -113,82 +121,87 @@ const updateSubscriptionPackageInDB = async (
     payload.status !== undefined ? payload.status : existingPackage.status;
   const isStripeActive = finalStatus === SUBSCRIPTION_PACKAGE_STATUS.ACTIVE;
 
-  // 1. If name changed, update Stripe Product name
-  if (
-    payload.name &&
-    payload.name !== existingPackage.name &&
-    existingPackage.stripeProductId
-  ) {
-    await stripe.products.update(existingPackage.stripeProductId, {
-      name: payload.name,
-    });
-  }
-
-  // 2. If status changed, update Stripe Product active status
-  if (
-    payload.status !== undefined &&
-    payload.status !== existingPackage.status &&
-    existingPackage.stripeProductId
-  ) {
-    await stripe.products.update(existingPackage.stripeProductId, {
-      active: isStripeActive,
-    });
-  }
-
-  // 3. If price or duration changed, create a new Stripe Price
-  const hasPriceChanged =
-    payload.price !== undefined && payload.price !== existingPackage.price;
-  const hasDurationChanged =
-    payload.duration !== undefined &&
-    payload.duration !== existingPackage.duration;
-
-  if (
-    (hasPriceChanged || hasDurationChanged) &&
-    existingPackage.stripeProductId
-  ) {
-    const updatedPrice =
-      payload.price !== undefined ? payload.price : existingPackage.price;
-    const updatedDuration =
-      payload.duration !== undefined
-        ? payload.duration
-        : existingPackage.duration;
-    const updatedPackageType =
-      payload.packageType !== undefined
-        ? payload.packageType
-        : existingPackage.packageType;
-
-    const priceParams: any = {
-      product: existingPackage.stripeProductId,
-      unit_amount: Math.round(updatedPrice * 100),
-      currency: "usd",
-      active: isStripeActive,
-    };
-
-    if (updatedPackageType === "store_creation") {
-      priceParams.recurring = mapDurationToStripeRecurring(updatedDuration);
-    }
-
-    const stripePrice = await stripe.prices.create(priceParams);
-
-    // Deactivate the old price in Stripe
-    if (existingPackage.stripePriceId) {
-      await stripe.prices.update(existingPackage.stripePriceId, {
-        active: false,
+  // Optional Stripe synchronization
+  try {
+    // 1. If name changed, update Stripe Product name
+    if (
+      payload.name &&
+      payload.name !== existingPackage.name &&
+      existingPackage.stripeProductId
+    ) {
+      await stripe.products.update(existingPackage.stripeProductId, {
+        name: payload.name,
       });
     }
 
-    updateData.stripePriceId = stripePrice.id;
-  } else {
-    // If price/duration did not change but status did, sync the existing Price active status
+    // 2. If status changed, update Stripe Product active status
     if (
       payload.status !== undefined &&
       payload.status !== existingPackage.status &&
-      existingPackage.stripePriceId
+      existingPackage.stripeProductId
     ) {
-      await stripe.prices.update(existingPackage.stripePriceId, {
+      await stripe.products.update(existingPackage.stripeProductId, {
         active: isStripeActive,
       });
     }
+
+    // 3. If price or duration changed, create a new Stripe Price
+    const hasPriceChanged =
+      payload.price !== undefined && payload.price !== existingPackage.price;
+    const hasDurationChanged =
+      payload.duration !== undefined &&
+      payload.duration !== existingPackage.duration;
+
+    if (
+      (hasPriceChanged || hasDurationChanged) &&
+      existingPackage.stripeProductId
+    ) {
+      const updatedPrice =
+        payload.price !== undefined ? payload.price : existingPackage.price;
+      const updatedDuration =
+        payload.duration !== undefined
+          ? payload.duration
+          : existingPackage.duration;
+      const updatedPackageType =
+        payload.packageType !== undefined
+          ? payload.packageType
+          : existingPackage.packageType;
+
+      const priceParams: any = {
+        product: existingPackage.stripeProductId,
+        unit_amount: Math.round(updatedPrice * 100),
+        currency: "usd",
+        active: isStripeActive,
+      };
+
+      if (updatedPackageType === "store_creation") {
+        priceParams.recurring = mapDurationToStripeRecurring(updatedDuration);
+      }
+
+      const stripePrice = await stripe.prices.create(priceParams);
+
+      // Deactivate the old price in Stripe
+      if (existingPackage.stripePriceId) {
+        await stripe.prices.update(existingPackage.stripePriceId, {
+          active: false,
+        });
+      }
+
+      updateData.stripePriceId = stripePrice.id;
+    } else {
+      // If price/duration did not change but status did, sync the existing Price active status
+      if (
+        payload.status !== undefined &&
+        payload.status !== existingPackage.status &&
+        existingPackage.stripePriceId
+      ) {
+        await stripe.prices.update(existingPackage.stripePriceId, {
+          active: isStripeActive,
+        });
+      }
+    }
+  } catch (stripeErr) {
+    // Ignore Stripe error gracefully
   }
 
   const updatedPackage = await SubscriptionPackage.findByIdAndUpdate(
@@ -217,16 +230,20 @@ const deleteSubscriptionPackageFromDB = async (id: string) => {
     throw new ApiError(StatusCodes.NOT_FOUND, "Subscription package not found");
   }
 
-  // Deactivate Stripe Product and Price
-  if (existingPackage.stripeProductId) {
-    await stripe.products.update(existingPackage.stripeProductId, {
-      active: false,
-    });
-  }
-  if (existingPackage.stripePriceId) {
-    await stripe.prices.update(existingPackage.stripePriceId, {
-      active: false,
-    });
+  // Deactivate Stripe Product and Price (optional)
+  try {
+    if (existingPackage.stripeProductId) {
+      await stripe.products.update(existingPackage.stripeProductId, {
+        active: false,
+      });
+    }
+    if (existingPackage.stripePriceId) {
+      await stripe.prices.update(existingPackage.stripePriceId, {
+        active: false,
+      });
+    }
+  } catch (stripeErr) {
+    // Ignore Stripe error gracefully
   }
 
   // Soft delete from database
@@ -254,16 +271,20 @@ const updateSubscriptionPackageStatusInDB = async (
     throw new ApiError(StatusCodes.NOT_FOUND, "Subscription package not found");
   }
 
-  // Update Stripe Product and Price status
-  if (existingPackage.stripeProductId) {
-    await stripe.products.update(existingPackage.stripeProductId, {
-      active: status === SUBSCRIPTION_PACKAGE_STATUS.ACTIVE,
-    });
-  }
-  if (existingPackage.stripePriceId) {
-    await stripe.prices.update(existingPackage.stripePriceId, {
-      active: status === SUBSCRIPTION_PACKAGE_STATUS.ACTIVE,
-    });
+  // Update Stripe Product and Price status (optional)
+  try {
+    if (existingPackage.stripeProductId) {
+      await stripe.products.update(existingPackage.stripeProductId, {
+        active: status === SUBSCRIPTION_PACKAGE_STATUS.ACTIVE,
+      });
+    }
+    if (existingPackage.stripePriceId) {
+      await stripe.prices.update(existingPackage.stripePriceId, {
+        active: status === SUBSCRIPTION_PACKAGE_STATUS.ACTIVE,
+      });
+    }
+  } catch (stripeErr) {
+    // Ignore Stripe error gracefully
   }
 
   const updatedPackage = await SubscriptionPackage.findByIdAndUpdate(

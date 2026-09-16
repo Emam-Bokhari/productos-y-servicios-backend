@@ -8,6 +8,7 @@ import { MessageRoutes } from "../modules/message/message.routes";
 import { SupportRoutes } from "../modules/support/support.route";
 import { BannerRoutes } from "../modules/banner/banner.route";
 import { StripeRoutes } from "../modules/stripe/stripe.route";
+import { DatafastRoutes } from "../modules/datafast/datafast.route";
 import { NotificationRoutes } from "../modules/notification/notification.routes";
 import { FcmTokenRoutes } from "../modules/fcmToken/fcmToken.route";
 import { NotificationPreferenceRoutes } from "../modules/notificationPreference/notificationPreference.route";
@@ -87,6 +88,10 @@ const apiRoutes = [
   {
     path: "/stripe",
     route: StripeRoutes,
+  },
+  {
+    path: "/datafast",
+    route: DatafastRoutes,
   },
   {
     path: "/notifications",

@@ -39,9 +39,11 @@ export type IUser = {
     | "trialing"
     | "past_due"
     | "canceled"
+    | "expired"
     | "none";
   subscriptionPackageId?: Types.ObjectId | string;
   stripeSubscriptionId?: string;
+  datafastRegistrationToken?: string;
   subscriptionExpiresAt?: Date;
   timezone?: string;
   country?: string;
