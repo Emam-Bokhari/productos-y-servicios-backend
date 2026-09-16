@@ -18,6 +18,7 @@ export interface IAdvertisement {
   longitude: number;
   startDate: Date;
   endDate: Date;
+  position: number;
   featuredImage?: string;
   status: ADVERTISEMENT_STATUS;
   price?: number;

@@ -127,6 +127,11 @@ export const FILE_CONFIG = {
     maxCount: 1,
     mimeTypes: new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]),
   },
+  defaultFeaturedImage: {
+    dir: "defaultFeaturedImage",
+    maxCount: 1,
+    mimeTypes: new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]),
+  },
   coverImage: {
     dir: "coverImage",
     maxCount: 1,

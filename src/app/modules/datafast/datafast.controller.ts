@@ -12,6 +12,7 @@ import { TransactionService } from "../transaction/transaction.service";
 import { sendNotifications } from "../../../helpers/notificationsHelper";
 import { NOTIFICATION_TYPE } from "../notification/notification.constant";
 import datafastService from "./datafast.service";
+import { invoiceService } from "../invoice/invoice.service";
 
 export const calculateExpirationDate = (
   duration: string,
@@ -45,7 +46,7 @@ export const calculateExpirationDate = (
  */
 const createCheckoutSession = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user.id;
-  const { packageId, cityConfigId } = req.body;
+  const { packageId, cityConfigId, position } = req.body;
 
   if (!packageId) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Package ID is required");
@@ -64,8 +65,9 @@ const createCheckoutSession = catchAsync(async (req: Request, res: Response) => 
     );
   }
 
+  let activeCity = null;
   if (targetCityConfigId) {
-    const activeCity = await CityAdConfiguration.findOne({
+    activeCity = await CityAdConfiguration.findOne({
       _id: targetCityConfigId,
       status: "active",
     });
@@ -74,6 +76,36 @@ const createCheckoutSession = catchAsync(async (req: Request, res: Response) => 
         StatusCodes.BAD_REQUEST,
         "The selected city configuration is not active or does not exist",
       );
+    }
+  }
+
+  let chargedAmount = pkg.price;
+  let selectedPosition: number | undefined;
+
+  if (position !== undefined && position !== null) {
+    selectedPosition = Number(position);
+    if (!activeCity) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "City configuration ID is required when specifying a position",
+      );
+    }
+    if (
+      isNaN(selectedPosition) ||
+      selectedPosition < 1 ||
+      selectedPosition > activeCity.featuredCapacity
+    ) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        `Invalid position: ${position}. Position must be between 1 and ${activeCity.featuredCapacity}.`,
+      );
+    }
+
+    const pricingObj = (activeCity.featuredPositionPricing || []).find(
+      (p) => p.position === selectedPosition,
+    );
+    if (pricingObj && pricingObj.price > 0) {
+      chargedAmount = pricingObj.price;
     }
   }
 
@@ -92,7 +124,7 @@ const createCheckoutSession = catchAsync(async (req: Request, res: Response) => 
   const merchantTxId = `INV-${new Date().getFullYear()}-${invoiceNumber}`;
 
   const checkoutResult = await datafastService.prepareCheckoutSession({
-    amount: pkg.price,
+    amount: chargedAmount,
     currency: "USD",
     userEmail: userProfile.email,
     userName: userProfile.name,
@@ -103,6 +135,7 @@ const createCheckoutSession = catchAsync(async (req: Request, res: Response) => 
       packageId: pkg._id.toString(),
       packageType: pkg.packageType,
       cityConfigId: targetCityConfigId || "",
+      position: selectedPosition ? selectedPosition.toString() : "",
     },
   });
 
@@ -126,7 +159,7 @@ const verifyPayment = catchAsync(async (req: Request, res: Response) => {
   const checkoutId =
     req.params.id || req.body.checkoutId || (req.query.checkoutId as string);
 
-  const { packageId, cityConfigId } = req.body;
+  const { packageId, cityConfigId, position } = req.body;
   const userId = req.user?.id || req.body.userId;
 
   if (!checkoutId) {
@@ -170,11 +203,23 @@ const verifyPayment = catchAsync(async (req: Request, res: Response) => {
   });
 
   if (existingTx && existingTx.paymentStatus === "PAID") {
+    const safeInvoice = existingTx.transactionId
+      ? existingTx.transactionId.replace(/[^a-zA-Z0-9_-]/g, "_")
+      : existingTx._id.toString();
+    const invoiceUrl =
+      existingTx.invoiceUrl || `/uploads/invoices/${safeInvoice}.pdf`;
+    const invoiceDownloadUrl = `/api/v1/invoices/download/${safeInvoice}`;
+
     return sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
       message: "Payment already verified",
-      data: { transaction: existingTx },
+      data: {
+        transaction: existingTx,
+        invoiceNumber: existingTx.transactionId,
+        invoiceUrl,
+        invoiceDownloadUrl,
+      },
     });
   }
 
@@ -209,6 +254,12 @@ const verifyPayment = catchAsync(async (req: Request, res: Response) => {
     });
   } else {
     // post_add package
+    const resolvedPosition = position
+      ? Number(position)
+      : paymentData.customParameters?.SHOPPER_POSITION
+        ? Number(paymentData.customParameters.SHOPPER_POSITION)
+        : undefined;
+
     subscriptionRecord = await Subscription.create({
       userId: resolvedUserId,
       packageId: pkg._id,
@@ -216,6 +267,7 @@ const verifyPayment = catchAsync(async (req: Request, res: Response) => {
       status: "active",
       expiresAt,
       cityConfigId: cityConfigId || undefined,
+      position: resolvedPosition,
       stripeSessionId: checkoutId,
       amountPaid,
       trxId,
@@ -228,6 +280,10 @@ const verifyPayment = catchAsync(async (req: Request, res: Response) => {
   });
   const invoiceNumber = 1000 + count + 1;
   const generatedTxId = `INV-${new Date().getFullYear()}-${invoiceNumber}`;
+
+  const safeInvoice = generatedTxId.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const invoiceUrl = `/uploads/invoices/${safeInvoice}.pdf`;
+  const invoiceDownloadUrl = `/api/v1/invoices/download/${safeInvoice}`;
 
   const newTransaction = await Transaction.create({
     transactionId: generatedTxId,
@@ -242,7 +298,17 @@ const verifyPayment = catchAsync(async (req: Request, res: Response) => {
     stripePaymentIntentId: trxId,
     gatewayTransactionId: trxId,
     gatewayResponse: paymentData,
+    invoiceUrl,
   });
+
+  if (subscriptionRecord) {
+    subscriptionRecord.invoiceNumber = generatedTxId;
+    subscriptionRecord.invoiceUrl = invoiceUrl;
+    await subscriptionRecord.save();
+  }
+
+  // Pre-generate PDF in background
+  invoiceService.autoGenerateInvoiceForTransaction(generatedTxId);
 
   // Notification
   if (resolvedUserId) {
@@ -263,6 +329,9 @@ const verifyPayment = catchAsync(async (req: Request, res: Response) => {
     data: {
       subscription: subscriptionRecord,
       transaction: newTransaction,
+      invoiceNumber: generatedTxId,
+      invoiceUrl,
+      invoiceDownloadUrl,
       paymentDetails: paymentData,
     },
   });

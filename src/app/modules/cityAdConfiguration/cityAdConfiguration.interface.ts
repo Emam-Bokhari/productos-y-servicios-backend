@@ -1,6 +1,11 @@
 import { ISoftDeleteModel } from "../../../types/softDelete";
 import { SLOT_CONFIG_STATUS } from "./cityAdConfiguration.constant";
 
+export interface IPositionPricing {
+  position: number;
+  price: number;
+}
+
 export interface ICityAdConfiguration {
   country: string;
   countryCode: string;
@@ -9,6 +14,8 @@ export interface ICityAdConfiguration {
   longitude: number;
   featuredCapacity: number;
   featuredEnabled: boolean;
+  featuredPositionPricing?: IPositionPricing[];
+  defaultFeaturedImage?: string;
   status: SLOT_CONFIG_STATUS;
   lockVersion: number;
   isDeleted?: boolean;

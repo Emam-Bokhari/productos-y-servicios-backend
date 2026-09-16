@@ -174,8 +174,21 @@ const getTransactionsByUser = async (
       }
     }
 
+    const safeInvoice = txObj.transactionId
+      ? txObj.transactionId.replace(/[^a-zA-Z0-9_-]/g, "_")
+      : null;
+    const invoiceUrl =
+      txObj.invoiceUrl ||
+      (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
+    const invoiceDownloadUrl = safeInvoice
+      ? `/api/v1/invoices/download/${safeInvoice}`
+      : `/api/v1/invoices/download/${txObj._id}`;
+
     return {
       ...txObj,
+      invoiceNumber: txObj.transactionId,
+      invoiceUrl,
+      invoiceDownloadUrl,
       type: flowType,
     };
   });
@@ -561,9 +574,22 @@ const getTransactions = async (
         amount = -txObj.amount;
       }
 
+      const safeInvoice = transactionId
+        ? transactionId.replace(/[^a-zA-Z0-9_-]/g, "_")
+        : null;
+      const invoiceUrl =
+        txObj.invoiceUrl ||
+        (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
+      const invoiceDownloadUrl = safeInvoice
+        ? `/api/v1/invoices/download/${safeInvoice}`
+        : `/api/v1/invoices/download/${id}`;
+
       return {
         id,
         transactionId,
+        invoiceNumber: transactionId,
+        invoiceUrl,
+        invoiceDownloadUrl,
         type,
         title,
         subtitle,
@@ -686,9 +712,22 @@ const getAllSubscriptionTransactions = async (queryOptions: {
 
       const planName = (tx.packageId as any)?.name || "N/A";
 
+      const safeInvoice = tx.transactionId
+        ? tx.transactionId.replace(/[^a-zA-Z0-9_-]/g, "_")
+        : null;
+      const invoiceUrl =
+        tx.invoiceUrl ||
+        (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
+      const invoiceDownloadUrl = safeInvoice
+        ? `/api/v1/invoices/download/${safeInvoice}`
+        : `/api/v1/invoices/download/${tx._id}`;
+
       return {
         _id: tx._id,
         invoice: tx.transactionId,
+        invoiceNumber: tx.transactionId,
+        invoiceUrl,
+        invoiceDownloadUrl,
         store: store
           ? store.displayName || "N/A"
           : (tx.userId as any)?.name || "N/A",

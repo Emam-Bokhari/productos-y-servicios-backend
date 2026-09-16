@@ -15,6 +15,7 @@ import { sendNotifications } from "../../../helpers/notificationsHelper";
 import { NOTIFICATION_TYPE } from "../notification/notification.constant";
 import { Transaction } from "../transaction/transaction.model";
 import { TransactionService } from "../transaction/transaction.service";
+import { invoiceService } from "../invoice/invoice.service";
 
 // ----------------------------------------------------
 // Stripe Connected Account for Sellers (Onboarding)
@@ -107,7 +108,7 @@ const getAccountDetails = catchAsync(async (req: Request, res: Response) => {
 const createCheckoutSession = catchAsync(
   async (req: Request, res: Response) => {
     const userId = req.user.id;
-    const { packageId, cityConfigId } = req.body;
+    const { packageId, cityConfigId, position } = req.body;
 
     if (!packageId) {
       throw new ApiError(StatusCodes.BAD_REQUEST, "Package ID is required");
@@ -129,8 +130,9 @@ const createCheckoutSession = catchAsync(
       );
     }
 
+    let activeCity = null;
     if (targetCityConfigId) {
-      const activeCity = await CityAdConfiguration.findOne({
+      activeCity = await CityAdConfiguration.findOne({
         _id: targetCityConfigId,
         status: "active",
       });
@@ -139,6 +141,36 @@ const createCheckoutSession = catchAsync(
           StatusCodes.BAD_REQUEST,
           "The selected city configuration is not active or does not exist",
         );
+      }
+    }
+
+    let chargedAmount = pkg.price;
+    let selectedPosition: number | undefined;
+
+    if (position !== undefined && position !== null) {
+      selectedPosition = Number(position);
+      if (!activeCity) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          "City configuration ID is required when specifying a position",
+        );
+      }
+      if (
+        isNaN(selectedPosition) ||
+        selectedPosition < 1 ||
+        selectedPosition > activeCity.featuredCapacity
+      ) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          `Invalid position: ${position}. Position must be between 1 and ${activeCity.featuredCapacity}.`,
+        );
+      }
+
+      const pricingObj = (activeCity.featuredPositionPricing || []).find(
+        (p) => p.position === selectedPosition,
+      );
+      if (pricingObj && pricingObj.price > 0) {
+        chargedAmount = pricingObj.price;
       }
     }
 
@@ -155,18 +187,47 @@ const createCheckoutSession = catchAsync(
 
     const mode =
       pkg.packageType === "store_creation" ? "subscription" : "payment";
-    const line_items = [
-      {
-        price: pkg.stripePriceId,
-        quantity: 1,
-      },
-    ];
 
-    const metadata = {
+    let line_items: any[];
+
+    if (mode === "subscription") {
+      line_items = [
+        {
+          price: pkg.stripePriceId,
+          quantity: 1,
+        },
+      ];
+    } else {
+      // Dynamic one-time payment based on position or package pricing
+      if (chargedAmount !== pkg.price || !pkg.stripePriceId) {
+        line_items = [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: `${pkg.name}${selectedPosition ? ` - Slot #${selectedPosition}` : ""}${activeCity ? ` (${activeCity.city})` : ""}`,
+              },
+              unit_amount: Math.round(chargedAmount * 100),
+            },
+            quantity: 1,
+          },
+        ];
+      } else {
+        line_items = [
+          {
+            price: pkg.stripePriceId,
+            quantity: 1,
+          },
+        ];
+      }
+    }
+
+    const metadata: Record<string, string> = {
       userId,
       packageId: pkg._id.toString(),
       packageType: pkg.packageType,
       cityConfigId: targetCityConfigId || "",
+      position: selectedPosition ? selectedPosition.toString() : "",
     };
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
@@ -306,6 +367,9 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
       const packageId = session.metadata?.packageId;
       const packageType = session.metadata?.packageType;
       const cityConfigId = session.metadata?.cityConfigId;
+      const position = session.metadata?.position
+        ? Number(session.metadata.position)
+        : undefined;
 
       if (session.mode === "subscription") {
         const subscriptionId = session.subscription as string;
@@ -366,6 +430,8 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
               });
               const invoiceNumber = 1000 + count;
               const generatedTxId = `INV-${new Date().getFullYear()}-${invoiceNumber}`;
+              const safeInvoice = generatedTxId.replace(/[^a-zA-Z0-9_-]/g, "_");
+              const invoiceUrl = `/uploads/invoices/${safeInvoice}.pdf`;
 
               await Transaction.create({
                 transactionId: generatedTxId,
@@ -379,7 +445,16 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
                 stripeCheckoutSessionId: session.id,
                 stripePaymentIntentId: trxId,
                 gatewayTransactionId: trxId,
+                invoiceUrl,
               });
+
+              if (localSub) {
+                localSub.invoiceNumber = generatedTxId;
+                localSub.invoiceUrl = invoiceUrl;
+                await localSub.save();
+              }
+
+              invoiceService.autoGenerateInvoiceForTransaction(generatedTxId);
             }
           }
 
@@ -406,6 +481,7 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
             status: "active",
             expiresAt,
             cityConfigId: cityConfigId || undefined,
+            position,
             stripeSessionId: session.id,
             amountPaid: session.amount_total ? session.amount_total / 100 : 0,
             trxId: (session.payment_intent as string) || "",
@@ -425,6 +501,8 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
               });
               const invoiceNumber = 1000 + count;
               const generatedTxId = `INV-${new Date().getFullYear()}-${invoiceNumber}`;
+              const safeInvoice = generatedTxId.replace(/[^a-zA-Z0-9_-]/g, "_");
+              const invoiceUrl = `/uploads/invoices/${safeInvoice}.pdf`;
 
               await Transaction.create({
                 transactionId: generatedTxId,
@@ -437,7 +515,16 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
                 stripeCheckoutSessionId: session.id,
                 stripePaymentIntentId: trxId,
                 gatewayTransactionId: trxId,
+                invoiceUrl,
               });
+
+              if (createdSub) {
+                createdSub.invoiceNumber = generatedTxId;
+                createdSub.invoiceUrl = invoiceUrl;
+                await createdSub.save();
+              }
+
+              invoiceService.autoGenerateInvoiceForTransaction(generatedTxId);
             }
           }
 
@@ -520,6 +607,8 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
             });
             const invoiceNumber = 1000 + count;
             const generatedTxId = `INV-${new Date().getFullYear()}-${invoiceNumber}`;
+            const safeInvoice = generatedTxId.replace(/[^a-zA-Z0-9_-]/g, "_");
+            const invoiceUrl = `/uploads/invoices/${safeInvoice}.pdf`;
 
             await Transaction.create({
               transactionId: generatedTxId,
@@ -532,7 +621,16 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
               stripeCustomerId,
               stripePaymentIntentId: trxId,
               gatewayTransactionId: trxId,
+              invoiceUrl,
             });
+
+            if (localSub) {
+              localSub.invoiceNumber = generatedTxId;
+              localSub.invoiceUrl = invoiceUrl;
+              await localSub.save();
+            }
+
+            invoiceService.autoGenerateInvoiceForTransaction(generatedTxId);
           }
         }
       }

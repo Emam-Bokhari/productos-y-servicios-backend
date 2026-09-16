@@ -30,6 +30,7 @@ app.use(
       "http://localhost:5173",
       "http://localhost:5174",
       "http://10.10.26.174:5173",
+      "https://api.jaganaecuador.com"
     ],
     credentials: true,
   }),

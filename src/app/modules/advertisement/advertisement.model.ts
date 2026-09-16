@@ -64,6 +64,11 @@ const advertisementSchema = new Schema<IAdvertisement>(
       type: Date,
       required: true,
     },
+    position: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
     featuredImage: {
       type: String,
       required: false,
@@ -91,6 +96,7 @@ advertisementSchema.index({ sellerId: 1, createdAt: -1 });
 advertisementSchema.index({
   cityAdConfigId: 1,
   advertisementType: 1,
+  position: 1,
   status: 1,
   startDate: 1,
   endDate: 1,

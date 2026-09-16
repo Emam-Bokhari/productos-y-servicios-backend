@@ -18,6 +18,16 @@ const router = express.Router();
 // ====================================================
 
 router.get("/admin/bookings", isAdmin, AdvertisementController.getAllBookings);
+router.get(
+  "/admin/payments",
+  isAdmin,
+  AdvertisementController.getAdvertisementPayments,
+);
+router.get(
+  "/admin/payments/:id",
+  isAdmin,
+  AdvertisementController.getSingleAdvertisementPayment,
+);
 
 // ====================================================
 // SELLER / USER ROUTES

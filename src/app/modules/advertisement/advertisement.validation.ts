@@ -20,6 +20,11 @@ const createAdvertisementSchema = z.object({
       advertisementType: z.enum([ADVERTISEMENT_TYPE.FEATURED], {
         required_error: "Advertisement type must be featured",
       }),
+      position: z.coerce
+        .number({
+          required_error: "Position is required",
+        })
+        .min(1, "Position must be at least 1"),
       startDate: z.string({
         required_error: "Start Date is required",
       }),
@@ -63,6 +68,7 @@ const updateAdvertisementSchema = z.object({
 
 const getUserAdsQuerySchema = z.object({
   query: z.object({
+    cityAdConfigId: z.string().optional(),
     latitude: z
       .string()
       .refine((val) => !isNaN(parseFloat(val)), {

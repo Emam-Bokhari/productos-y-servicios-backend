@@ -11,6 +11,7 @@ import {
   ADVERTISEMENT_STATUS,
 } from "../advertisement/advertisement.constant";
 import { Advertisement } from "../advertisement/advertisement.model";
+import unlinkFile from "../../../shared/unlinkFile";
 
 const createCityAdConfigToDB = async (
   payload: ICityAdConfiguration,
@@ -97,6 +98,14 @@ const updateCityAdConfigInDB = async (
     }
     payload.city = city;
     payload.country = country;
+  }
+
+  if (
+    payload.defaultFeaturedImage &&
+    configDoc.defaultFeaturedImage &&
+    payload.defaultFeaturedImage !== configDoc.defaultFeaturedImage
+  ) {
+    unlinkFile(configDoc.defaultFeaturedImage);
   }
 
   const result = await CityAdConfiguration.findByIdAndUpdate(id, payload, {

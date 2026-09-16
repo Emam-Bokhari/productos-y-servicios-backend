@@ -21,6 +21,37 @@ const getAllBookings = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getAdvertisementPayments = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await AdvertisementService.getAdvertisementPaymentsFromDB(
+      req.query,
+    );
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: "Advertisement payments retrieved successfully.",
+      pagination: result.pagination,
+      meta: result.meta,
+      data: result.data,
+    });
+  },
+);
+
+const getSingleAdvertisementPayment = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await AdvertisementService.getSingleAdvertisementPaymentFromDB(
+        req.params.id,
+      );
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: "Advertisement payment details retrieved successfully.",
+      data: result,
+    });
+  },
+);
+
 // ----------------------------------------------------
 // SELLER / USER CONTROLLERS
 // ----------------------------------------------------
@@ -171,12 +202,13 @@ const getAdvertisementBookingInfo = catchAsync(
 const getUserAdvertisements = catchAsync(
   async (req: Request, res: Response) => {
     const userId = req.user.id;
-    const { latitude, longitude, storeType } = req.query;
+    const { latitude, longitude, storeType, cityAdConfigId } = req.query;
     const result = await AdvertisementService.getUserAdvertisementsFromDB(
       userId,
       latitude as string,
       longitude as string,
       storeType as string,
+      cityAdConfigId as string,
     );
     sendResponse(res, {
       statusCode: StatusCodes.OK,
@@ -189,6 +221,8 @@ const getUserAdvertisements = catchAsync(
 
 export const AdvertisementController = {
   getAllBookings,
+  getAdvertisementPayments,
+  getSingleAdvertisementPayment,
   verifySellerForPosting,
   getSlotAvailability,
   createAdvertisement,

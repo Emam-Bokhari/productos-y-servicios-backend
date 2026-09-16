@@ -14,11 +14,16 @@ export type TSubscription = {
     | "expired";
   expiresAt: Date;
   cityConfigId?: Types.ObjectId;
+  position?: number;
   stripeSubscriptionId?: string;
   datafastRegistrationToken?: string;
   stripeSessionId?: string;
   amountPaid?: number;
-  trxId?: string;  
+  trxId?: string;
+  invoiceNumber?: string;
+  invoiceUrl?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }; 
 
 export type SubscriptionModel = ISoftDeleteModel<TSubscription>;

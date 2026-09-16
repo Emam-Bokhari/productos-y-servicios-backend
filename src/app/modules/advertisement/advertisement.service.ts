@@ -17,6 +17,7 @@ import { User } from "../user/user.model";
 import QueryBuilder from "../../builder/queryBuilder";
 import { Subscription } from "../subscription/subscription.model";
 import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
+import { Transaction } from "../transaction/transaction.model";
 import { DateTime } from "luxon";
 import { sendNotifications } from "../../../helpers/notificationsHelper";
 import { NOTIFICATION_TYPE } from "../notification/notification.constant";
@@ -234,21 +235,40 @@ const getSlotAvailabilityFromDB = async (
     endDate,
   );
 
-  const availableSlots = Math.max(0, totalSlots - bookedSlots);
-
   // Return non-private minimum details about overlapping ads to let the client render bookings calendar/intervals
   const bookingsInfo = overlappingAds.map((ad) => ({
+    position: ad.position,
     startDate: ad.startDate,
     endDate: ad.endDate,
   }));
 
+  const bookedPositions = new Set(
+    overlappingAds
+      .filter(
+        (ad) => ad.position && ad.position >= 1 && ad.position <= totalSlots,
+      )
+      .map((ad) => ad.position),
+  );
+
+  const availableSlots = Math.max(0, totalSlots - bookedPositions.size);
+
   const slots = Array.from({ length: totalSlots }, (_, i) => {
-    const slotNumber = i + 1;
-    const isBooked = slotNumber <= bookedSlots;
+    const position = i + 1;
+    const isBooked = bookedPositions.has(position);
+    const bookedAd = overlappingAds.find((ad) => ad.position === position);
+    const pricingObj = (cityConfig.featuredPositionPricing || []).find(
+      (p) => p.position === position,
+    );
+    const price = pricingObj ? pricingObj.price : 0;
+
     return {
-      slotNumber,
+      position,
+      slotNumber: position,
+      price,
       isBooked,
       status: isBooked ? "booked" : "available",
+      bookedStartDate: bookedAd?.startDate || null,
+      bookedEndDate: bookedAd?.endDate || null,
     };
   });
 
@@ -260,10 +280,11 @@ const getSlotAvailabilityFromDB = async (
       city: cityConfig.city,
       latitude: cityConfig.latitude,
       longitude: cityConfig.longitude,
+      defaultFeaturedImage: cityConfig.defaultFeaturedImage || "",
     },
     advertisementType,
     totalSlots,
-    bookedSlots,
+    bookedSlots: bookedPositions.size,
     availableSlots,
     isAvailable: availableSlots > 0,
     bookings: bookingsInfo,
@@ -456,23 +477,54 @@ const createAdvertisementToDB = async (
 
     const totalSlots = cityConfig.featuredCapacity;
 
-    // Check booked slots inside the session transaction
-    const { bookedSlots } = await getOverlappingBookedSlots(
-      cityConfig._id as Types.ObjectId,
-      advertisementType,
-      startDate,
-      calculatedEndDate,
-      session,
-    );
+    if (activePostSub.position && !payload.position) {
+      payload.position = activePostSub.position;
+    }
 
-    if (bookedSlots >= totalSlots) {
+    if (
+      activePostSub.position &&
+      payload.position &&
+      Number(payload.position) !== activePostSub.position
+    ) {
       throw new ApiError(
-        StatusCodes.CONFLICT,
-        "No slots available for the requested date range. Slot capacity has been fully booked.",
+        StatusCodes.FORBIDDEN,
+        `Your advertisement subscription was purchased for Position ${activePostSub.position}. You cannot book Position ${payload.position}.`,
       );
     }
 
+    const position = Number(payload.position);
+    if (!position || isNaN(position) || position < 1 || position > totalSlots) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        `Invalid position: ${payload.position}. Position must be between 1 and ${totalSlots}.`,
+      );
+    }
+
+    // Check if the requested position is already booked inside the session transaction
+    const conflictingAd = await Advertisement.findOne({
+      cityAdConfigId: cityConfig._id,
+      position,
+      status: ADVERTISEMENT_STATUS.ACTIVE,
+      startDate: { $lte: calculatedEndDate },
+      endDate: { $gte: startDate },
+    }).session(session);
+
+    if (conflictingAd) {
+      throw new ApiError(
+        StatusCodes.CONFLICT,
+        `Position ${position} is already booked for the selected date range. Please choose another position or different dates.`,
+      );
+    }
+
+    const positionPricingObj = (cityConfig.featuredPositionPricing || []).find(
+      (p) => p.position === position,
+    );
+    const resolvedPrice = positionPricingObj
+      ? positionPricingObj.price
+      : packageInfo?.price || 0;
+
     // Auto-populate coordinate and location details from the trusted backend config (preventing location spoofing)
+    payload.position = position;
     payload.sellerId = new Types.ObjectId(sellerId);
     payload.storeId = store._id as Types.ObjectId;
     payload.country = cityConfig.country;
@@ -481,7 +533,7 @@ const createAdvertisementToDB = async (
     payload.latitude = cityConfig.latitude;
     payload.longitude = cityConfig.longitude;
     payload.status = ADVERTISEMENT_STATUS.ACTIVE;
-    payload.price = isTrial ? 0 : packageInfo?.price || 0;
+    payload.price = isTrial ? 0 : resolvedPrice;
 
     const [newAd] = await Advertisement.create([payload], { session });
 
@@ -683,7 +735,8 @@ const getUserAdvertisementsFromDB = async (
   latitudeStr?: string,
   longitudeStr?: string,
   storeType?: string,
-): Promise<IAdvertisement[]> => {
+  cityAdConfigId?: string,
+): Promise<any[]> => {
   let latitude: number | undefined;
   let longitude: number | undefined;
 
@@ -728,10 +781,13 @@ const getUserAdvertisementsFromDB = async (
     !isNaN(longitude) &&
     !(latitude === 0 && longitude === 0);
 
-  const now = new Date();
-  let advertisements: IAdvertisement[] = [];
+  let targetCity = null;
 
-  if (hasValidCoordinates) {
+  if (cityAdConfigId && Types.ObjectId.isValid(cityAdConfigId)) {
+    targetCity = activeCities.find((c) => c._id.toString() === cityAdConfigId);
+  }
+
+  if (!targetCity && hasValidCoordinates) {
     // Haversine formula helper
     const getDistance = (
       lat1: number,
@@ -752,7 +808,6 @@ const getUserAdvertisementsFromDB = async (
       return R * c;
     };
 
-    // Find closest city config
     let closestCity = activeCities[0];
     let minDistance = getDistance(
       latitude!,
@@ -774,55 +829,609 @@ const getUserAdvertisementsFromDB = async (
         closestCity = city;
       }
     }
-
-    advertisements = await Advertisement.find({
-      cityAdConfigId: closestCity._id,
-      status: ADVERTISEMENT_STATUS.ACTIVE,
-      startDate: { $lte: now },
-      endDate: { $gte: now },
-    }).populate({
-      path: "storeId",
-      match: storeType ? { storeType } : {},
-    });
-
-    if (storeType) {
-      advertisements = advertisements.filter((ad) => ad.storeId !== null);
-    }
-
-    const featured = advertisements.filter(
-      (ad) =>
-        ad.advertisementType === ADVERTISEMENT_TYPE.FEATURED &&
-        closestCity.featuredEnabled,
-    );
-
-    return featured;
-  } else {
-    // If coordinates are not provided, return active featured advertisements across all active cities
-    const featuredCityConfigIds = activeCities
-      .filter((city) => city.featuredEnabled)
-      .map((city) => city._id.toString());
-
-    advertisements = await Advertisement.find({
-      status: ADVERTISEMENT_STATUS.ACTIVE,
-      startDate: { $lte: now },
-      endDate: { $gte: now },
-    }).populate({
-      path: "storeId",
-      match: storeType ? { storeType } : {},
-    });
-
-    if (storeType) {
-      advertisements = advertisements.filter((ad) => ad.storeId !== null);
-    }
-
-    const featured = advertisements.filter(
-      (ad) =>
-        ad.advertisementType === ADVERTISEMENT_TYPE.FEATURED &&
-        featuredCityConfigIds.includes(ad.cityAdConfigId.toString()),
-    );
-
-    return featured;
+    targetCity = closestCity;
   }
+
+  if (!targetCity) {
+    // Default to the first active city with featuredEnabled
+    targetCity = activeCities.find((c) => c.featuredEnabled) || activeCities[0];
+  }
+
+  if (!targetCity || !targetCity.featuredEnabled) {
+    return [];
+  }
+
+  const now = new Date();
+  let advertisements = await Advertisement.find({
+    cityAdConfigId: targetCity._id,
+    advertisementType: ADVERTISEMENT_TYPE.FEATURED,
+    status: ADVERTISEMENT_STATUS.ACTIVE,
+    startDate: { $lte: now },
+    endDate: { $gte: now },
+  }).populate({
+    path: "storeId",
+    match: storeType ? { storeType } : {},
+  });
+
+  if (storeType) {
+    advertisements = advertisements.filter((ad) => ad.storeId !== null);
+  }
+
+  const capacity = targetCity.featuredCapacity || 0;
+  const defaultImage = targetCity.defaultFeaturedImage || "";
+
+  const slots: any[] = [];
+  for (let pos = 1; pos <= capacity; pos++) {
+    const adForPos = advertisements.find((ad) => ad.position === pos);
+    if (adForPos) {
+      const adObj = adForPos.toObject ? adForPos.toObject() : adForPos;
+      slots.push({
+        ...adObj,
+        position: pos,
+        isBooked: true,
+        isDefault: false,
+        image: adForPos.featuredImage || "",
+        advertisement: adObj,
+      });
+    } else {
+      slots.push({
+        _id: null,
+        position: pos,
+        isBooked: false,
+        isDefault: true,
+        campaignName: "Available Slot",
+        featuredImage: defaultImage,
+        image: defaultImage,
+        defaultImage: defaultImage,
+        cityAdConfigId: targetCity._id,
+        country: targetCity.country,
+        countryCode: targetCity.countryCode,
+        city: targetCity.city,
+        latitude: targetCity.latitude,
+        longitude: targetCity.longitude,
+        status: ADVERTISEMENT_STATUS.ACTIVE,
+        advertisement: null,
+      });
+    }
+  }
+
+  return slots;
+};
+
+const getAdvertisementPaymentsFromDB = async (
+  query: Record<string, unknown>,
+): Promise<any> => {
+  const {
+    searchTerm,
+    city,
+    cityAdConfigId,
+    position,
+    status,
+    startDate,
+    endDate,
+    packageId,
+    page = 1,
+    limit = 10,
+    sortBy = "createdAt",
+    sortOrder = "desc",
+  } = query;
+
+  const baseFilter: Record<string, any> = {
+    packageType: "post_add",
+  };
+
+  // 1. Status Filter
+  if (status && status !== "all") {
+    baseFilter.status = status;
+  }
+
+  // 2. City Filter
+  if (cityAdConfigId && Types.ObjectId.isValid(cityAdConfigId as string)) {
+    baseFilter.cityConfigId = new Types.ObjectId(cityAdConfigId as string);
+  } else if (city && typeof city === "string" && city.trim() !== "") {
+    const matchingCities = await CityAdConfiguration.find({
+      city: { $regex: city.trim(), $options: "i" },
+    }).select("_id");
+    const cityIds = matchingCities.map((c) => c._id);
+    baseFilter.cityConfigId = { $in: cityIds };
+  }
+
+  // 3. Position Filter
+  if (position !== undefined && position !== null && position !== "") {
+    const posNum = Number(position);
+    if (!isNaN(posNum)) {
+      baseFilter.position = posNum;
+    }
+  }
+
+  // 4. Package Filter
+  if (packageId && Types.ObjectId.isValid(packageId as string)) {
+    baseFilter.packageId = new Types.ObjectId(packageId as string);
+  }
+
+  // 5. Payment Date Range (createdAt)
+  if (startDate || endDate) {
+    baseFilter.createdAt = {};
+    if (startDate) {
+      baseFilter.createdAt.$gte = new Date(startDate as string);
+    }
+    if (endDate) {
+      const end = new Date(endDate as string);
+      end.setHours(23, 59, 59, 999);
+      baseFilter.createdAt.$lte = end;
+    }
+  }
+
+  // 6. Search Term (search user name, email, store displayName, trxId, package name, city name)
+  if (searchTerm && typeof searchTerm === "string" && searchTerm.trim() !== "") {
+    const searchRegex = new RegExp(searchTerm.trim(), "i");
+
+    const matchingUsers = await User.find({
+      $or: [
+        { name: { $regex: searchRegex } },
+        { email: { $regex: searchRegex } },
+      ],
+    }).select("_id");
+    const userIds = matchingUsers.map((u) => u._id);
+
+    const matchingStores = await Store.find({
+      displayName: { $regex: searchRegex },
+    }).select("owner");
+    const storeOwnerIds = matchingStores.map((s) => s.owner);
+
+    const matchingCities = await CityAdConfiguration.find({
+      $or: [
+        { city: { $regex: searchRegex } },
+        { country: { $regex: searchRegex } },
+      ],
+    }).select("_id");
+    const cityIds = matchingCities.map((c) => c._id);
+
+    const matchingPackages = await SubscriptionPackage.find({
+      name: { $regex: searchRegex },
+    }).select("_id");
+    const packageIds = matchingPackages.map((p) => p._id);
+
+    const matchingAds = await Advertisement.find({
+      campaignName: { $regex: searchRegex },
+    }).select("sellerId");
+    const adSellerIds = matchingAds.map((a) => a.sellerId);
+
+    const combinedUserIds = [
+      ...new Set([...userIds, ...storeOwnerIds, ...adSellerIds]),
+    ];
+
+    baseFilter.$or = [
+      { trxId: { $regex: searchRegex } },
+      { stripeSessionId: { $regex: searchRegex } },
+      { userId: { $in: combinedUserIds } },
+      { cityConfigId: { $in: cityIds } },
+      { packageId: { $in: packageIds } },
+    ];
+  }
+
+  // Pagination & Sorting
+  const pageNum = Math.max(1, Number(page) || 1);
+  const limitNum = Math.max(1, Number(limit) || 10);
+  const skip = (pageNum - 1) * limitNum;
+  const sortDirection = sortOrder === "asc" ? 1 : -1;
+  const sortObj: Record<string, 1 | -1> = { [sortBy as string]: sortDirection };
+
+  const total = await Subscription.countDocuments(baseFilter);
+  const totalPage = Math.ceil(total / limitNum);
+
+  const subscriptions = await Subscription.find(baseFilter)
+    .sort(sortObj)
+    .skip(skip)
+    .limit(limitNum)
+    .populate("userId", "name email phone profileImage")
+    .populate("packageId", "name duration price trialPeriodDays packageType")
+    .populate(
+      "cityConfigId",
+      "city country countryCode latitude longitude defaultFeaturedImage featuredCapacity",
+    );
+
+  const now = new Date();
+
+  // Enrich each subscription record
+  const enrichedData = await Promise.all(
+    subscriptions.map(async (sub) => {
+      const subObj = sub.toObject();
+      const seller = sub.userId as any;
+      const cityConfig = sub.cityConfigId as any;
+      const pkg = sub.packageId as any;
+
+      // 1. Store lookup
+      const store = seller?._id
+        ? await Store.findOne({ owner: seller._id }).select(
+            "displayName logo storeType phone email address streetAddress",
+          )
+        : null;
+
+      // 2. Corresponding Advertisement campaign lookup
+      const adQuery: Record<string, any> = {
+        sellerId: seller?._id,
+        isDeleted: { $ne: true },
+      };
+      if (cityConfig?._id) {
+        adQuery.cityAdConfigId = cityConfig._id;
+      }
+      if (sub.position) {
+        adQuery.position = sub.position;
+      }
+
+      const ad = await Advertisement.findOne(adQuery).sort({ createdAt: -1 });
+
+      // 3. Transaction lookup (for invoice number, payment method)
+      let transaction = null;
+      if (sub.trxId || sub.stripeSessionId) {
+        const txQueries: any[] = [];
+        if (sub.trxId) {
+          txQueries.push({ stripePaymentIntentId: sub.trxId });
+          txQueries.push({ gatewayTransactionId: sub.trxId });
+        }
+        if (sub.stripeSessionId) {
+          txQueries.push({ stripeCheckoutSessionId: sub.stripeSessionId });
+        }
+        if (txQueries.length > 0) {
+          transaction = await Transaction.findOne({ $or: txQueries }).select(
+            "transactionId paymentMethod paymentStatus amount createdAt",
+          );
+        }
+      }
+
+      // Calculate days remaining & expiry
+      const isExpired = subObj.expiresAt
+        ? new Date(subObj.expiresAt) <= now
+        : false;
+      const diffMs = subObj.expiresAt
+        ? new Date(subObj.expiresAt).getTime() - now.getTime()
+        : 0;
+      const remainingDays =
+        diffMs > 0 ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 0;
+
+      // Resolved position: from subscription or from linked advertisement
+      const position = subObj.position || ad?.position || null;
+
+      // Resolved amount: from subscription amountPaid, transaction amount, or package price
+      const amountPaid =
+        typeof subObj.amountPaid === "number"
+          ? subObj.amountPaid
+          : transaction?.amount ||
+            (subObj.status === "trialing" ? 0 : pkg?.price || 0);
+
+      const invoiceNumber = transaction?.transactionId || subObj.invoiceNumber || null;
+      const safeInvoice = invoiceNumber ? invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_") : null;
+      const invoiceUrl = transaction?.invoiceUrl || subObj.invoiceUrl || (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
+      const invoiceDownloadUrl = safeInvoice
+        ? `/api/v1/invoices/download/${safeInvoice}`
+        : subObj._id
+          ? `/api/v1/invoices/download/${subObj._id}`
+          : null;
+
+      let paymentMethod = "Online";
+      if (transaction?.paymentMethod) {
+        paymentMethod = transaction.paymentMethod;
+      } else if (subObj.status === "trialing") {
+        paymentMethod = "Free Trial";
+      }
+
+      const paymentStatus =
+        transaction?.paymentStatus ||
+        (subObj.status === "trialing" ? "TRIAL" : "PAID");
+
+      return {
+        id: subObj._id,
+        subscriptionId: subObj._id,
+        seller: seller
+          ? {
+              id: seller._id,
+              name: seller.name,
+              email: seller.email,
+              phone: seller.phone || null,
+              profileImage: seller.profileImage || null,
+            }
+          : null,
+        store: store
+          ? {
+              id: store._id,
+              displayName: store.displayName || null,
+              logo: store.logo || null,
+              storeType: store.storeType || null,
+              phone: store.phone || null,
+              email: store.email || null,
+            }
+          : null,
+        city: cityConfig
+          ? {
+              id: cityConfig._id,
+              name: cityConfig.city,
+              country: cityConfig.country,
+              countryCode: cityConfig.countryCode,
+              latitude: cityConfig.latitude,
+              longitude: cityConfig.longitude,
+            }
+          : ad
+            ? {
+                id: ad.cityAdConfigId,
+                name: ad.city,
+                country: ad.country,
+                countryCode: ad.countryCode,
+                latitude: ad.latitude,
+                longitude: ad.longitude,
+              }
+            : null,
+        position,
+        amountPaid,
+        trxId: subObj.trxId || null,
+        stripeSessionId: subObj.stripeSessionId || null,
+        invoiceNumber,
+        invoiceUrl,
+        invoiceDownloadUrl,
+        paymentMethod,
+        paymentStatus,
+        paymentDate: subObj.createdAt,
+        isTrial:
+          subObj.status === "trialing" || subObj.trxId === "trial_activated",
+        package: pkg
+          ? {
+              id: pkg._id,
+              name: pkg.name,
+              duration: pkg.duration,
+              price: pkg.price,
+            }
+          : null,
+        subscription: {
+          status: subObj.status,
+          expiresAt: subObj.expiresAt,
+          remainingDays,
+          isExpired,
+        },
+        advertisement: ad
+          ? {
+              id: ad._id,
+              campaignName: ad.campaignName,
+              featuredImage: ad.featuredImage || null,
+              status: ad.status,
+              startDate: ad.startDate,
+              endDate: ad.endDate,
+              price: ad.price,
+            }
+          : null,
+        isAdSubmitted: Boolean(ad),
+      };
+    }),
+  );
+
+  // Summary statistics for admin dashboard cards
+  const totalRevenueAgg = await Subscription.aggregate([
+    { $match: { packageType: "post_add", amountPaid: { $gt: 0 } } },
+    { $group: { _id: null, total: { $sum: "$amountPaid" } } },
+  ]);
+  const totalRevenue =
+    totalRevenueAgg.length > 0
+      ? Math.round(totalRevenueAgg[0].total * 100) / 100
+      : 0;
+
+  const activeAdsCount = await Subscription.countDocuments({
+    packageType: "post_add",
+    status: "active",
+    expiresAt: { $gt: now },
+  });
+
+  const trialCount = await Subscription.countDocuments({
+    packageType: "post_add",
+    status: "trialing",
+  });
+
+  const pagination = {
+    page: pageNum,
+    limit: limitNum,
+    total,
+    totalPage,
+    hasNextPage: pageNum < totalPage,
+    hasPrevPage: pageNum > 1,
+  };
+
+  const meta = {
+    ...pagination,
+    totalPayments: total,
+    totalRevenue,
+    activeAdsCount,
+    trialCount,
+  };
+
+  return {
+    data: enrichedData,
+    meta,
+    pagination,
+  };
+};
+
+const getSingleAdvertisementPaymentFromDB = async (
+  id: string,
+): Promise<any> => {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid ID format");
+  }
+
+  const sub = await Subscription.findOne({
+    _id: id,
+    packageType: "post_add",
+  })
+    .populate("userId", "name email phone profileImage")
+    .populate("packageId", "name duration price trialPeriodDays packageType")
+    .populate(
+      "cityConfigId",
+      "city country countryCode latitude longitude defaultFeaturedImage featuredCapacity",
+    );
+
+  if (!sub) {
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      "Advertisement payment record not found",
+    );
+  }
+
+  const now = new Date();
+  const subObj = sub.toObject();
+  const seller = sub.userId as any;
+  const cityConfig = sub.cityConfigId as any;
+  const pkg = sub.packageId as any;
+
+  const store = seller?._id
+    ? await Store.findOne({ owner: seller._id }).select(
+        "displayName logo storeType phone email address streetAddress",
+      )
+    : null;
+
+  const adQuery: Record<string, any> = {
+    sellerId: seller?._id,
+    isDeleted: { $ne: true },
+  };
+  if (cityConfig?._id) {
+    adQuery.cityAdConfigId = cityConfig._id;
+  }
+  if (sub.position) {
+    adQuery.position = sub.position;
+  }
+
+  const ad = await Advertisement.findOne(adQuery).sort({ createdAt: -1 });
+
+  let transaction = null;
+  if (sub.trxId || sub.stripeSessionId) {
+    const txQueries: any[] = [];
+    if (sub.trxId) {
+      txQueries.push({ stripePaymentIntentId: sub.trxId });
+      txQueries.push({ gatewayTransactionId: sub.trxId });
+    }
+    if (sub.stripeSessionId) {
+      txQueries.push({ stripeCheckoutSessionId: sub.stripeSessionId });
+    }
+    if (txQueries.length > 0) {
+      transaction = await Transaction.findOne({ $or: txQueries }).select(
+        "transactionId paymentMethod paymentStatus amount createdAt",
+      );
+    }
+  }
+
+  const isExpired = subObj.expiresAt
+    ? new Date(subObj.expiresAt) <= now
+    : false;
+  const diffMs = subObj.expiresAt
+    ? new Date(subObj.expiresAt).getTime() - now.getTime()
+    : 0;
+  const remainingDays =
+    diffMs > 0 ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 0;
+
+  const position = subObj.position || ad?.position || null;
+  const amountPaid =
+    typeof subObj.amountPaid === "number"
+      ? subObj.amountPaid
+      : transaction?.amount ||
+        (subObj.status === "trialing" ? 0 : pkg?.price || 0);
+
+  const invoiceNumber = transaction?.transactionId || subObj.invoiceNumber || null;
+  const safeInvoice = invoiceNumber ? invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_") : null;
+  const invoiceUrl = transaction?.invoiceUrl || subObj.invoiceUrl || (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
+  const invoiceDownloadUrl = safeInvoice
+    ? `/api/v1/invoices/download/${safeInvoice}`
+    : subObj._id
+      ? `/api/v1/invoices/download/${subObj._id}`
+      : null;
+
+  let paymentMethod = "Online";
+  if (transaction?.paymentMethod) {
+    paymentMethod = transaction.paymentMethod;
+  } else if (subObj.status === "trialing") {
+    paymentMethod = "Free Trial";
+  }
+
+  const paymentStatus =
+    transaction?.paymentStatus ||
+    (subObj.status === "trialing" ? "TRIAL" : "PAID");
+
+  return {
+    id: subObj._id,
+    subscriptionId: subObj._id,
+    seller: seller
+      ? {
+          id: seller._id,
+          name: seller.name,
+          email: seller.email,
+          phone: seller.phone || null,
+          profileImage: seller.profileImage || null,
+        }
+      : null,
+    store: store
+      ? {
+          id: store._id,
+          displayName: store.displayName || null,
+          logo: store.logo || null,
+          storeType: store.storeType || null,
+          phone: store.phone || null,
+          email: store.email || null,
+          address: store.streetAddress || null,
+        }
+      : null,
+    city: cityConfig
+      ? {
+          id: cityConfig._id,
+          name: cityConfig.city,
+          country: cityConfig.country,
+          countryCode: cityConfig.countryCode,
+          latitude: cityConfig.latitude,
+          longitude: cityConfig.longitude,
+        }
+      : ad
+        ? {
+            id: ad.cityAdConfigId,
+            name: ad.city,
+            country: ad.country,
+            countryCode: ad.countryCode,
+            latitude: ad.latitude,
+            longitude: ad.longitude,
+          }
+        : null,
+    position,
+    amountPaid,
+    trxId: subObj.trxId || null,
+    stripeSessionId: subObj.stripeSessionId || null,
+    invoiceNumber,
+    invoiceUrl,
+    invoiceDownloadUrl,
+    paymentMethod,
+    paymentStatus,
+    paymentDate: subObj.createdAt,
+    isTrial:
+      subObj.status === "trialing" || subObj.trxId === "trial_activated",
+    package: pkg
+      ? {
+          id: pkg._id,
+          name: pkg.name,
+          duration: pkg.duration,
+          price: pkg.price,
+        }
+      : null,
+    subscription: {
+      status: subObj.status,
+      expiresAt: subObj.expiresAt,
+      remainingDays,
+      isExpired,
+    },
+    advertisement: ad
+      ? {
+          id: ad._id,
+          campaignName: ad.campaignName,
+          featuredImage: ad.featuredImage || null,
+          status: ad.status,
+          startDate: ad.startDate,
+          endDate: ad.endDate,
+          price: ad.price,
+        }
+      : null,
+    isAdSubmitted: Boolean(ad),
+  };
 };
 
 export const AdvertisementService = {
@@ -835,4 +1444,6 @@ export const AdvertisementService = {
   updateAdvertisementInDB,
   getBookingsByStatusFromDB,
   getUserAdvertisementsFromDB,
+  getAdvertisementPaymentsFromDB,
+  getSingleAdvertisementPaymentFromDB,
 };

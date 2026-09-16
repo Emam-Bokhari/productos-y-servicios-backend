@@ -8,7 +8,42 @@ import {
   isSeller,
 } from "../../../helpers/authHelper";
 
+import fileUploadHandler from "../../middlewares/flieUploadHandler";
+import { parseFileData } from "../../middlewares/parseFileData";
+
 const router = express.Router();
+
+const parseCityAdBody = (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) => {
+  if (typeof req.body.featuredPositionPricing === "string") {
+    try {
+      req.body.featuredPositionPricing = JSON.parse(
+        req.body.featuredPositionPricing,
+      );
+    } catch {
+      // let validation schema catch invalid format
+    }
+  }
+  if (typeof req.body.featuredCapacity === "string") {
+    const num = Number(req.body.featuredCapacity);
+    if (!isNaN(num)) req.body.featuredCapacity = num;
+  }
+  if (typeof req.body.latitude === "string") {
+    const num = Number(req.body.latitude);
+    if (!isNaN(num)) req.body.latitude = num;
+  }
+  if (typeof req.body.longitude === "string") {
+    const num = Number(req.body.longitude);
+    if (!isNaN(num)) req.body.longitude = num;
+  }
+  if (typeof req.body.featuredEnabled === "string") {
+    req.body.featuredEnabled = req.body.featuredEnabled === "true";
+  }
+  next();
+};
 
 // ====================================================
 // ADMIN ROUTES
@@ -17,6 +52,9 @@ const router = express.Router();
 router.post(
   "/admin",
   isAdmin,
+  fileUploadHandler(),
+  parseFileData({ fieldName: "defaultFeaturedImage", mode: "single" }),
+  parseCityAdBody,
   validateRequest(CityAdConfigurationValidation.createCityConfigSchema),
   CityAdConfigurationController.createCityAdConfig,
 );
@@ -42,6 +80,9 @@ router.get(
 router.patch(
   "/admin/:id",
   isAdmin,
+  fileUploadHandler(),
+  parseFileData({ fieldName: "defaultFeaturedImage", mode: "single" }),
+  parseCityAdBody,
   validateRequest(CityAdConfigurationValidation.updateCityConfigSchema),
   CityAdConfigurationController.updateCityAdConfig,
 );

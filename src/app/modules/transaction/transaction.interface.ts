@@ -37,6 +37,7 @@ export interface ITransaction {
   gatewayResponse?: Record<string, any>; // Full response from payment gateway for audit log
   description?: string; // Optional description
   metadata?: Record<string, any>;
+  invoiceUrl?: string; // Generated PDF invoice URL (e.g. /uploads/invoices/INV-2026-1001.pdf)
   createdAt: Date;
   updatedAt: Date;
 }

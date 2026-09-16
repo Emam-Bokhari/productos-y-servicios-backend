@@ -42,6 +42,25 @@ const cityAdConfigurationSchema = new Schema<ICityAdConfiguration>(
       required: true,
       default: true,
     },
+    featuredPositionPricing: [
+      {
+        position: {
+          type: Number,
+          required: true,
+          min: 1,
+        },
+        price: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
+        _id: false,
+      },
+    ],
+    defaultFeaturedImage: {
+      type: String,
+      default: "",
+    },
     status: {
       type: String,
       enum: Object.values(SLOT_CONFIG_STATUS),

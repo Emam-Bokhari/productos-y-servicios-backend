@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { SLOT_CONFIG_STATUS } from "./cityAdConfiguration.constant";
 
+const positionPricingSchema = z.object({
+  position: z.number().min(1, "Position must be at least 1"),
+  price: z.number().min(0, "Price cannot be negative"),
+});
+
 const createCityConfigSchema = z.object({
   body: z.object({
     country: z.string({
@@ -30,6 +35,8 @@ const createCityConfigSchema = z.object({
       })
       .min(0, "Capacity cannot be negative"),
     featuredEnabled: z.boolean().optional(),
+    featuredPositionPricing: z.array(positionPricingSchema).optional(),
+    defaultFeaturedImage: z.string().optional(),
     status: z
       .enum([SLOT_CONFIG_STATUS.ACTIVE, SLOT_CONFIG_STATUS.INACTIVE])
       .optional(),
@@ -56,6 +63,8 @@ const updateCityConfigSchema = z.object({
       .min(0, "Capacity cannot be negative")
       .optional(),
     featuredEnabled: z.boolean().optional(),
+    featuredPositionPricing: z.array(positionPricingSchema).optional(),
+    defaultFeaturedImage: z.string().optional(),
     status: z
       .enum([SLOT_CONFIG_STATUS.ACTIVE, SLOT_CONFIG_STATUS.INACTIVE])
       .optional(),

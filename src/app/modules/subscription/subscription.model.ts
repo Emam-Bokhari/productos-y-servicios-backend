@@ -42,6 +42,9 @@ const subscriptionSchema = new Schema<TSubscription>(
       ref: "CityAdConfiguration",
       index: true,
     },
+    position: {
+      type: Number,
+    },
     stripeSubscriptionId: {
       type: String,
       index: true,
@@ -57,6 +60,13 @@ const subscriptionSchema = new Schema<TSubscription>(
       type: Number,
     },
     trxId: {
+      type: String,
+    },
+    invoiceNumber: {
+      type: String,
+      index: true,
+    },
+    invoiceUrl: {
       type: String,
     },
   },

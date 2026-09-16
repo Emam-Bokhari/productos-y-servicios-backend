@@ -26,8 +26,24 @@ const getMySubscriptionsFromDB = async (userId: string) => {
     const remainingDays =
       diffMs > 0 ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 0;
 
+    const invoiceNumber =
+      subObj.invoiceNumber ||
+      (subObj.trxId && subObj.trxId.startsWith("INV-") ? subObj.trxId : null);
+    const safeInvoice = invoiceNumber
+      ? invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_")
+      : null;
+    const invoiceUrl =
+      subObj.invoiceUrl ||
+      (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
+    const invoiceDownloadUrl = safeInvoice
+      ? `/api/v1/invoices/download/${safeInvoice}`
+      : `/api/v1/invoices/download/${subObj._id}`;
+
     return {
       ...subObj,
+      invoiceNumber: invoiceNumber || undefined,
+      invoiceUrl: invoiceUrl || undefined,
+      invoiceDownloadUrl,
       remainingDays,
       isExpired,
     };
@@ -64,8 +80,24 @@ const getSingleSubscriptionFromDB = async (id: string, user: JwtPayload) => {
   const remainingDays =
     diffMs > 0 ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 0;
 
+  const invoiceNumber =
+    subObj.invoiceNumber ||
+    (subObj.trxId && subObj.trxId.startsWith("INV-") ? subObj.trxId : null);
+  const safeInvoice = invoiceNumber
+    ? invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_")
+    : null;
+  const invoiceUrl =
+    subObj.invoiceUrl ||
+    (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
+  const invoiceDownloadUrl = safeInvoice
+    ? `/api/v1/invoices/download/${safeInvoice}`
+    : `/api/v1/invoices/download/${subObj._id}`;
+
   return {
     ...subObj,
+    invoiceNumber: invoiceNumber || undefined,
+    invoiceUrl: invoiceUrl || undefined,
+    invoiceDownloadUrl,
     remainingDays,
     isExpired,
   };
@@ -142,8 +174,24 @@ const getAllSubscriptionsFromDB = async (query: Record<string, unknown>) => {
       const remainingDays =
         diffMs > 0 ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 0;
 
+      const invoiceNumber =
+        subObj.invoiceNumber ||
+        (subObj.trxId && subObj.trxId.startsWith("INV-") ? subObj.trxId : null);
+      const safeInvoice = invoiceNumber
+        ? invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_")
+        : null;
+      const invoiceUrl =
+        subObj.invoiceUrl ||
+        (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
+      const invoiceDownloadUrl = safeInvoice
+        ? `/api/v1/invoices/download/${safeInvoice}`
+        : `/api/v1/invoices/download/${subObj._id}`;
+
       return {
         ...subObj,
+        invoiceNumber: invoiceNumber || undefined,
+        invoiceUrl: invoiceUrl || undefined,
+        invoiceDownloadUrl,
         remainingDays,
         isExpired,
         store: store ? store.toObject() : null,

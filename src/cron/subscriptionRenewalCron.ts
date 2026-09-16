@@ -7,6 +7,7 @@ import { calculateExpirationDate } from "../app/modules/datafast/datafast.contro
 import { sendNotifications } from "../helpers/notificationsHelper";
 import { NOTIFICATION_TYPE } from "../app/modules/notification/notification.constant";
 import { logger } from "../shared/logger";
+import { invoiceService } from "../app/modules/invoice/invoice.service";
 
 /**
  * Execute renewal check for all due store_creation subscriptions
@@ -91,6 +92,9 @@ export const runSubscriptionRenewalCheck = async (): Promise<{
           subscriptionExpiresAt: nextExpiration,
         });
 
+        const safeInvoice = invoiceTxId.replace(/[^a-zA-Z0-9_-]/g, "_");
+        const invoiceUrl = `/uploads/invoices/${safeInvoice}.pdf`;
+
         // Record successful Transaction
         await Transaction.create({
           transactionId: invoiceTxId,
@@ -103,7 +107,14 @@ export const runSubscriptionRenewalCheck = async (): Promise<{
           stripeCustomerId: token,
           gatewayTransactionId: result.id,
           gatewayResponse: result,
+          invoiceUrl,
         });
+
+        sub.invoiceNumber = invoiceTxId;
+        sub.invoiceUrl = invoiceUrl;
+        await sub.save();
+
+        invoiceService.autoGenerateInvoiceForTransaction(invoiceTxId);
 
         // Send renewal notification
         await sendNotifications({

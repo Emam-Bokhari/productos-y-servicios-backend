@@ -139,6 +139,10 @@ const transactionSchema = new Schema<ITransaction, TransactionModel>(
       type: Schema.Types.Mixed,
       required: false,
     },
+    invoiceUrl: {
+      type: String,
+      required: false,
+    },
   },
   {
     timestamps: true,

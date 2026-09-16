@@ -25,6 +25,7 @@ import { ServiceRoutes } from "../modules/service/service.routes";
 import { FavoriteRoutes } from "../modules/favorite/favorite.routes";
 import { ReviewRoutes } from "../modules/review/review.route";
 import { BroadcastRoutes } from "../modules/broadcast/broadcast.routes";
+import { InvoiceRoutes } from "../modules/invoice/invoice.route";
 
 const router = express.Router();
 
@@ -133,6 +134,10 @@ const apiRoutes = [
   {
     path: "/announcements",
     route: BroadcastRoutes,
+  },
+  {
+    path: "/invoices",
+    route: InvoiceRoutes,
   },
 ];
 
