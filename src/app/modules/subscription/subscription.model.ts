@@ -78,6 +78,12 @@ const subscriptionSchema = new Schema<TSubscription>(
 
 subscriptionSchema.plugin(softDeletePlugin);
 
+// Compound indexes for dashboard and payment performance
+subscriptionSchema.index({ status: 1, expiresAt: 1 });
+subscriptionSchema.index({ createdAt: 1, amountPaid: 1 });
+subscriptionSchema.index({ packageType: 1, status: 1, expiresAt: 1 });
+subscriptionSchema.index({ packageType: 1, amountPaid: 1 });
+
 export const Subscription = model<TSubscription, SubscriptionModel>(
   "Subscription",
   subscriptionSchema,

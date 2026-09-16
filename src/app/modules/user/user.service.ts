@@ -48,9 +48,10 @@ const getAdminFromDB = async (query: any) => {
     .fields()
     .paginate();
 
-  const admins = await queryBuilder.modelQuery;
-
-  const meta = await queryBuilder.countTotal();
+  const [admins, meta] = await Promise.all([
+    queryBuilder.modelQuery.lean(),
+    queryBuilder.countTotal(),
+  ]);
 
   return {
     data: admins,
@@ -380,8 +381,10 @@ const getUsersFromDB = async (query: Record<string, unknown>) => {
     .fields()
     .paginate();
 
-  const users = await queryBuilder.modelQuery;
-  const meta = await queryBuilder.countTotal();
+  const [users, meta] = await Promise.all([
+    queryBuilder.modelQuery.lean(),
+    queryBuilder.countTotal(),
+  ]);
 
   return {
     data: users,

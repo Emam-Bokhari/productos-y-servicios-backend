@@ -166,6 +166,12 @@ const transactionSchema = new Schema<ITransaction, TransactionModel>(
 
 transactionSchema.plugin(softDeletePlugin);
 
+// Indexes for query performance
+transactionSchema.index({ createdAt: -1 });
+transactionSchema.index({ paymentStatus: 1, createdAt: -1 });
+transactionSchema.index({ stripePaymentIntentId: 1 }, { sparse: true });
+transactionSchema.index({ stripeCheckoutSessionId: 1 }, { sparse: true });
+
 export const Transaction = model<ITransaction, TransactionModel>(
   "Transaction",
   transactionSchema,

@@ -1,30 +1,87 @@
 import { User } from "../user/user.model";
 import { Store } from "../store/store.model";
 import { Subscription } from "../subscription/subscription.model";
+import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
 import { USER_ROLES } from "../../../enums/user";
 
 const getDashboardOverview = async (queryYear?: string) => {
-  // 1. Total Users (excluding admins and super_admins)
-  const totalUsers = await User.countDocuments({
-    role: { $in: [USER_ROLES.USER, USER_ROLES.SELLER] },
-  });
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  let filterYear = currentYear;
+  if (queryYear) {
+    const parsedYear = parseInt(queryYear, 10);
+    if (!isNaN(parsedYear)) {
+      filterYear = parsedYear;
+    }
+  }
 
-  // 2. Total Stores
-  const totalStores = await Store.countDocuments({});
+  const startOfYear = new Date(filterYear, 0, 1, 0, 0, 0, 0);
+  const endOfYear = new Date(filterYear, 11, 31, 23, 59, 59, 999);
 
-  // 3. Active Subscriptions
-  const activeSubscriptionsCount = await Subscription.countDocuments({
-    status: "active",
-    expiresAt: { $gt: new Date() },
-  });
+  // Execute all metric queries concurrently in parallel
+  const [
+    totalUsers,
+    totalStores,
+    activeSubscriptionsCount,
+    activeSubscriptions,
+    storeTypeCounts,
+    monthlyRevenueAgg,
+  ] = await Promise.all([
+    // 1. Total Users (excluding admins and super_admins)
+    User.countDocuments({
+      role: { $in: [USER_ROLES.USER, USER_ROLES.SELLER] },
+    }),
 
-  // 4. MRR (Monthly Recurring Revenue)
-  // Fetch active subscriptions and populate their packages to get duration and price
-  const activeSubscriptions = await Subscription.find({
-    status: "active",
-    expiresAt: { $gt: new Date() },
-  }).populate("packageId");
+    // 2. Total Stores
+    Store.countDocuments({}),
 
+    // 3. Active Subscriptions Count
+    Subscription.countDocuments({
+      status: "active",
+      expiresAt: { $gt: now },
+    }),
+
+    // 4. Active Subscriptions for MRR calculation (lean with only required fields)
+    Subscription.find({
+      status: "active",
+      expiresAt: { $gt: now },
+    })
+      .select("packageId")
+      .populate({
+        path: "packageId",
+        model: SubscriptionPackage,
+        select: "price duration",
+      })
+      .lean(),
+
+    // 5. Store Types Count Split
+    Store.aggregate([
+      {
+        $group: {
+          _id: "$storeType",
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+
+    // 6. Subscription Revenue for the selected year grouped by month
+    Subscription.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startOfYear, $lte: endOfYear },
+          amountPaid: { $gt: 0 },
+        },
+      },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          totalRevenue: { $sum: "$amountPaid" },
+        },
+      },
+    ]),
+  ]);
+
+  // Calculate MRR
   let totalMRR = 0;
   for (const sub of activeSubscriptions) {
     const pkg = sub.packageId as any;
@@ -47,16 +104,18 @@ const getDashboardOverview = async (queryYear?: string) => {
       }
     }
   }
-  // Round to 2 decimal places
   totalMRR = Math.round(totalMRR * 100) / 100;
 
-  // 5. Store Types split (Product vs Service)
-  const productStoresCount = await Store.countDocuments({
-    storeType: "product_store",
-  });
-  const serviceStoresCount = await Store.countDocuments({
-    storeType: "service_store",
-  });
+  // Process Store Types split
+  let productStoresCount = 0;
+  let serviceStoresCount = 0;
+  for (const item of storeTypeCounts) {
+    if (item._id === "product_store") {
+      productStoresCount = item.count;
+    } else if (item._id === "service_store") {
+      serviceStoresCount = item.count;
+    }
+  }
   const totalTypedStores = productStoresCount + serviceStoresCount;
 
   let productPercentage = 0;
@@ -70,51 +129,31 @@ const getDashboardOverview = async (queryYear?: string) => {
     );
   }
 
-  // 6. Subscription Revenue over the 12 calendar months of the selected/current year
-  const currentYear = new Date().getFullYear();
-  let filterYear = currentYear;
-  if (queryYear) {
-    const parsedYear = parseInt(queryYear, 10);
-    if (!isNaN(parsedYear)) {
-      filterYear = parsedYear;
-    }
-  }
-
+  // Build 12 calendar months revenue chart data
   const months = [
-    { name: "Jan", index: 0 },
-    { name: "Feb", index: 1 },
-    { name: "Mar", index: 2 },
-    { name: "Apr", index: 3 },
-    { name: "May", index: 4 },
-    { name: "Jun", index: 5 },
-    { name: "Jul", index: 6 },
-    { name: "Aug", index: 7 },
-    { name: "Sep", index: 8 },
-    { name: "Oct", index: 9 },
-    { name: "Nov", index: 10 },
-    { name: "Dec", index: 11 },
+    { name: "Jan", index: 0, monthNum: 1 },
+    { name: "Feb", index: 1, monthNum: 2 },
+    { name: "Mar", index: 2, monthNum: 3 },
+    { name: "Apr", index: 3, monthNum: 4 },
+    { name: "May", index: 4, monthNum: 5 },
+    { name: "Jun", index: 5, monthNum: 6 },
+    { name: "Jul", index: 6, monthNum: 7 },
+    { name: "Aug", index: 7, monthNum: 8 },
+    { name: "Sep", index: 8, monthNum: 9 },
+    { name: "Oct", index: 9, monthNum: 10 },
+    { name: "Nov", index: 10, monthNum: 11 },
+    { name: "Dec", index: 11, monthNum: 12 },
   ];
 
-  const revenueChartData = [];
-  for (const m of months) {
-    const startOfMonth = new Date(filterYear, m.index, 1, 0, 0, 0, 0);
-    const endOfMonth = new Date(filterYear, m.index + 1, 0, 23, 59, 59, 999);
-
-    const subscriptions = await Subscription.find({
-      createdAt: { $gte: startOfMonth, $lte: endOfMonth },
-      amountPaid: { $gt: 0 },
-    } as any);
-
-    const monthlyRevenue = subscriptions.reduce(
-      (sum, sub) => sum + (sub.amountPaid || 0),
-      0,
-    );
-
-    revenueChartData.push({
-      month: m.name,
-      revenue: Math.round(monthlyRevenue * 100) / 100,
-    });
+  const revenueByMonth = new Map<number, number>();
+  for (const item of monthlyRevenueAgg) {
+    revenueByMonth.set(item._id, item.totalRevenue);
   }
+
+  const revenueChartData = months.map((m) => ({
+    month: m.name,
+    revenue: Math.round((revenueByMonth.get(m.monthNum) || 0) * 100) / 100,
+  }));
 
   return {
     cards: {
@@ -136,3 +175,4 @@ const getDashboardOverview = async (queryYear?: string) => {
 export const DashboardService = {
   getDashboardOverview,
 };
+

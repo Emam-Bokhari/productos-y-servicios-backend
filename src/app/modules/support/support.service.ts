@@ -49,9 +49,10 @@ const getAllSupportsFromDB = async (query: any) => {
     .filter()
     .paginate();
 
-  const supports = await queryBuilder.modelQuery;
-
-  const meta = await queryBuilder.countTotal();
+  const [supports, meta] = await Promise.all([
+    queryBuilder.modelQuery.lean(),
+    queryBuilder.countTotal(),
+  ]);
 
   if (!supports || supports.length === 0) {
     return [];

@@ -83,6 +83,7 @@ cityAdConfigurationSchema.plugin(softDeletePlugin);
 // Compound unique index to prevent duplicate city configurations
 cityAdConfigurationSchema.index({ country: 1, city: 1 }, { unique: true });
 cityAdConfigurationSchema.index({ latitude: 1, longitude: 1 });
+cityAdConfigurationSchema.index({ status: 1 });
 
 export const CityAdConfiguration = model<
   ICityAdConfiguration,

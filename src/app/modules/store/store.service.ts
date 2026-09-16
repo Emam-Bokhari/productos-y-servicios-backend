@@ -808,63 +808,122 @@ const getAllStoresFromDB = async (
 
   builder.modelQuery = builder.modelQuery.find(filter);
 
-  const rawStores = await builder.modelQuery
-    .populate("categoryId")
-    .populate("owner", "name profileImage email phone")
-    .populate("cityId");
-
-  const meta = await builder.countTotal();
+  const [rawStores, meta] = await Promise.all([
+    builder.modelQuery
+      .populate("categoryId")
+      .populate("owner", "name profileImage email phone")
+      .populate("cityId")
+      .lean(),
+    builder.countTotal(),
+  ]);
 
   const currentUserId = user?.id || user?._id;
-  let favoriteStoreIdSet = new Set<string>();
-  if (currentUserId && rawStores.length > 0) {
-    const storeIds = rawStores.map((s: any) => s._id);
-    const userFavorites = await Favorite.find({
-      userId: currentUserId,
-      targetId: { $in: storeIds },
-      targetType: {
-        $in: [FAVORITE_TYPE.PRODUCT_STORE, FAVORITE_TYPE.SERVICE_STORE],
-      },
-    }).select("targetId");
-    favoriteStoreIdSet = new Set(
-      userFavorites.map((f: any) => f.targetId.toString()),
-    );
+  const storeIds = rawStores.map((s: any) => s._id);
+  const ownerIds = [
+    ...new Set(
+      rawStores
+        .map((s: any) => s.owner?._id?.toString() || s.owner?.toString())
+        .filter(Boolean),
+    ),
+  ];
+
+  const productStoreIds = rawStores
+    .filter((s: any) => s.storeType === STORE_TYPE.PRODUCT_STORE)
+    .map((s: any) => s._id);
+
+  const serviceStoreIds = rawStores
+    .filter((s: any) => s.storeType === STORE_TYPE.SERVICE_STORE)
+    .map((s: any) => s._id);
+
+  const now = new Date();
+
+  // Execute all related batch queries concurrently
+  const [userFavorites, activeSubscriptions, productCounts, serviceCounts] =
+    await Promise.all([
+      currentUserId && storeIds.length > 0
+        ? Favorite.find({
+            userId: currentUserId,
+            targetId: { $in: storeIds },
+            targetType: {
+              $in: [FAVORITE_TYPE.PRODUCT_STORE, FAVORITE_TYPE.SERVICE_STORE],
+            },
+          })
+            .select("targetId")
+            .lean()
+        : Promise.resolve([]),
+
+      ownerIds.length > 0
+        ? Subscription.find({
+            userId: { $in: ownerIds },
+            packageType: "store_creation",
+            status: { $in: ["active", "trialing"] },
+            expiresAt: { $gt: now },
+          })
+            .populate("packageId", "name")
+            .lean()
+        : Promise.resolve([]),
+
+      productStoreIds.length > 0
+        ? Product.aggregate([
+            { $match: { storeId: { $in: productStoreIds } } },
+            { $group: { _id: "$storeId", count: { $sum: 1 } } },
+          ])
+        : Promise.resolve([]),
+
+      serviceStoreIds.length > 0
+        ? Service.aggregate([
+            { $match: { storeId: { $in: serviceStoreIds } } },
+            { $group: { _id: "$storeId", count: { $sum: 1 } } },
+          ])
+        : Promise.resolve([]),
+    ]);
+
+  // Index favorites
+  const favoriteStoreIdSet = new Set(
+    userFavorites.map((f: any) => f.targetId.toString()),
+  );
+
+  // Index active subscriptions by ownerId
+  const subMap = new Map<string, any>();
+  for (const sub of activeSubscriptions) {
+    const uId =
+      (sub as any).userId?._id?.toString() || (sub as any).userId?.toString();
+    if (uId && !subMap.has(uId)) {
+      subMap.set(uId, sub);
+    }
   }
 
-  const data = await Promise.all(
-    rawStores.map(async (store) => {
-      const storeObj = store.toObject();
+  // Index listings count by storeId
+  const listingsMap = new Map<string, number>();
+  for (const p of productCounts) {
+    listingsMap.set(p._id.toString(), p.count);
+  }
+  for (const s of serviceCounts) {
+    listingsMap.set(s._id.toString(), s.count);
+  }
 
-      const activeSubscription = await Subscription.findOne({
-        userId: store.owner ? (store.owner as any)._id : null,
-        packageType: "store_creation",
-        status: { $in: ["active", "trialing"] },
-        expiresAt: { $gt: new Date() },
-      }).populate("packageId");
+  // Synchronously assemble response
+  const data = rawStores.map((store: any) => {
+    const storeObj = store;
+    const ownerIdStr =
+      store.owner?._id?.toString() || store.owner?.toString() || "";
+    const activeSub = ownerIdStr ? subMap.get(ownerIdStr) : null;
+    const planName = activeSub
+      ? activeSub.packageId?.name || "Starter"
+      : "N/A";
 
-      const planName = activeSubscription
-        ? (activeSubscription.packageId as any)?.name || "Starter"
-        : "N/A";
+    const listingsCount = listingsMap.get(store._id.toString()) || 0;
+    const isFav = currentUserId
+      ? favoriteStoreIdSet.has(store._id.toString())
+      : false;
 
-      let listingsCount = 0;
-      if (store.storeType === STORE_TYPE.PRODUCT_STORE) {
-        listingsCount = await Product.countDocuments({ storeId: store._id });
-      } else if (store.storeType === STORE_TYPE.SERVICE_STORE) {
-        listingsCount = await Service.countDocuments({ storeId: store._id });
-      }
-
-      const isFav = currentUserId
-        ? favoriteStoreIdSet.has(store._id.toString())
-        : false;
-
-      return {
-        ...storeObj,
-        plan: planName,
-        listings: listingsCount,
-        isFavorite: isFav,
-      };
-    }),
-  );
+    return {
+      ...storeObj,
+      plan: planName,
+      listings: listingsCount,
+      isFavorite: isFav,
+    };
+  });
 
   return { data, meta };
 };

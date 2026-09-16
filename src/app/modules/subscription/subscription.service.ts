@@ -108,21 +108,26 @@ const getAllSubscriptionsFromDB = async (query: Record<string, unknown>) => {
 
   const filter: Record<string, any> = {};
 
-  // 1. Search term logic: search store display name, user name, or user email
+  // 1. Search term logic: search store display name, user name, or user email concurrently
   if (searchTerm) {
-    const matchingStores = await Store.find({
-      displayName: { $regex: searchTerm, $options: "i" },
-    }).select("owner");
+    const [matchingStores, matchingUsers] = await Promise.all([
+      Store.find({
+        displayName: { $regex: searchTerm, $options: "i" },
+      })
+        .select("owner")
+        .lean(),
+      User.find({
+        $or: [
+          { name: { $regex: searchTerm, $options: "i" } },
+          { email: { $regex: searchTerm, $options: "i" } },
+        ],
+      })
+        .select("_id")
+        .lean(),
+    ]);
 
-    const matchingUsers = await User.find({
-      $or: [
-        { name: { $regex: searchTerm, $options: "i" } },
-        { email: { $regex: searchTerm, $options: "i" } },
-      ],
-    }).select("_id");
-
-    const storeOwnerIds = matchingStores.map((store) => store.owner);
-    const userIds = matchingUsers.map((user) => user._id);
+    const storeOwnerIds = matchingStores.map((store: any) => store.owner);
+    const userIds = matchingUsers.map((user: any) => user._id);
 
     const combinedUserIds = [...new Set([...storeOwnerIds, ...userIds])];
     filter.userId = { $in: combinedUserIds };
@@ -150,54 +155,72 @@ const getAllSubscriptionsFromDB = async (query: Record<string, unknown>) => {
     .paginate()
     .fields();
 
-  const subscriptions = await builder.modelQuery
-    .populate("packageId")
-    .populate("userId", "name email profileImage phone");
+  // Run paginated query and count concurrently
+  const [subscriptions, meta] = await Promise.all([
+    builder.modelQuery
+      .populate("packageId")
+      .populate("userId", "name email profileImage phone")
+      .lean(),
+    builder.countTotal(),
+  ]);
 
-  const meta = await builder.countTotal();
+  // Batch fetch all stores for the users on this page in ONE query (eliminates N+1 queries)
+  const userIds = [
+    ...new Set(
+      subscriptions
+        .map((s: any) => s.userId?._id?.toString() || s.userId?.toString())
+        .filter(Boolean),
+    ),
+  ];
 
-  // Look up store details for each subscription
-  const now = new Date();
-  const data = await Promise.all(
-    subscriptions.map(async (sub) => {
-      const subObj = sub.toObject();
-      const store = await Store.findOne({ owner: sub.userId?._id }).populate(
-        "categoryId",
-        "name",
-      );
-      const isExpired = subObj.expiresAt
-        ? new Date(subObj.expiresAt) <= now
-        : false;
-      const diffMs = subObj.expiresAt
-        ? new Date(subObj.expiresAt).getTime() - now.getTime()
-        : 0;
-      const remainingDays =
-        diffMs > 0 ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 0;
+  const stores =
+    userIds.length > 0
+      ? await Store.find({ owner: { $in: userIds } })
+          .populate("categoryId", "name")
+          .lean()
+      : [];
 
-      const invoiceNumber =
-        subObj.invoiceNumber ||
-        (subObj.trxId && subObj.trxId.startsWith("INV-") ? subObj.trxId : null);
-      const safeInvoice = invoiceNumber
-        ? invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_")
-        : null;
-      const invoiceUrl =
-        subObj.invoiceUrl ||
-        (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
-      const invoiceDownloadUrl = safeInvoice
-        ? `/api/v1/invoices/download/${safeInvoice}`
-        : `/api/v1/invoices/download/${subObj._id}`;
-
-      return {
-        ...subObj,
-        invoiceNumber: invoiceNumber || undefined,
-        invoiceUrl: invoiceUrl || undefined,
-        invoiceDownloadUrl,
-        remainingDays,
-        isExpired,
-        store: store ? store.toObject() : null,
-      };
-    }),
+  const storeMap = new Map<string, any>(
+    stores.map((s: any) => [s.owner.toString(), s]),
   );
+
+  // Synchronously enrich each subscription with store details & formatting
+  const now = new Date();
+  const data = subscriptions.map((sub: any) => {
+    const userIdStr =
+      sub.userId?._id?.toString() || sub.userId?.toString() || "";
+    const store = storeMap.get(userIdStr) || null;
+
+    const isExpired = sub.expiresAt ? new Date(sub.expiresAt) <= now : false;
+    const diffMs = sub.expiresAt
+      ? new Date(sub.expiresAt).getTime() - now.getTime()
+      : 0;
+    const remainingDays =
+      diffMs > 0 ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 0;
+
+    const invoiceNumber =
+      sub.invoiceNumber ||
+      (sub.trxId && sub.trxId.startsWith("INV-") ? sub.trxId : null);
+    const safeInvoice = invoiceNumber
+      ? invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_")
+      : null;
+    const invoiceUrl =
+      sub.invoiceUrl ||
+      (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
+    const invoiceDownloadUrl = safeInvoice
+      ? `/api/v1/invoices/download/${safeInvoice}`
+      : `/api/v1/invoices/download/${sub._id}`;
+
+    return {
+      ...sub,
+      invoiceNumber: invoiceNumber || undefined,
+      invoiceUrl: invoiceUrl || undefined,
+      invoiceDownloadUrl,
+      remainingDays,
+      isExpired,
+      store,
+    };
+  });
 
   return {
     meta,

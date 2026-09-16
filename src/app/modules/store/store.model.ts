@@ -159,5 +159,8 @@ storeSchema.index({ owner: 1 });
 storeSchema.index({ displayName: 1 }, { sparse: true });
 storeSchema.index({ phone: 1 }, { sparse: true });
 storeSchema.index({ businessLicenseNumber: 1 }, { sparse: true });
+storeSchema.index({ storeType: 1 });
+storeSchema.index({ status: 1 });
+storeSchema.index({ cityId: 1 });
 
 export const Store = model<IStore, StoreModel>("Store", storeSchema);

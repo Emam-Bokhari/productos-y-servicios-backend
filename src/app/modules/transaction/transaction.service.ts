@@ -352,30 +352,32 @@ const getTransactions = async (
   const sortOrder = queryOptions.sortOrder?.toLowerCase() === "asc" ? 1 : -1;
   const sort: any = { [sortBy]: sortOrder };
 
-  const total = await Transaction.countDocuments(matchQuery);
+  // Execute count and query concurrently
+  const [total, transactions] = await Promise.all([
+    Transaction.countDocuments(matchQuery),
+    Transaction.find(matchQuery)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .populate({
+        path: "rideId",
+        populate: {
+          path: "userId",
+          select: "name",
+        },
+      })
+      .populate({
+        path: "bookingId",
+        populate: {
+          path: "userId",
+          select: "name",
+        },
+      }),
+  ]);
+
   const totalPages = Math.ceil(total / limit);
   const hasNextPage = page < totalPages;
   const hasPrevPage = page > 1;
-
-  // Execute query with nested population
-  const transactions = await Transaction.find(matchQuery)
-    .sort(sort)
-    .skip(skip)
-    .limit(limit)
-    .populate({
-      path: "rideId",
-      populate: {
-        path: "userId",
-        select: "name",
-      },
-    })
-    .populate({
-      path: "bookingId",
-      populate: {
-        path: "userId",
-        select: "name",
-      },
-    });
 
   // Map transactions to standardized structure
   const data = transactions.map((tx) => {
@@ -639,19 +641,15 @@ const getAllSubscriptionTransactions = async (queryOptions: {
   if (queryOptions.searchTerm) {
     const searchRegex = new RegExp(queryOptions.searchTerm, "i");
 
-    // A. Match store name
-    const matchingStores = await Store.find({
-      displayName: { $regex: searchRegex },
-    }).select("owner");
-    const ownerIds = matchingStores.map((store) => store.owner);
+    // Run store and package matching in parallel
+    const [matchingStores, matchingPackages] = await Promise.all([
+      Store.find({ displayName: { $regex: searchRegex } }).select("owner").lean(),
+      SubscriptionPackage.find({ name: { $regex: searchRegex } }).select("_id").lean(),
+    ]);
 
-    // B. Match plan/package name
-    const matchingPackages = await SubscriptionPackage.find({
-      name: { $regex: searchRegex },
-    }).select("_id");
-    const packageIds = matchingPackages.map((pkg) => pkg._id);
+    const ownerIds = matchingStores.map((store: any) => store.owner);
+    const packageIds = matchingPackages.map((pkg: any) => pkg._id);
 
-    // C. Search condition
     matchQuery.$or = [
       { transactionId: { $regex: searchRegex } },
       { userId: { $in: ownerIds } },
@@ -664,82 +662,104 @@ const getAllSubscriptionTransactions = async (queryOptions: {
   const limit = Number(queryOptions.limit) || 10;
   const skip = (page - 1) * limit;
 
-  const total = await Transaction.countDocuments(matchQuery);
+  // Execute count and paginated find in parallel
+  const [total, transactions] = await Promise.all([
+    Transaction.countDocuments(matchQuery),
+    Transaction.find(matchQuery)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate("userId", "name email timezone")
+      .populate("packageId", "name")
+      .lean(),
+  ]);
+
   const totalPages = Math.ceil(total / limit);
 
-  // Execute query
-  const transactions = await Transaction.find(matchQuery)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit)
-    .populate("userId", "name email timezone")
-    .populate("packageId", "name");
+  // Batch fetch all stores for the users on this page in ONE query (eliminates N+1 queries)
+  const userIds = [
+    ...new Set(
+      transactions
+        .map((tx: any) => tx.userId?._id?.toString() || tx.userId?.toString())
+        .filter(Boolean),
+    ),
+  ];
+
+  const stores =
+    userIds.length > 0
+      ? await Store.find({ owner: { $in: userIds } })
+          .select("displayName owner")
+          .lean()
+      : [];
+
+  const storeMap = new Map<string, any>(
+    stores.map((s: any) => [s.owner.toString(), s]),
+  );
 
   // Format to match exact frontend columns:
   // INVOICE, STORE, PLAN, METHOD, AMOUNT, DATE, STATUS, Refund action
-  const data = await Promise.all(
-    transactions.map(async (tx) => {
-      const store = await Store.findOne({ owner: tx.userId });
+  const data = transactions.map((tx: any) => {
+    const userIdStr = tx.userId?._id?.toString() || tx.userId?.toString() || "";
+    const store = storeMap.get(userIdStr);
 
-      // Friendly method name mapping
-      let method = "Card";
-      if (tx.paymentMethod === "WALLET") {
-        method = "Wallet";
-      } else if (tx.paymentMethod === "CASH") {
-        method = "Cash";
-      } else if (tx.paymentMethod === "ONLINE") {
-        method = tx.metadata?.cardType || "Card";
-      }
+    // Friendly method name mapping
+    let method = "Card";
+    if (tx.paymentMethod === "WALLET") {
+      method = "Wallet";
+    } else if (tx.paymentMethod === "CASH") {
+      method = "Cash";
+    } else if (tx.paymentMethod === "ONLINE") {
+      method = tx.metadata?.cardType || "Card";
+    }
 
-      // Format date: e.g. "Aug 16, 2026"
-      const txTimezone = (tx.userId as any)?.timezone || "Asia/Dhaka";
-      const dateStr = tx.createdAt
-        ? DateTime.fromJSDate(tx.createdAt)
-            .setZone(txTimezone)
-            .toFormat("LLL d, yyyy")
-        : "";
+    // Format date: e.g. "Aug 16, 2026"
+    const txTimezone = tx.userId?.timezone || "Asia/Dhaka";
+    const dateStr = tx.createdAt
+      ? DateTime.fromJSDate(new Date(tx.createdAt))
+          .setZone(txTimezone)
+          .toFormat("LLL d, yyyy")
+      : "";
 
-      // Format status (camel case/badge friendly)
-      // e.g. Paid, Failed, Pending, Refunded
-      let status = "Pending";
-      if (tx.paymentStatus === PAYMENT_STATUS.PAID) {
-        status = "Paid";
-      } else if (tx.paymentStatus === PAYMENT_STATUS.FAILED) {
-        status = "Failed";
-      } else if (tx.paymentStatus === PAYMENT_STATUS.REFUNDED) {
-        status = "Refunded";
-      }
+    // Format status (camel case/badge friendly)
+    // e.g. Paid, Failed, Pending, Refunded
+    let status = "Pending";
+    if (tx.paymentStatus === PAYMENT_STATUS.PAID) {
+      status = "Paid";
+    } else if (tx.paymentStatus === PAYMENT_STATUS.FAILED) {
+      status = "Failed";
+    } else if (tx.paymentStatus === PAYMENT_STATUS.REFUNDED) {
+      status = "Refunded";
+    }
 
-      const planName = (tx.packageId as any)?.name || "N/A";
+    const planName = tx.packageId?.name || "N/A";
 
-      const safeInvoice = tx.transactionId
-        ? tx.transactionId.replace(/[^a-zA-Z0-9_-]/g, "_")
-        : null;
-      const invoiceUrl =
-        tx.invoiceUrl ||
-        (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
-      const invoiceDownloadUrl = safeInvoice
-        ? `/api/v1/invoices/download/${safeInvoice}`
-        : `/api/v1/invoices/download/${tx._id}`;
+    const safeInvoice = tx.transactionId
+      ? tx.transactionId.replace(/[^a-zA-Z0-9_-]/g, "_")
+      : null;
+    const invoiceUrl =
+      tx.invoiceUrl ||
+      (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
+    const invoiceDownloadUrl = safeInvoice
+      ? `/api/v1/invoices/download/${safeInvoice}`
+      : `/api/v1/invoices/download/${tx._id}`;
 
-      return {
-        _id: tx._id,
-        invoice: tx.transactionId,
-        invoiceNumber: tx.transactionId,
-        invoiceUrl,
-        invoiceDownloadUrl,
-        store: store
-          ? store.displayName || "N/A"
-          : (tx.userId as any)?.name || "N/A",
-        plan: planName,
-        method,
-        amount: tx.amount,
-        date: dateStr,
-        status,
-        canRefund: tx.paymentStatus === PAYMENT_STATUS.PAID,
-      };
-    }),
-  );
+    return {
+      _id: tx._id,
+      invoice: tx.transactionId,
+      invoiceNumber: tx.transactionId,
+      invoiceUrl,
+      invoiceDownloadUrl,
+      store: store
+        ? store.displayName || "N/A"
+        : tx.userId?.name || "N/A",
+      plan: planName,
+      method,
+      amount: tx.amount,
+      date: dateStr,
+      status,
+      canRefund: tx.paymentStatus === PAYMENT_STATUS.PAID,
+    };
+  });
 
   return {
     meta: {
@@ -751,6 +771,7 @@ const getAllSubscriptionTransactions = async (queryOptions: {
     data,
   };
 };
+
 
 const refundTransactionFromDB = async (id: string): Promise<any> => {
   if (!mongoose.Types.ObjectId.isValid(id)) {

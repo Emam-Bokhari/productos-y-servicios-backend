@@ -150,7 +150,7 @@ const getCityWiseAvailabilitySummaryFromDB = async (
 ): Promise<any[]> => {
   const cities = await CityAdConfiguration.find({
     status: SLOT_CONFIG_STATUS.ACTIVE,
-  });
+  }).lean();
 
   const today = new Date();
   const tomorrow = new Date(today);
@@ -159,38 +159,38 @@ const getCityWiseAvailabilitySummaryFromDB = async (
   const startDate = startDateStr ? new Date(startDateStr) : today;
   const endDate = endDateStr ? new Date(endDateStr) : tomorrow;
 
-  const summary = [];
+  const summary = await Promise.all(
+    cities.map(async (city) => {
+      // Featured summary
+      const featuredTotal = city.featuredCapacity || 0;
+      const featuredBookedObj = await getOverlappingBookedSlots(
+        city._id as Types.ObjectId,
+        ADVERTISEMENT_TYPE.FEATURED,
+        startDate,
+        endDate,
+      );
+      const featuredBooked = featuredBookedObj.bookedSlots;
+      const featuredAvailable = Math.max(0, featuredTotal - featuredBooked);
 
-  for (const city of cities) {
-    // Featured summary
-    const featuredTotal = city.featuredCapacity || 0;
-    const featuredBookedObj = await getOverlappingBookedSlots(
-      city._id as Types.ObjectId,
-      ADVERTISEMENT_TYPE.FEATURED,
-      startDate,
-      endDate,
-    );
-    const featuredBooked = featuredBookedObj.bookedSlots;
-    const featuredAvailable = Math.max(0, featuredTotal - featuredBooked);
-
-    summary.push({
-      cityConfig: {
-        _id: city._id,
-        country: city.country,
-        countryCode: city.countryCode,
-        city: city.city,
-        latitude: city.latitude,
-        longitude: city.longitude,
-        status: city.status,
-      },
-      featured: {
-        total: featuredTotal,
-        booked: featuredBooked,
-        available: featuredAvailable,
-        enabled: city.featuredEnabled,
-      },
-    });
-  }
+      return {
+        cityConfig: {
+          _id: city._id,
+          country: city.country,
+          countryCode: city.countryCode,
+          city: city.city,
+          latitude: city.latitude,
+          longitude: city.longitude,
+          status: city.status,
+        },
+        featured: {
+          total: featuredTotal,
+          booked: featuredBooked,
+          available: featuredAvailable,
+          enabled: city.featuredEnabled,
+        },
+      };
+    }),
+  );
 
   return summary;
 };
@@ -201,8 +201,8 @@ const getCityBookingStatisticsFromDB = async (
   if (!Types.ObjectId.isValid(cityAdConfigId)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid City Slot Config ID");
   }
-  
-  const config = await CityAdConfiguration.findById(cityAdConfigId);
+
+  const config = await CityAdConfiguration.findById(cityAdConfigId).lean();
   if (!config) {
     throw new ApiError(
       StatusCodes.NOT_FOUND,
@@ -212,35 +212,39 @@ const getCityBookingStatisticsFromDB = async (
 
   const now = new Date();
 
-  // Active bookings (status ACTIVE and end date not passed)
-  const activeCount = await Advertisement.countDocuments({
-    cityAdConfigId: config._id,
-    status: ADVERTISEMENT_STATUS.ACTIVE,
-    startDate: { $lte: now },
-    endDate: { $gte: now },
-  });
+  // Execute all booking status counts concurrently
+  const [activeCount, upcomingCount, expiredCount, cancelledCount] =
+    await Promise.all([
+      // Active bookings (status ACTIVE and end date not passed)
+      Advertisement.countDocuments({
+        cityAdConfigId: config._id,
+        status: ADVERTISEMENT_STATUS.ACTIVE,
+        startDate: { $lte: now },
+        endDate: { $gte: now },
+      }),
 
-  // Upcoming bookings (status ACTIVE and start date in the future)
-  const upcomingCount = await Advertisement.countDocuments({
-    cityAdConfigId: config._id,
-    status: ADVERTISEMENT_STATUS.ACTIVE,
-    startDate: { $gt: now },
-  });
+      // Upcoming bookings (status ACTIVE and start date in the future)
+      Advertisement.countDocuments({
+        cityAdConfigId: config._id,
+        status: ADVERTISEMENT_STATUS.ACTIVE,
+        startDate: { $gt: now },
+      }),
 
-  // Expired bookings (status EXPIRED or status ACTIVE and end date in the past)
-  const expiredCount = await Advertisement.countDocuments({
-    cityAdConfigId: config._id,
-    $or: [
-      { status: ADVERTISEMENT_STATUS.EXPIRED },
-      { status: ADVERTISEMENT_STATUS.ACTIVE, endDate: { $lt: now } },
-    ],
-  });
+      // Expired bookings (status EXPIRED or status ACTIVE and end date in the past)
+      Advertisement.countDocuments({
+        cityAdConfigId: config._id,
+        $or: [
+          { status: ADVERTISEMENT_STATUS.EXPIRED },
+          { status: ADVERTISEMENT_STATUS.ACTIVE, endDate: { $lt: now } },
+        ],
+      }),
 
-  // Cancelled bookings
-  const cancelledCount = await Advertisement.countDocuments({
-    cityAdConfigId: config._id,
-    status: ADVERTISEMENT_STATUS.CANCELLED,
-  });
+      // Cancelled bookings
+      Advertisement.countDocuments({
+        cityAdConfigId: config._id,
+        status: ADVERTISEMENT_STATUS.CANCELLED,
+      }),
+    ]);
 
   return {
     cityConfig: {
