@@ -1,4 +1,4 @@
-import { Model, Types } from "mongoose";
+import { Types } from "mongoose";
 import { ISoftDeleteModel } from "../../../types/softDelete";
 
 export type TSubscription = {
@@ -17,7 +17,7 @@ export type TSubscription = {
   stripeSubscriptionId?: string;
   stripeSessionId?: string;
   amountPaid?: number;
-  trxId?: string;
-};
+  trxId?: string;  
+}; 
 
 export type SubscriptionModel = ISoftDeleteModel<TSubscription>;
