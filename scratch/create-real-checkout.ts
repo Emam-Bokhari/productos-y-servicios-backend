@@ -42,7 +42,7 @@ async function createCheckout() {
 
   console.log("Checkout Result:", checkoutResult);
   console.log("CHECKOUT_ID=" + checkoutResult.checkoutId);
-  const checkoutUrl = `http://10.10.7.10:5009/api/v1/datafast/pay/${checkoutResult.checkoutId}`;
+  const checkoutUrl = `https://api.jaganaecuador.com/api/v1/datafast/pay/${checkoutResult.checkoutId}`;
   console.log("CHECKOUT_URL=" + checkoutUrl);
 
   await mongoose.disconnect();

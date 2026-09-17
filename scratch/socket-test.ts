@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 import axios from "axios";
 
-const BASE_URL = "http://10.10.7.10:5009";
+const BASE_URL = "https://api.jaganaecuador.com";
 
 // Tokens from user logs
 const userToken =

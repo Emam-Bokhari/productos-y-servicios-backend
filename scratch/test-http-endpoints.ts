@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "http://10.10.7.10:5009/api/v1";
+const BASE_URL = "https://api.jaganaecuador.com/api/v1";
 
 async function testHttpEndpoints() {
   console.log("=== Testing HTTP Endpoints on Port 5009 ===");

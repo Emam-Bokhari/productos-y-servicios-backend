@@ -9,7 +9,7 @@ import { Secret } from "jsonwebtoken";
 
 dotenv.config({ path: path.join(process.cwd(), ".env") });
 
-const BASE_URL = "http://10.10.7.10:5009";
+const BASE_URL = "https://api.jaganaecuador.com";
 
 const run = async () => {
   await mongoose.connect(process.env.DATABASE_URL as string);

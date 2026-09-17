@@ -55,7 +55,7 @@ async function simulateWidgetPaymentSubmission() {
   cardData.append("card.expiryMonth", "12");
   cardData.append("card.expiryYear", "2028");
   cardData.append("card.cvv", "123");
-  cardData.append("shopperResultUrl", `http://10.10.7.10:5009/api/v1/datafast/callback?checkoutId=${checkoutId}`);
+  cardData.append("shopperResultUrl", `https://api.jaganaecuador.com/api/v1/datafast/callback?checkoutId=${checkoutId}`);
 
   try {
     const payRes = await axios.post(payUrl, cardData.toString(), {
@@ -72,10 +72,10 @@ async function simulateWidgetPaymentSubmission() {
     console.log("Oppwa Redirect:", payRes.data.redirect);
 
     console.log("\n--- 3. Calling our Backend Callback to Verify Fulfillment ---");
-    const callbackRes = await axios.get(`http://10.10.7.10:5009/api/v1/datafast/callback?checkoutId=${checkoutId}`);
+    const callbackRes = await axios.get(`https://api.jaganaecuador.com/api/v1/datafast/callback?checkoutId=${checkoutId}`);
     console.log("Backend Callback Status:", callbackRes.status);
     console.log("Backend Callback Returned HTML contains 'Payment Successful':", callbackRes.data.includes("Payment Successful") || callbackRes.data.includes("exitosamente"));
-    
+
     // Check if Subscription and Transaction were created in DB
     console.log("\n--- 4. Checking Database for Subscription & Transaction ---");
     const mongoose = require("mongoose");

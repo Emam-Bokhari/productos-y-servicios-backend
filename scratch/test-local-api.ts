@@ -21,7 +21,7 @@ async function testLocalApi() {
 
   try {
     const res = await axios.post(
-      "http://10.10.7.10:5009/api/v1/datafast/create-checkout-session",
+      "https://api.jaganaecuador.com/api/v1/datafast/create-checkout-session",
       {
         packageId: "6a7ff377c24d0046a564c737",
       },
