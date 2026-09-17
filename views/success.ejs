@@ -304,13 +304,36 @@
     </div>
 
     <h1>Payment<br>Successful</h1>
-    <p>Your transaction has been securely processed and confirmed.</p>
+    <p><%= locals.message || 'Your transaction has been securely processed and confirmed.' %></p>
+
+    <% if (locals.invoiceNumber || locals.amount) { %>
+    <div style="background: rgba(0, 179, 137, 0.06); border: 1px solid rgba(0, 179, 137, 0.15); border-radius: 12px; padding: 0.85rem 1.2rem; margin-bottom: 1.5rem; text-align: left; font-size: 0.88rem;">
+      <% if (locals.invoiceNumber) { %>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+        <span style="color: var(--text-muted);">Invoice:</span>
+        <strong style="color: var(--text-primary);"><%= locals.invoiceNumber %></strong>
+      </div>
+      <% } %>
+      <% if (locals.amount) { %>
+      <div style="display: flex; justify-content: space-between;">
+        <span style="color: var(--text-muted);">Amount Paid:</span>
+        <strong style="color: #00b389;">$<%= Number(locals.amount).toFixed(2) %> USD</strong>
+      </div>
+      <% } %>
+    </div>
+    <% } %>
+
+    <div style="margin-bottom: 1.8rem;">
+      <a href="<%= locals.returnUrl || 'javascript:window.close();' %>" id="returnBtn" style="display: inline-block; background: linear-gradient(135deg, #00b389, #007a5e); color: #fff; text-decoration: none; padding: 0.75rem 2rem; border-radius: 12px; font-weight: 500; font-size: 0.9rem; box-shadow: 0 4px 14px rgba(0, 179, 137, 0.3);">
+        Volver a la Aplicación / Return to App
+      </a>
+    </div>
 
     <div class="divider"></div>
 
     <div class="footer-note">
       <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-      Secured by <strong style="color: var(--text-primary); margin: 0 2px;">Stripe</strong> — PCI DSS Compliant
+      Secured by <strong style="color: var(--text-primary); margin: 0 2px;">Datafast</strong> — PCI DSS Compliant
     </div>
   </div>
 

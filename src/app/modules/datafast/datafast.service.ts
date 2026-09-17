@@ -103,6 +103,10 @@ class DatafastService {
       params.append("customParameters[SHOPPER_USER_ID]", String(metadata.userId));
     }
 
+    if (config.datafast.baseUrl.includes("test")) {
+      params.append("testMode", "EXTERNAL");
+    }
+
     try {
       const response = await axios.post(url, params.toString(), {
         headers: {
@@ -148,6 +152,9 @@ class DatafastService {
 
       return response.data;
     } catch (error: any) {
+      if (error.response?.data?.result) {
+        return error.response.data;
+      }
       const message =
         error.response?.data?.result?.description ||
         error.message ||
@@ -184,6 +191,10 @@ class DatafastService {
     params.append("customParameters[SHOPPER_VAL_BASEIMP]", "0.00");
     params.append("customParameters[SHOPPER_VAL_IVA]", "0.00");
     params.append("customParameters[SHOPPER_VERSIONDF]", "2");
+
+    if (config.datafast.baseUrl.includes("test")) {
+      params.append("testMode", "EXTERNAL");
+    }
 
     try {
       const response = await axios.post(url, params.toString(), {

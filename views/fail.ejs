@@ -249,15 +249,17 @@
     </div>
 
     <h1>Payment<br>Failed</h1>
-    <p>Your payment could not be processed. Please check your details and try again.</p>
+    <p><%= locals.message || 'Your payment could not be processed. Please check your details and try again.' %></p>
 
-    <a href="#" class="btn">Try Again</a>
+    <div style="margin-bottom: 2rem;">
+      <a href="<%= locals.retryUrl || 'javascript:history.back();' %>" class="btn">Reintentar / Try Again</a>
+    </div>
 
     <div class="divider"></div>
 
     <div class="footer-note">
       <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-      Secured by <strong style="color: var(--text-primary); margin: 0 2px;">Stripe</strong> — PCI DSS Compliant
+      Secured by <strong style="color: var(--text-primary); margin: 0 2px;">Datafast</strong> — PCI DSS Compliant
     </div>
   </div>
 
