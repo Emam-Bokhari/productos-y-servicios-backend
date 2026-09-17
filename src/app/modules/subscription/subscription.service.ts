@@ -6,7 +6,6 @@ import ApiError from "../../../errors/ApiErrors";
 import { Subscription } from "./subscription.model";
 import { User } from "../user/user.model";
 import { Store } from "../store/store.model";
-import stripe from "../../../config/stripe";
 import QueryBuilder from "../../builder/queryBuilder";
 
 const getMySubscriptionsFromDB = async (userId: string) => {
@@ -254,18 +253,6 @@ const cancelSubscriptionFromDB = async (id: string, user: JwtPayload) => {
       StatusCodes.BAD_REQUEST,
       "Subscription is already canceled",
     );
-  }
-
-  // If legacy Stripe subscription exists, attempt cancel in Stripe
-  if (
-    subscription.stripeSubscriptionId &&
-    subscription.stripeSubscriptionId.startsWith("sub_")
-  ) {
-    try {
-      await stripe.subscriptions.cancel(subscription.stripeSubscriptionId);
-    } catch (error: any) {
-      // Ignore Stripe cancellation error when using Datafast or expired
-    }
   }
 
   // Update subscription locally

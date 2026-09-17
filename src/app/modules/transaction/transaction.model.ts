@@ -21,76 +21,31 @@ const transactionSchema = new Schema<ITransaction, TransactionModel>(
       required: true,
       index: true,
     },
-    driverId: {
-      type: Schema.Types.ObjectId,
-      ref: "Driver",
-      required: false,
-      index: true,
-    },
-    bookingId: {
-      type: Schema.Types.ObjectId,
-      ref: "Ride",
-      required: false,
-      index: true,
-    },
-    rideId: {
-      type: Schema.Types.ObjectId,
-      ref: "Ride",
-      required: false,
-      index: true,
-    },
-    walletId: {
-      type: Schema.Types.ObjectId,
-      ref: "Wallet",
-      required: false,
-      index: true,
-    },
     packageId: {
       type: Schema.Types.ObjectId,
       ref: "SubscriptionPackage",
       required: false,
       index: true,
     },
-    stripeCustomerId: {
+    storeId: {
+      type: Schema.Types.ObjectId,
+      ref: "Store",
+      required: false,
+      index: true,
+    },
+    customerId: {
       type: String,
       required: false,
     },
-    stripeCheckoutSessionId: {
+    checkoutSessionId: {
       type: String,
       required: false,
-    },
-    stripePaymentIntentId: {
-      type: String,
-      required: false,
-    },
-    stripeChargeId: {
-      type: String,
-      required: false,
-    },
-    stripeTransferId: {
-      type: String,
-      required: false,
-    },
-    stripePayoutId: {
-      type: String,
-      required: false,
-    },
-    stripeRefundId: {
-      type: String,
-      required: false,
+      index: true,
     },
     amount: {
       type: Number,
       required: true,
       min: 0,
-    },
-    totalFare: {
-      type: Number,
-      required: false,
-    },
-    commission: {
-      type: Number,
-      required: false,
     },
     fee: {
       type: Number,
@@ -107,6 +62,7 @@ const transactionSchema = new Schema<ITransaction, TransactionModel>(
     paymentMethod: {
       type: String,
       enum: Object.values(PAYMENT_METHOD),
+      default: PAYMENT_METHOD.DATAFAST,
       required: true,
     },
     paymentStatus: {
@@ -169,8 +125,8 @@ transactionSchema.plugin(softDeletePlugin);
 // Indexes for query performance
 transactionSchema.index({ createdAt: -1 });
 transactionSchema.index({ paymentStatus: 1, createdAt: -1 });
-transactionSchema.index({ stripePaymentIntentId: 1 }, { sparse: true });
-transactionSchema.index({ stripeCheckoutSessionId: 1 }, { sparse: true });
+transactionSchema.index({ checkoutSessionId: 1 }, { sparse: true });
+transactionSchema.index({ gatewayTransactionId: 1 }, { sparse: true });
 
 export const Transaction = model<ITransaction, TransactionModel>(
   "Transaction",

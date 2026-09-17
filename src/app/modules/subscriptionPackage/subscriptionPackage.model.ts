@@ -53,14 +53,6 @@ const subscriptionPackageSchema = new Schema<TSubscriptionPackage>(
       type: Number,
       default: 0,
     },
-    stripeProductId: {
-      type: String,
-      required: false,
-    },
-    stripePriceId: {
-      type: String,
-      required: false,
-    },
     features: {
       type: [String],
       default: [],

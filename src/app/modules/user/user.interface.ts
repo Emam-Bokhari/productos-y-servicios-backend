@@ -7,8 +7,6 @@ export type IUser = {
   role: USER_ROLES;
   email: string;
   profileImage?: string;
-  stripeConnectedAccountId?: string;
-  stripeCustomerId?: string;
   password?: string;
   verified: boolean;
   phone?: string;
@@ -42,7 +40,6 @@ export type IUser = {
     | "expired"
     | "none";
   subscriptionPackageId?: Types.ObjectId | string;
-  stripeSubscriptionId?: string;
   datafastRegistrationToken?: string;
   subscriptionExpiresAt?: Date;
   timezone?: string;

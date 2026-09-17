@@ -63,7 +63,7 @@ const getSuperAdminFromDB = async () => {
   const result = await User.findOne({
     role: USER_ROLES.SUPER_ADMIN,
   }).select(
-    "-password -authentication -deviceToken -stripeCustomerId -stripeConnectedAccountId",
+    "-password -authentication -deviceToken",
   );
 
   if (!result) {

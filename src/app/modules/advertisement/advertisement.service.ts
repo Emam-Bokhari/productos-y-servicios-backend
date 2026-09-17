@@ -18,6 +18,7 @@ import QueryBuilder from "../../builder/queryBuilder";
 import { Subscription } from "../subscription/subscription.model";
 import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
 import { Transaction } from "../transaction/transaction.model";
+import { PAYMENT_METHOD } from "../transaction/transaction.constant";
 import { DateTime } from "luxon";
 import { sendNotifications } from "../../../helpers/notificationsHelper";
 import { NOTIFICATION_TYPE } from "../notification/notification.constant";
@@ -366,138 +367,106 @@ const createAdvertisementToDB = async (
       );
     }
 
-    // Check active post subscription for this city
-    let activePostSub = await Subscription.findOne({
-      userId: sellerId,
-      packageType: "post_add",
-      status: { $in: ["active", "trialing"] },
-      cityConfigId: cityConfig._id,
-      expiresAt: { $gt: new Date() },
-    }).populate("packageId");
-
-    if (!activePostSub) {
-      // Check if they have ever had any post_add subscription in any city configuration
-      const hasHadPostSub = await Subscription.findOne({
-        userId: sellerId,
-        packageType: "post_add",
-      });
-
-      if (hasHadPostSub) {
-        throw new ApiError(
-          StatusCodes.PAYMENT_REQUIRED,
-          `You do not have an active post subscription for the city: ${cityConfig.city}. Please purchase a package first.`,
-        );
-      }
-
-      // Since they have never had any post_add subscription, they get a one-time free trial
-      const trialPackage = await SubscriptionPackage.findOne({
-        packageType: "post_add",
-        trialEnabled: true,
-        status: "active",
-      });
-
-      if (!trialPackage) {
-        throw new ApiError(
-          StatusCodes.BAD_REQUEST,
-          "No active trial package configured for advertisement posting.",
-        );
-      }
-
-      const trialDays = trialPackage.trialPeriodDays || 0;
-      if (trialDays <= 0) {
-        throw new ApiError(
-          StatusCodes.BAD_REQUEST,
-          "Trial period duration must be greater than 0 days.",
-        );
-      }
-
-      const expiresAt = DateTime.now().plus({ days: trialDays }).toJSDate();
-
-      // Create the trial subscription inside the transaction
-      const createdSubs = await Subscription.create(
-        [
-          {
-            userId: sellerId,
-            packageId: trialPackage._id,
-            packageType: "post_add",
-            status: "trialing",
-            expiresAt,
-            cityConfigId: cityConfig._id,
-            trxId: "trial_activated",
-          },
-        ],
-        { session },
-      );
-      activePostSub = createdSubs[0];
-      activePostSub.packageId = trialPackage as any;
-
-      await sendNotifications({
-        receiver: sellerId,
-        title: "Trial Subscription Activated",
-        text: `Your post advertisement free trial has been activated.`,
-        type: NOTIFICATION_TYPE.SUBSCRIPTION_UPDATE,
-        referenceId: activePostSub._id,
-        referenceModel: "Subscription",
-      });
-    }
-
-    const packageInfo = activePostSub.packageId as any;
-    const isTrial = activePostSub.status === "trialing";
-    const calculatedEndDate = new Date(startDate);
-
-    if (isTrial && packageInfo?.trialPeriodDays) {
-      calculatedEndDate.setDate(
-        calculatedEndDate.getDate() + packageInfo.trialPeriodDays,
-      );
-    } else if (packageInfo?.duration) {
-      switch (packageInfo.duration) {
-        case "seven_days":
-          calculatedEndDate.setDate(calculatedEndDate.getDate() + 7);
-          break;
-        case "one_month":
-          calculatedEndDate.setMonth(calculatedEndDate.getMonth() + 1);
-          break;
-        case "three_month":
-          calculatedEndDate.setMonth(calculatedEndDate.getMonth() + 3);
-          break;
-        case "six_month":
-          calculatedEndDate.setMonth(calculatedEndDate.getMonth() + 6);
-          break;
-        case "one_year":
-          calculatedEndDate.setFullYear(calculatedEndDate.getFullYear() + 1);
-          break;
-        default:
-          calculatedEndDate.setMonth(calculatedEndDate.getMonth() + 1);
-      }
-    } else {
-      calculatedEndDate.setMonth(calculatedEndDate.getMonth() + 1);
-    }
-
-    payload.endDate = calculatedEndDate;
-
     const totalSlots = cityConfig.featuredCapacity;
-
-    if (activePostSub.position && !payload.position) {
-      payload.position = activePostSub.position;
-    }
-
-    if (
-      activePostSub.position &&
-      payload.position &&
-      Number(payload.position) !== activePostSub.position
-    ) {
-      throw new ApiError(
-        StatusCodes.FORBIDDEN,
-        `Your advertisement subscription was purchased for Position ${activePostSub.position}. You cannot book Position ${payload.position}.`,
-      );
-    }
-
     const position = Number(payload.position);
     if (!position || isNaN(position) || position < 1 || position > totalSlots) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
         `Invalid position: ${payload.position}. Position must be between 1 and ${totalSlots}.`,
       );
+    }
+
+    const startDate = payload.startDate ? new Date(payload.startDate) : new Date();
+
+    // Look for a PAID transaction for this advertisement slot
+    const paidTransactions = await Transaction.find({
+      userId: sellerId,
+      paymentStatus: "PAID",
+      $or: [
+        {
+          "metadata.bookingType": "advertisement",
+          "metadata.cityConfigId": cityConfig._id.toString(),
+          "metadata.position": position,
+        },
+        {
+          "metadata.bookingType": "advertisement",
+          "metadata.cityConfigId": cityConfig._id.toString(),
+        },
+        {
+          "metadata.cityConfigId": cityConfig._id.toString(),
+          "metadata.position": position,
+        },
+        {
+          "metadata.cityConfigId": cityConfig._id.toString(),
+        },
+      ],
+    }).sort({ createdAt: -1 });
+
+    let validTx: any = null;
+    for (const tx of paidTransactions) {
+      const alreadyUsed = await Advertisement.findOne({
+        transactionId: tx._id,
+        status: ADVERTISEMENT_STATUS.ACTIVE,
+      });
+      if (!alreadyUsed) {
+        validTx = tx;
+        break;
+      }
+    }
+
+    // Check legacy post subscription if no direct transaction found
+    let legacyPostSub: any = null;
+    if (!validTx) {
+      legacyPostSub = await Subscription.findOne({
+        userId: sellerId,
+        packageType: "post_add",
+        status: { $in: ["active", "trialing"] },
+        cityConfigId: cityConfig._id,
+        expiresAt: { $gt: new Date() },
+      }).populate("packageId");
+    }
+
+    if (!validTx && !legacyPostSub) {
+      throw new ApiError(
+        StatusCodes.PAYMENT_REQUIRED,
+        `Payment required. Please purchase the advertisement slot for Position ${position} in ${cityConfig.city} before creating this campaign.`,
+      );
+    }
+
+    let calculatedEndDate: Date;
+    if (payload.endDate) {
+      calculatedEndDate = new Date(payload.endDate);
+    } else if (legacyPostSub?.packageId) {
+      const packageInfo = legacyPostSub.packageId as any;
+      calculatedEndDate = new Date(startDate);
+      if (legacyPostSub.status === "trialing" && packageInfo?.trialPeriodDays) {
+        calculatedEndDate.setDate(
+          calculatedEndDate.getDate() + packageInfo.trialPeriodDays,
+        );
+      } else {
+        switch (packageInfo.duration) {
+          case "seven_days":
+            calculatedEndDate.setDate(calculatedEndDate.getDate() + 7);
+            break;
+          case "one_month":
+            calculatedEndDate.setMonth(calculatedEndDate.getMonth() + 1);
+            break;
+          case "three_month":
+            calculatedEndDate.setMonth(calculatedEndDate.getMonth() + 3);
+            break;
+          case "six_month":
+            calculatedEndDate.setMonth(calculatedEndDate.getMonth() + 6);
+            break;
+          case "one_year":
+            calculatedEndDate.setFullYear(calculatedEndDate.getFullYear() + 1);
+            break;
+          default:
+            calculatedEndDate.setDate(calculatedEndDate.getDate() + 7);
+        }
+      }
+    } else {
+      calculatedEndDate = new Date(startDate);
+      calculatedEndDate.setDate(calculatedEndDate.getDate() + 7);
     }
 
     // Check if the requested position is already booked inside the session transaction
@@ -519,12 +488,18 @@ const createAdvertisementToDB = async (
     const positionPricingObj = (cityConfig.featuredPositionPricing || []).find(
       (p) => p.position === position,
     );
-    const resolvedPrice = positionPricingObj
-      ? positionPricingObj.price
-      : packageInfo?.price || 0;
+    const resolvedPrice =
+      validTx?.amount ??
+      (positionPricingObj
+        ? positionPricingObj.price
+        : legacyPostSub?.packageId?.price || 0);
+
+    const isTrial = legacyPostSub?.status === "trialing";
 
     // Auto-populate coordinate and location details from the trusted backend config (preventing location spoofing)
     payload.position = position;
+    payload.startDate = startDate;
+    payload.endDate = calculatedEndDate;
     payload.sellerId = new Types.ObjectId(sellerId);
     payload.storeId = store._id as Types.ObjectId;
     payload.country = cityConfig.country;
@@ -534,6 +509,9 @@ const createAdvertisementToDB = async (
     payload.longitude = cityConfig.longitude;
     payload.status = ADVERTISEMENT_STATUS.ACTIVE;
     payload.price = isTrial ? 0 : resolvedPrice;
+    if (validTx) {
+      payload.transactionId = validTx._id;
+    }
 
     const [newAd] = await Advertisement.create([payload], { session });
 
@@ -803,9 +781,9 @@ const getUserAdvertisementsFromDB = async (
       const a =
         Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.cos(lat1 * (Math.PI / 180)) *
-          Math.cos(lat2 * (Math.PI / 180)) *
-          Math.sin(dLon / 2) *
-          Math.sin(dLon / 2);
+        Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     };
@@ -1015,7 +993,7 @@ const getAdvertisementPaymentsFromDB = async (
 
     baseFilter.$or = [
       { trxId: { $regex: searchRegex } },
-      { stripeSessionId: { $regex: searchRegex } },
+      { checkoutSessionId: { $regex: searchRegex } },
       { userId: { $in: combinedUserIds } },
       { cityConfigId: { $in: cityIds } },
       { packageId: { $in: packageIds } },
@@ -1085,40 +1063,39 @@ const getAdvertisementPaymentsFromDB = async (
     ...new Set(subscriptions.map((s: any) => s.trxId).filter(Boolean)),
   ];
   const sessionIds = [
-    ...new Set(subscriptions.map((s: any) => s.stripeSessionId).filter(Boolean)),
+    ...new Set(subscriptions.map((s: any) => s.checkoutSessionId).filter(Boolean)),
   ];
 
   const txConditions: any[] = [];
   if (trxIds.length > 0) {
-    txConditions.push({ stripePaymentIntentId: { $in: trxIds } });
     txConditions.push({ gatewayTransactionId: { $in: trxIds } });
   }
   if (sessionIds.length > 0) {
-    txConditions.push({ stripeCheckoutSessionId: { $in: sessionIds } });
+    txConditions.push({ checkoutSessionId: { $in: sessionIds } });
   }
 
   const [stores, ads, transactions] = await Promise.all([
     sellerIds.length > 0
       ? Store.find({ owner: { $in: sellerIds } })
-          .select(
-            "displayName logo storeType phone email address streetAddress owner",
-          )
-          .lean()
+        .select(
+          "displayName logo storeType phone email address streetAddress owner",
+        )
+        .lean()
       : [],
     sellerIds.length > 0
       ? Advertisement.find({
-          sellerId: { $in: sellerIds },
-          isDeleted: { $ne: true },
-        })
-          .sort({ createdAt: -1 })
-          .lean()
+        sellerId: { $in: sellerIds },
+        isDeleted: { $ne: true },
+      })
+        .sort({ createdAt: -1 })
+        .lean()
       : [],
     txConditions.length > 0
       ? Transaction.find({ $or: txConditions })
-          .select(
-            "transactionId paymentMethod paymentStatus amount createdAt stripePaymentIntentId gatewayTransactionId stripeCheckoutSessionId",
-          )
-          .lean()
+        .select(
+          "transactionId paymentMethod paymentStatus amount createdAt gatewayTransactionId checkoutSessionId",
+        )
+        .lean()
       : [],
   ]);
 
@@ -1141,9 +1118,8 @@ const getAdvertisementPaymentsFromDB = async (
   const txMap = new Map<string, any>();
   for (const tx of transactions) {
     const txObj = tx as any;
-    if (txObj.stripePaymentIntentId) txMap.set(txObj.stripePaymentIntentId, txObj);
     if (txObj.gatewayTransactionId) txMap.set(txObj.gatewayTransactionId, txObj);
-    if (txObj.stripeCheckoutSessionId) txMap.set(txObj.stripeCheckoutSessionId, txObj);
+    if (txObj.checkoutSessionId) txMap.set(txObj.checkoutSessionId, txObj);
   }
 
   // Synchronously enrich each subscription record in memory
@@ -1180,8 +1156,8 @@ const getAdvertisementPaymentsFromDB = async (
     let transaction = null;
     if (sub.trxId && txMap.has(sub.trxId)) {
       transaction = txMap.get(sub.trxId);
-    } else if (sub.stripeSessionId && txMap.has(sub.stripeSessionId)) {
-      transaction = txMap.get(sub.stripeSessionId);
+    } else if (sub.checkoutSessionId && txMap.has(sub.checkoutSessionId)) {
+      transaction = txMap.get(sub.checkoutSessionId);
     }
 
     // Calculate days remaining & expiry
@@ -1202,7 +1178,7 @@ const getAdvertisementPaymentsFromDB = async (
       typeof subObj.amountPaid === "number"
         ? subObj.amountPaid
         : transaction?.amount ||
-          (subObj.status === "trialing" ? 0 : pkg?.price || 0);
+        (subObj.status === "trialing" ? 0 : pkg?.price || 0);
 
     const invoiceNumber =
       transaction?.transactionId || subObj.invoiceNumber || null;
@@ -1219,7 +1195,7 @@ const getAdvertisementPaymentsFromDB = async (
         ? `/api/v1/invoices/download/${subObj._id}`
         : null;
 
-    let paymentMethod = "Online";
+    let paymentMethod: string = PAYMENT_METHOD.DATAFAST;
     if (transaction?.paymentMethod) {
       paymentMethod = transaction.paymentMethod;
     } else if (subObj.status === "trialing") {
@@ -1235,46 +1211,46 @@ const getAdvertisementPaymentsFromDB = async (
       subscriptionId: subObj._id,
       seller: seller
         ? {
-            id: seller._id,
-            name: seller.name,
-            email: seller.email,
-            phone: seller.phone || null,
-            profileImage: seller.profileImage || null,
-          }
+          id: seller._id,
+          name: seller.name,
+          email: seller.email,
+          phone: seller.phone || null,
+          profileImage: seller.profileImage || null,
+        }
         : null,
       store: store
         ? {
-            id: store._id,
-            displayName: store.displayName || null,
-            logo: store.logo || null,
-            storeType: store.storeType || null,
-            phone: store.phone || null,
-            email: store.email || null,
-          }
+          id: store._id,
+          displayName: store.displayName || null,
+          logo: store.logo || null,
+          storeType: store.storeType || null,
+          phone: store.phone || null,
+          email: store.email || null,
+        }
         : null,
       city: cityConfig
         ? {
-            id: cityConfig._id,
-            name: cityConfig.city,
-            country: cityConfig.country,
-            countryCode: cityConfig.countryCode,
-            latitude: cityConfig.latitude,
-            longitude: cityConfig.longitude,
-          }
+          id: cityConfig._id,
+          name: cityConfig.city,
+          country: cityConfig.country,
+          countryCode: cityConfig.countryCode,
+          latitude: cityConfig.latitude,
+          longitude: cityConfig.longitude,
+        }
         : ad
           ? {
-              id: ad.cityAdConfigId,
-              name: ad.city,
-              country: ad.country,
-              countryCode: ad.countryCode,
-              latitude: ad.latitude,
-              longitude: ad.longitude,
-            }
+            id: ad.cityAdConfigId,
+            name: ad.city,
+            country: ad.country,
+            countryCode: ad.countryCode,
+            latitude: ad.latitude,
+            longitude: ad.longitude,
+          }
           : null,
       position,
       amountPaid,
       trxId: subObj.trxId || null,
-      stripeSessionId: subObj.stripeSessionId || null,
+      checkoutSessionId: subObj.checkoutSessionId || null,
       invoiceNumber,
       invoiceUrl,
       invoiceDownloadUrl,
@@ -1285,11 +1261,11 @@ const getAdvertisementPaymentsFromDB = async (
         subObj.status === "trialing" || subObj.trxId === "trial_activated",
       package: pkg
         ? {
-            id: pkg._id,
-            name: pkg.name,
-            duration: pkg.duration,
-            price: pkg.price,
-          }
+          id: pkg._id,
+          name: pkg.name,
+          duration: pkg.duration,
+          price: pkg.price,
+        }
         : null,
       subscription: {
         status: subObj.status,
@@ -1299,14 +1275,14 @@ const getAdvertisementPaymentsFromDB = async (
       },
       advertisement: ad
         ? {
-            id: ad._id,
-            campaignName: ad.campaignName,
-            featuredImage: ad.featuredImage || null,
-            status: ad.status,
-            startDate: ad.startDate,
-            endDate: ad.endDate,
-            price: ad.price,
-          }
+          id: ad._id,
+          campaignName: ad.campaignName,
+          featuredImage: ad.featuredImage || null,
+          status: ad.status,
+          startDate: ad.startDate,
+          endDate: ad.endDate,
+          price: ad.price,
+        }
         : null,
       isAdSubmitted: Boolean(ad),
     };
@@ -1369,8 +1345,8 @@ const getSingleAdvertisementPaymentFromDB = async (
 
   const store = seller?._id
     ? await Store.findOne({ owner: seller._id }).select(
-        "displayName logo storeType phone email address streetAddress",
-      )
+      "displayName logo storeType phone email address streetAddress",
+    )
     : null;
 
   const adQuery: Record<string, any> = {
@@ -1387,14 +1363,13 @@ const getSingleAdvertisementPaymentFromDB = async (
   const ad = await Advertisement.findOne(adQuery).sort({ createdAt: -1 });
 
   let transaction = null;
-  if (sub.trxId || sub.stripeSessionId) {
+  if (sub.trxId || sub.checkoutSessionId) {
     const txQueries: any[] = [];
     if (sub.trxId) {
-      txQueries.push({ stripePaymentIntentId: sub.trxId });
       txQueries.push({ gatewayTransactionId: sub.trxId });
     }
-    if (sub.stripeSessionId) {
-      txQueries.push({ stripeCheckoutSessionId: sub.stripeSessionId });
+    if (sub.checkoutSessionId) {
+      txQueries.push({ checkoutSessionId: sub.checkoutSessionId });
     }
     if (txQueries.length > 0) {
       transaction = await Transaction.findOne({ $or: txQueries }).select(
@@ -1417,7 +1392,7 @@ const getSingleAdvertisementPaymentFromDB = async (
     typeof subObj.amountPaid === "number"
       ? subObj.amountPaid
       : transaction?.amount ||
-        (subObj.status === "trialing" ? 0 : pkg?.price || 0);
+      (subObj.status === "trialing" ? 0 : pkg?.price || 0);
 
   const invoiceNumber = transaction?.transactionId || subObj.invoiceNumber || null;
   const safeInvoice = invoiceNumber ? invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_") : null;
@@ -1428,7 +1403,7 @@ const getSingleAdvertisementPaymentFromDB = async (
       ? `/api/v1/invoices/download/${subObj._id}`
       : null;
 
-  let paymentMethod = "Online";
+  let paymentMethod: string = PAYMENT_METHOD.DATAFAST;
   if (transaction?.paymentMethod) {
     paymentMethod = transaction.paymentMethod;
   } else if (subObj.status === "trialing") {
@@ -1444,47 +1419,47 @@ const getSingleAdvertisementPaymentFromDB = async (
     subscriptionId: subObj._id,
     seller: seller
       ? {
-          id: seller._id,
-          name: seller.name,
-          email: seller.email,
-          phone: seller.phone || null,
-          profileImage: seller.profileImage || null,
-        }
+        id: seller._id,
+        name: seller.name,
+        email: seller.email,
+        phone: seller.phone || null,
+        profileImage: seller.profileImage || null,
+      }
       : null,
     store: store
       ? {
-          id: store._id,
-          displayName: store.displayName || null,
-          logo: store.logo || null,
-          storeType: store.storeType || null,
-          phone: store.phone || null,
-          email: store.email || null,
-          address: store.streetAddress || null,
-        }
+        id: store._id,
+        displayName: store.displayName || null,
+        logo: store.logo || null,
+        storeType: store.storeType || null,
+        phone: store.phone || null,
+        email: store.email || null,
+        address: store.streetAddress || null,
+      }
       : null,
     city: cityConfig
       ? {
-          id: cityConfig._id,
-          name: cityConfig.city,
-          country: cityConfig.country,
-          countryCode: cityConfig.countryCode,
-          latitude: cityConfig.latitude,
-          longitude: cityConfig.longitude,
-        }
+        id: cityConfig._id,
+        name: cityConfig.city,
+        country: cityConfig.country,
+        countryCode: cityConfig.countryCode,
+        latitude: cityConfig.latitude,
+        longitude: cityConfig.longitude,
+      }
       : ad
         ? {
-            id: ad.cityAdConfigId,
-            name: ad.city,
-            country: ad.country,
-            countryCode: ad.countryCode,
-            latitude: ad.latitude,
-            longitude: ad.longitude,
-          }
+          id: ad.cityAdConfigId,
+          name: ad.city,
+          country: ad.country,
+          countryCode: ad.countryCode,
+          latitude: ad.latitude,
+          longitude: ad.longitude,
+        }
         : null,
     position,
     amountPaid,
     trxId: subObj.trxId || null,
-    stripeSessionId: subObj.stripeSessionId || null,
+    checkoutSessionId: subObj.checkoutSessionId || null,
     invoiceNumber,
     invoiceUrl,
     invoiceDownloadUrl,
@@ -1495,11 +1470,11 @@ const getSingleAdvertisementPaymentFromDB = async (
       subObj.status === "trialing" || subObj.trxId === "trial_activated",
     package: pkg
       ? {
-          id: pkg._id,
-          name: pkg.name,
-          duration: pkg.duration,
-          price: pkg.price,
-        }
+        id: pkg._id,
+        name: pkg.name,
+        duration: pkg.duration,
+        price: pkg.price,
+      }
       : null,
     subscription: {
       status: subObj.status,
@@ -1509,14 +1484,14 @@ const getSingleAdvertisementPaymentFromDB = async (
     },
     advertisement: ad
       ? {
-          id: ad._id,
-          campaignName: ad.campaignName,
-          featuredImage: ad.featuredImage || null,
-          status: ad.status,
-          startDate: ad.startDate,
-          endDate: ad.endDate,
-          price: ad.price,
-        }
+        id: ad._id,
+        campaignName: ad.campaignName,
+        featuredImage: ad.featuredImage || null,
+        status: ad.status,
+        startDate: ad.startDate,
+        endDate: ad.endDate,
+        price: ad.price,
+      }
       : null,
     isAdSubmitted: Boolean(ad),
   };

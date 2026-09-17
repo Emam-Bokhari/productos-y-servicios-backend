@@ -7,7 +7,6 @@ import path from "path";
 import swaggerUi from "swagger-ui-express";
 import yaml from "yamljs";
 import router from "./app/routes";
-import { StripeControllers } from "./app/modules/stripe/stripe.controller";
 import { requestContextMiddleware } from "./app/middlewares/requestContextMiddleware";
 
 const app: Application = express();
@@ -37,16 +36,6 @@ app.use(
   }),
 );
 
-// Stripe Webhook Endpoint (Needs raw body parser BEFORE express.json())
-app.post(
-  "/api/v1/stripe/webhook",
-  express.raw({ type: "application/json" }),
-  (req, res, next) => {
-    (req as any).rawBody = req.body;
-    next();
-  },
-  StripeControllers.handleWebhook,
-);
 
 app.use(
   express.json({

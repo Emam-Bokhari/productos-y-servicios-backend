@@ -8,6 +8,11 @@ import { sendNotifications } from "../helpers/notificationsHelper";
 import { NOTIFICATION_TYPE } from "../app/modules/notification/notification.constant";
 import { logger } from "../shared/logger";
 import { invoiceService } from "../app/modules/invoice/invoice.service";
+import { Advertisement } from "../app/modules/advertisement/advertisement.model";
+import {
+  PAYMENT_METHOD,
+  TRANSACTION_TYPE,
+} from "../app/modules/transaction/transaction.constant";
 
 /**
  * Execute renewal check for all due store_creation subscriptions
@@ -32,7 +37,7 @@ export const runSubscriptionRenewalCheck = async (): Promise<{
   for (const sub of dueSubscriptions) {
     const pkg = sub.packageId as any;
     const user = sub.userId as any;
-    const token = sub.datafastRegistrationToken || sub.stripeSubscriptionId;
+    const token = sub.datafastRegistrationToken;
 
     if (!pkg || !user) {
       logger.warn(
@@ -101,10 +106,10 @@ export const runSubscriptionRenewalCheck = async (): Promise<{
           userId: user._id,
           packageId: pkg._id,
           amount: Number(result.amount) || pkg.price,
-          paymentMethod: "ONLINE",
+          paymentMethod: PAYMENT_METHOD.DATAFAST,
           paymentStatus: "PAID",
-          transactionType: "booking_payment",
-          stripeCustomerId: token,
+          transactionType: TRANSACTION_TYPE.SUBSCRIPTION_RENEWAL,
+          customerId: token,
           gatewayTransactionId: result.id,
           gatewayResponse: result,
           invoiceUrl,
@@ -180,12 +185,21 @@ export const runSubscriptionRenewalCheck = async (): Promise<{
     { $set: { status: "expired" } },
   );
 
-  // Expire past-due post_add subscriptions
+  // Expire past-due post_add subscriptions (legacy)
   await Subscription.updateMany(
     {
       packageType: "post_add",
       status: "active",
       expiresAt: { $lte: today },
+    },
+    { $set: { status: "expired" } },
+  );
+
+  // Expire past-due active advertisements
+  await Advertisement.updateMany(
+    {
+      status: "active",
+      endDate: { $lte: today },
     },
     { $set: { status: "expired" } },
   );

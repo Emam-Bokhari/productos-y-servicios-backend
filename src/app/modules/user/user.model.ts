@@ -95,14 +95,6 @@ const userSchema = new Schema<IUser, IUserModel>(
         default: "",
       },
     },
-    stripeConnectedAccountId: {
-      type: String,
-      required: false,
-    },
-    stripeCustomerId: {
-      type: String,
-      required: false,
-    },
     authentication: {
       type: {
         isResetPassword: {
@@ -152,10 +144,6 @@ const userSchema = new Schema<IUser, IUserModel>(
     subscriptionPackageId: {
       type: Schema.Types.ObjectId,
       ref: "SubscriptionPackage",
-      required: false,
-    },
-    stripeSubscriptionId: {
-      type: String,
       required: false,
     },
     datafastRegistrationToken: {

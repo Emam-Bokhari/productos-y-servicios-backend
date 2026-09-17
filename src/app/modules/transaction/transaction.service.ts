@@ -1,14 +1,17 @@
 import mongoose, { ClientSession, Types } from "mongoose";
 import { ITransaction } from "./transaction.interface";
 import { Transaction } from "./transaction.model";
-import { TRANSACTION_TYPE, PAYMENT_STATUS } from "./transaction.constant";
+import {
+  TRANSACTION_TYPE,
+  PAYMENT_STATUS,
+  PAYMENT_METHOD,
+} from "./transaction.constant";
 import { User } from "../user/user.model";
 import { getDayRangeInTimezone } from "../../../shared/timezoneHelper";
 import { DateTime } from "luxon";
 import { Store } from "../store/store.model";
 import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
 import { Subscription } from "../subscription/subscription.model";
-import StripeService from "../stripe/stripe.service";
 import datafastService from "../datafast/datafast.service";
 import ApiError from "../../../errors/ApiErrors";
 import { StatusCodes } from "http-status-codes";
@@ -45,134 +48,63 @@ const getTransactionsByUser = async (
     userRole = user?.role || "user";
   }
 
-  // Build the base query for User/Seller role
+  // Build the base query for User/Seller
   const query: any = {
+    userId: userObjectId,
     paymentStatus: { $in: [PAYMENT_STATUS.PAID, PAYMENT_STATUS.REFUNDED] },
   };
 
-  if (userRole === "seller") {
-    query.$or = [{ userId: userObjectId }, { driverId: userObjectId }];
-  } else {
-    // Default to "user" logic where transactions belong directly to the user
-    query.userId = userObjectId;
-  }
-
-  // Handle case-insensitive and variant filter values
+  // Handle filter values
   let normalizedFilter = "all";
   if (filter) {
     const f = filter.toLowerCase();
     if (
+      f === "refund" ||
       f === "add_money" ||
       f === "add-money" ||
       f === "addmoney" ||
-      f === "add" ||
-      f === "add money"
+      f === "add"
     ) {
-      normalizedFilter = "add_money";
-    } else if (f === "spend") {
+      normalizedFilter = "refund";
+    } else if (f === "spend" || f === "payment") {
       normalizedFilter = "spend";
+    } else if (f === "subscription" || f === "subscription_payment") {
+      normalizedFilter = "subscription";
+    } else if (f === "advertisement" || f === "advertisement_payment") {
+      normalizedFilter = "advertisement";
     }
   }
 
-  if (userRole === "seller") {
-    if (normalizedFilter === "add_money") {
-      query.transactionType = {
-        $in: [
-          TRANSACTION_TYPE.BOOKING_PAYMENT,
-          TRANSACTION_TYPE.CANCELLATION_COMPENSATION,
-          TRANSACTION_TYPE.DRIVER_APPRECIATION,
-          TRANSACTION_TYPE.WALLET_TOPUP,
-          TRANSACTION_TYPE.REFUND,
-          TRANSACTION_TYPE.LOST_FOUND_DELIVERY,
-          TRANSACTION_TYPE.DRIVER_REFERRAL_REWARD,
-          TRANSACTION_TYPE.USER_REFERRAL_REWARD,
-        ],
-      };
-    } else if (normalizedFilter === "spend") {
-      query.transactionType = {
-        $in: [TRANSACTION_TYPE.PAYOUT],
-      };
-    } else {
-      // "all"
-      query.transactionType = {
-        $in: [
-          TRANSACTION_TYPE.BOOKING_PAYMENT,
-          TRANSACTION_TYPE.CANCELLATION_COMPENSATION,
-          TRANSACTION_TYPE.DRIVER_APPRECIATION,
-          TRANSACTION_TYPE.WALLET_TOPUP,
-          TRANSACTION_TYPE.REFUND,
-          TRANSACTION_TYPE.PAYOUT,
-          TRANSACTION_TYPE.LOST_FOUND_DELIVERY,
-          TRANSACTION_TYPE.DRIVER_REFERRAL_REWARD,
-          TRANSACTION_TYPE.USER_REFERRAL_REWARD,
-        ],
-      };
-    }
-  } else {
-    // Default to "user" logic
-    if (normalizedFilter === "add_money") {
-      query.transactionType = {
-        $in: [
-          TRANSACTION_TYPE.WALLET_TOPUP,
-          TRANSACTION_TYPE.USER_REFERRAL_REWARD,
-        ],
-      };
-    } else if (normalizedFilter === "spend") {
-      query.transactionType = {
-        $in: [
-          TRANSACTION_TYPE.BOOKING_PAYMENT,
-          TRANSACTION_TYPE.CANCELLATION_FEE,
-          TRANSACTION_TYPE.DRIVER_APPRECIATION,
-          TRANSACTION_TYPE.LOST_FOUND_DELIVERY,
-        ],
-      };
-    } else {
-      // "all"
-      query.transactionType = {
-        $in: [
-          TRANSACTION_TYPE.WALLET_TOPUP,
-          TRANSACTION_TYPE.BOOKING_PAYMENT,
-          TRANSACTION_TYPE.CANCELLATION_FEE,
-          TRANSACTION_TYPE.DRIVER_APPRECIATION,
-          TRANSACTION_TYPE.LOST_FOUND_DELIVERY,
-          TRANSACTION_TYPE.USER_REFERRAL_REWARD,
-        ],
-      };
-    }
+  if (normalizedFilter === "refund") {
+    query.transactionType = TRANSACTION_TYPE.REFUND;
+  } else if (normalizedFilter === "subscription") {
+    query.transactionType = {
+      $in: [
+        TRANSACTION_TYPE.SUBSCRIPTION_PAYMENT,
+        TRANSACTION_TYPE.SUBSCRIPTION_RENEWAL,
+      ],
+    };
+  } else if (normalizedFilter === "advertisement") {
+    query.transactionType = TRANSACTION_TYPE.ADVERTISEMENT_PAYMENT;
+  } else if (normalizedFilter === "spend") {
+    query.transactionType = {
+      $in: [
+        TRANSACTION_TYPE.SUBSCRIPTION_PAYMENT,
+        TRANSACTION_TYPE.ADVERTISEMENT_PAYMENT,
+        TRANSACTION_TYPE.SUBSCRIPTION_RENEWAL,
+      ],
+    };
   }
 
   const transactions = await Transaction.find(query)
     .sort({ createdAt: -1 })
-    .populate("userId bookingId rideId");
+    .populate("userId", "name email")
+    .populate("packageId", "name");
 
   return transactions.map((tx) => {
     const txObj = tx.toObject();
-    let flowType = "spend"; // default fallback
-
     const txType = txObj.transactionType;
-
-    if (
-      txType === TRANSACTION_TYPE.WALLET_TOPUP ||
-      txType === TRANSACTION_TYPE.REFUND ||
-      txType === TRANSACTION_TYPE.CANCELLATION_COMPENSATION ||
-      txType === TRANSACTION_TYPE.USER_REFERRAL_REWARD ||
-      txType === TRANSACTION_TYPE.DRIVER_REFERRAL_REWARD
-    ) {
-      flowType = "add_money";
-    } else if (txType === TRANSACTION_TYPE.PAYOUT) {
-      flowType = "spend";
-    } else if (
-      txType === TRANSACTION_TYPE.BOOKING_PAYMENT ||
-      txType === TRANSACTION_TYPE.DRIVER_APPRECIATION ||
-      txType === TRANSACTION_TYPE.CANCELLATION_FEE ||
-      txType === TRANSACTION_TYPE.LOST_FOUND_DELIVERY
-    ) {
-      if (userRole === "seller") {
-        flowType = "add_money";
-      } else {
-        flowType = "spend";
-      }
-    }
+    const flowType = txType === TRANSACTION_TYPE.REFUND ? "add_money" : "spend";
 
     const safeInvoice = txObj.transactionId
       ? txObj.transactionId.replace(/[^a-zA-Z0-9_-]/g, "_")
@@ -221,13 +153,8 @@ const getTransactions = async (
     userTimezone = user.timezone;
   }
 
-  // 1. Role-based matching logic
-  if (role === "seller") {
-    matchQuery.$or = [{ userId: userObjectId }, { driverId: userObjectId }];
-  } else {
-    // Default to user/passenger
-    matchQuery.userId = userObjectId;
-  }
+  // 1. User matching logic
+  matchQuery.userId = userObjectId;
 
   // 2. Status filter
   if (queryOptions.status) {
@@ -242,60 +169,25 @@ const getTransactions = async (
   const rawFilter = queryOptions.filter || "all";
   const filter = rawFilter.toLowerCase();
 
-  if (role === "seller") {
-    if (filter === "ride_payment") {
-      matchQuery.transactionType = TRANSACTION_TYPE.BOOKING_PAYMENT;
-    } else if (filter === "withdrawal") {
-      matchQuery.transactionType = TRANSACTION_TYPE.PAYOUT;
-    } else if (filter === "refund") {
-      matchQuery.transactionType = TRANSACTION_TYPE.REFUND;
-    } else if (filter === "bonus") {
-      matchQuery.transactionType = TRANSACTION_TYPE.DRIVER_APPRECIATION;
-    } else if (filter === "adjustment") {
-      matchQuery.transactionType = TRANSACTION_TYPE.CANCELLATION_COMPENSATION;
-    } else if (filter === "lost_found" || filter === "lost_found_delivery") {
-      matchQuery.transactionType = TRANSACTION_TYPE.LOST_FOUND_DELIVERY;
-    } else {
-      // 'all'
-      matchQuery.transactionType = {
-        $in: [
-          TRANSACTION_TYPE.BOOKING_PAYMENT,
-          TRANSACTION_TYPE.CANCELLATION_COMPENSATION,
-          TRANSACTION_TYPE.DRIVER_APPRECIATION,
-          TRANSACTION_TYPE.WALLET_TOPUP,
-          TRANSACTION_TYPE.REFUND,
-          TRANSACTION_TYPE.PAYOUT,
-          TRANSACTION_TYPE.LOST_FOUND_DELIVERY,
-        ],
-      };
-    }
-  } else {
-    // Passenger (User)
-    if (filter === "spend") {
-      matchQuery.transactionType = {
-        $in: [
-          TRANSACTION_TYPE.BOOKING_PAYMENT,
-          TRANSACTION_TYPE.CANCELLATION_FEE,
-          TRANSACTION_TYPE.DRIVER_APPRECIATION,
-          TRANSACTION_TYPE.LOST_FOUND_DELIVERY,
-        ],
-      };
-    } else if (filter === "add_money") {
-      matchQuery.transactionType = {
-        $in: [TRANSACTION_TYPE.WALLET_TOPUP, TRANSACTION_TYPE.REFUND],
-      };
-    } else {
-      // 'all'
-      matchQuery.transactionType = {
-        $in: [
-          TRANSACTION_TYPE.WALLET_TOPUP,
-          TRANSACTION_TYPE.BOOKING_PAYMENT,
-          TRANSACTION_TYPE.CANCELLATION_FEE,
-          TRANSACTION_TYPE.DRIVER_APPRECIATION,
-          TRANSACTION_TYPE.LOST_FOUND_DELIVERY,
-        ],
-      };
-    }
+  if (filter === "subscription" || filter === "subscription_payment") {
+    matchQuery.transactionType = {
+      $in: [
+        TRANSACTION_TYPE.SUBSCRIPTION_PAYMENT,
+        TRANSACTION_TYPE.SUBSCRIPTION_RENEWAL,
+      ],
+    };
+  } else if (filter === "advertisement" || filter === "advertisement_payment") {
+    matchQuery.transactionType = TRANSACTION_TYPE.ADVERTISEMENT_PAYMENT;
+  } else if (filter === "refund" || filter === "add_money") {
+    matchQuery.transactionType = TRANSACTION_TYPE.REFUND;
+  } else if (filter === "spend") {
+    matchQuery.transactionType = {
+      $in: [
+        TRANSACTION_TYPE.SUBSCRIPTION_PAYMENT,
+        TRANSACTION_TYPE.ADVERTISEMENT_PAYMENT,
+        TRANSACTION_TYPE.SUBSCRIPTION_RENEWAL,
+      ],
+    };
   }
 
   // 4. Date Range
@@ -320,23 +212,7 @@ const getTransactions = async (
     const orConditions: any[] = [{ transactionId: searchRegex }];
 
     if (Types.ObjectId.isValid(queryOptions.search)) {
-      const searchObjectId = new Types.ObjectId(queryOptions.search);
-      orConditions.push(
-        { _id: searchObjectId },
-        { rideId: searchObjectId },
-        { bookingId: searchObjectId },
-      );
-    }
-
-    // Search by User/Passenger Name or Driver Name
-    const matchingUsers = await User.find({ name: searchRegex }).select("_id");
-    const matchingUserIds = matchingUsers.map((u) => u._id);
-
-    if (matchingUserIds.length > 0) {
-      orConditions.push(
-        { userId: { $in: matchingUserIds } },
-        { driverId: { $in: matchingUserIds } },
-      );
+      orConditions.push({ _id: new Types.ObjectId(queryOptions.search) });
     }
 
     matchQuery.$and = matchQuery.$and || [];
@@ -359,20 +235,8 @@ const getTransactions = async (
       .sort(sort)
       .skip(skip)
       .limit(limit)
-      .populate({
-        path: "rideId",
-        populate: {
-          path: "userId",
-          select: "name",
-        },
-      })
-      .populate({
-        path: "bookingId",
-        populate: {
-          path: "userId",
-          select: "name",
-        },
-      }),
+      .populate("userId", "name email")
+      .populate("packageId", "name price duration"),
   ]);
 
   const totalPages = Math.ceil(total / limit);
@@ -382,8 +246,6 @@ const getTransactions = async (
   // Map transactions to standardized structure
   const data = transactions.map((tx) => {
     const txObj = tx.toObject ? tx.toObject() : tx;
-    const ridePopulated = txObj.rideId as any;
-    const bookingPopulated = txObj.bookingId as any;
     const id = txObj._id;
     const transactionId = txObj.transactionId;
     const createdAt = txObj.createdAt;
@@ -405,204 +267,87 @@ const getTransactions = async (
       status = "refunded";
     }
 
-    if (role === "seller") {
-      let amount = txObj.amount;
-      let transactionType = "RIDE_PAYMENT";
-      let title = "Ride Payment";
-      let icon = "car";
-      let displayColor = "green";
+    let amount = txObj.amount;
+    let transactionType: string = txObj.transactionType;
+    let title = "Transaction";
+    let icon = "credit-card";
+    let displayColor = "emerald";
+    let type = "SPEND";
 
-      const txType = txObj.transactionType;
+    const txType = txObj.transactionType;
 
-      let passengerName = "Passenger";
-      if (
-        ridePopulated &&
-        ridePopulated.userId &&
-        typeof ridePopulated.userId === "object"
-      ) {
-        passengerName = ridePopulated.userId.name || "Passenger";
-      } else if (
-        bookingPopulated &&
-        bookingPopulated.userId &&
-        typeof bookingPopulated.userId === "object"
-      ) {
-        passengerName = bookingPopulated.userId.name || "Passenger";
-      }
-
-      if (txType === TRANSACTION_TYPE.BOOKING_PAYMENT) {
-        transactionType = "RIDE_PAYMENT";
-        title = `Payment from ${passengerName}`;
-        icon = "car";
-        displayColor = "green";
-        amount = txObj.amount;
-      } else if (txType === TRANSACTION_TYPE.PAYOUT) {
-        transactionType = "WITHDRAWAL";
-        title = "Stripe Payout";
-        icon = "arrow-up-right";
-        displayColor = "red";
-        amount = -txObj.amount;
-      } else if (txType === TRANSACTION_TYPE.REFUND) {
-        transactionType = "REFUND";
-        title = `Refund to ${passengerName}`;
-        icon = "arrow-down-left";
-        displayColor = "green";
-        amount = txObj.amount;
-      } else if (txType === TRANSACTION_TYPE.DRIVER_APPRECIATION) {
-        transactionType = "BONUS";
-        title = `Bonus Tip from ${passengerName}`;
-        icon = "gift";
-        displayColor = "green";
-        amount = txObj.amount;
-      } else if (txType === TRANSACTION_TYPE.CANCELLATION_COMPENSATION) {
-        transactionType = "ADJUSTMENT";
-        title = "Cancellation Compensation";
-        icon = "shield-alert";
-        displayColor = "green";
-        amount = txObj.amount;
-      } else if (txType === TRANSACTION_TYPE.WALLET_TOPUP) {
-        transactionType = "TOPUP";
-        title = "Wallet Top-up";
-        icon = "plus";
-        displayColor = "green";
-        amount = txObj.amount;
-      } else if (txType === TRANSACTION_TYPE.LOST_FOUND_DELIVERY) {
-        transactionType = "LOST_FOUND_DELIVERY";
-        title = `Lost & Found Delivery from ${passengerName}`;
-        icon = "package";
-        displayColor = "green";
-        amount = txObj.amount;
-      } else {
-        transactionType = "RIDE_PAYMENT";
-        title = txObj.description || "Ride Payment";
-        icon = "car";
-        displayColor = "green";
-        amount = txObj.amount;
-      }
-
-      const rideIdStr = ridePopulated
-        ? ridePopulated._id.toString()
-        : bookingPopulated
-          ? bookingPopulated._id.toString()
-          : null;
-      const rideCode = rideIdStr
-        ? `Ride #${rideIdStr.slice(-6).toUpperCase()}`
-        : subtitle;
-
-      return {
-        id,
-        transactionId,
-        type: amount < 0 ? "SPEND" : "ADD_MONEY",
-        title,
-        subtitle: rideCode,
-        amount,
-        currency,
-        status,
-        transactionType,
-        icon,
-        displayColor,
-        createdAt,
-        actions: {
-          canView: true,
-          canDelete: false,
-        },
-      };
+    if (
+      txType === TRANSACTION_TYPE.SUBSCRIPTION_PAYMENT ||
+      txType === TRANSACTION_TYPE.SUBSCRIPTION_RENEWAL
+    ) {
+      transactionType =
+        txType === TRANSACTION_TYPE.SUBSCRIPTION_RENEWAL
+          ? "SUBSCRIPTION_RENEWAL"
+          : "SUBSCRIPTION_PAYMENT";
+      const pkgName = (txObj.packageId as any)?.name;
+      title = pkgName
+        ? `Suscripción: ${pkgName}`
+        : "Suscripción de Tienda";
+      icon = "store";
+      displayColor = "emerald";
+      type = "SPEND";
+      amount = txObj.amount;
+    } else if (txType === TRANSACTION_TYPE.ADVERTISEMENT_PAYMENT) {
+      transactionType = "ADVERTISEMENT_PAYMENT";
+      const pos = txObj.metadata?.position || 1;
+      const city = txObj.metadata?.cityName || "";
+      title = `Anuncio Publicitario - Posición ${pos}${city ? ` (${city})` : ""}`;
+      icon = "tag";
+      displayColor = "emerald";
+      type = "SPEND";
+      amount = txObj.amount;
+    } else if (txType === TRANSACTION_TYPE.REFUND) {
+      transactionType = "REFUND";
+      title = "Reembolso Acreditado";
+      icon = "arrow-down-left";
+      displayColor = "green";
+      type = "ADD_MONEY";
+      amount = Math.abs(txObj.amount);
     } else {
-      // Passenger mapping
-      let amount = txObj.amount;
-      let type = "SPEND";
-      let title = "Ride Payment";
-      let icon = "minus";
-      let displayColor = "red";
-
-      const txType = txObj.transactionType;
-
-      if (txType === TRANSACTION_TYPE.WALLET_TOPUP) {
-        type = "ADD_MONEY";
-        title = "Added to Wallet";
-        icon = "plus";
-        displayColor = "green";
-        amount = txObj.amount;
-      } else if (txType === TRANSACTION_TYPE.REFUND) {
-        type = "ADD_MONEY";
-        title = "Refund Credited";
-        icon = "plus";
-        displayColor = "green";
-        amount = txObj.amount;
-      } else if (txType === TRANSACTION_TYPE.CANCELLATION_COMPENSATION) {
-        type = "ADD_MONEY";
-        title = "Cancellation Compensation";
-        icon = "plus";
-        displayColor = "green";
-        amount = txObj.amount;
-      } else if (txType === TRANSACTION_TYPE.LOST_FOUND_DELIVERY) {
-        type = "SPEND";
-        title = "Lost & Found Delivery";
-        icon = "package";
-        displayColor = "red";
-        amount = -txObj.amount;
-      } else if (txType === TRANSACTION_TYPE.BOOKING_PAYMENT) {
-        type = "SPEND";
-        title = ridePopulated?.destination?.address
-          ? `Ride to ${ridePopulated.destination.address}`
-          : bookingPopulated?.destination?.address
-            ? `Ride to ${bookingPopulated.destination.address}`
-            : "Ride Payment";
-        icon = "minus";
-        displayColor = "red";
-        amount = -txObj.amount;
-      } else if (txType === TRANSACTION_TYPE.CANCELLATION_FEE) {
-        type = "SPEND";
-        title = "Cancellation Fee";
-        icon = "minus";
-        displayColor = "red";
-        amount = -txObj.amount;
-      } else if (txType === TRANSACTION_TYPE.DRIVER_APPRECIATION) {
-        type = "SPEND";
-        title = "Driver Tip";
-        icon = "minus";
-        displayColor = "red";
-        amount = -txObj.amount;
-      } else if (txType === TRANSACTION_TYPE.PAYOUT) {
-        type = "SPEND";
-        title = "Withdrawal";
-        icon = "minus";
-        displayColor = "red";
-        amount = -txObj.amount;
-      } else {
-        type = "SPEND";
-        title = txObj.description || "Ride Payment";
-        icon = "minus";
-        displayColor = "red";
-        amount = -txObj.amount;
-      }
-
-      const safeInvoice = transactionId
-        ? transactionId.replace(/[^a-zA-Z0-9_-]/g, "_")
-        : null;
-      const invoiceUrl =
-        txObj.invoiceUrl ||
-        (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
-      const invoiceDownloadUrl = safeInvoice
-        ? `/api/v1/invoices/download/${safeInvoice}`
-        : `/api/v1/invoices/download/${id}`;
-
-      return {
-        id,
-        transactionId,
-        invoiceNumber: transactionId,
-        invoiceUrl,
-        invoiceDownloadUrl,
-        type,
-        title,
-        subtitle,
-        status,
-        amount,
-        currency,
-        icon,
-        displayColor,
-        createdAt,
-      };
+      transactionType = "PAYMENT";
+      title = txObj.description || "Pago de Servicio";
+      icon = "credit-card";
+      displayColor = "emerald";
+      type = "SPEND";
+      amount = txObj.amount;
     }
+
+    const safeInvoice = transactionId
+      ? transactionId.replace(/[^a-zA-Z0-9_-]/g, "_")
+      : null;
+    const invoiceUrl =
+      txObj.invoiceUrl ||
+      (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
+    const invoiceDownloadUrl = safeInvoice
+      ? `/api/v1/invoices/download/${safeInvoice}`
+      : `/api/v1/invoices/download/${id}`;
+
+    return {
+      id,
+      transactionId,
+      invoiceNumber: transactionId,
+      invoiceUrl,
+      invoiceDownloadUrl,
+      type,
+      title,
+      subtitle,
+      status,
+      amount,
+      currency,
+      transactionType,
+      icon,
+      displayColor,
+      createdAt,
+      actions: {
+        canView: true,
+        canDelete: false,
+      },
+    };
   });
 
   return {
@@ -703,13 +448,9 @@ const getAllSubscriptionTransactions = async (queryOptions: {
     const store = storeMap.get(userIdStr);
 
     // Friendly method name mapping
-    let method = "Card";
-    if (tx.paymentMethod === "WALLET") {
-      method = "Wallet";
-    } else if (tx.paymentMethod === "CASH") {
-      method = "Cash";
-    } else if (tx.paymentMethod === "ONLINE") {
-      method = tx.metadata?.cardType || "Card";
+    let method = "Datafast";
+    if (tx.metadata?.paymentBrand || tx.metadata?.cardType) {
+      method = `Datafast (${tx.metadata.paymentBrand || tx.metadata.cardType})`;
     }
 
     // Format date: e.g. "Aug 16, 2026"
@@ -790,38 +531,29 @@ const refundTransactionFromDB = async (id: string): Promise<any> => {
     );
   }
 
-  const paymentIntentId =
-    transaction.stripePaymentIntentId || transaction.gatewayTransactionId;
-  if (!paymentIntentId) {
+  const gatewayTxId = transaction.gatewayTransactionId;
+  if (!gatewayTxId) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      "No stripe payment intent ID found for this transaction",
+      "No gateway transaction ID found for this transaction",
     );
   }
 
   try {
-    let refundId = "";
-    if (paymentIntentId.startsWith("pi_")) {
-      const refund = await StripeService.refundPayment(paymentIntentId);
-      refundId = refund.id;
-    } else {
-      const refund = await datafastService.refundPayment(
-        paymentIntentId,
-        transaction.amount,
-      );
-      refundId = refund.id;
-    }
+    const refund = await datafastService.refundPayment(
+      gatewayTxId,
+      transaction.amount,
+    );
 
     // Update transaction
     transaction.paymentStatus = PAYMENT_STATUS.REFUNDED;
-    transaction.stripeRefundId = refundId;
     await transaction.save();
 
     // Cancel the corresponding Subscription
     const subscription = await Subscription.findOne({
       $or: [
-        { trxId: paymentIntentId },
-        { stripeSubscriptionId: transaction.stripeCheckoutSessionId },
+        { trxId: gatewayTxId },
+        { checkoutSessionId: transaction.checkoutSessionId },
       ],
     });
 
@@ -840,7 +572,7 @@ const refundTransactionFromDB = async (id: string): Promise<any> => {
   } catch (error: any) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      error.message || "Failed to process refund on Stripe",
+      error.message || "Failed to process refund via Datafast",
     );
   }
 };

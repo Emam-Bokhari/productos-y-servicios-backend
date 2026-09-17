@@ -15,8 +15,6 @@ export type TSubscriptionPackage = {
   isUnlimitedListings?: boolean;
   trialEnabled?: boolean;
   trialPeriodDays?: number;
-  stripeProductId?: string;
-  stripePriceId?: string;
   features?: string[];
 };
 

@@ -22,6 +22,7 @@ export interface IAdvertisement {
   featuredImage?: string;
   status: ADVERTISEMENT_STATUS;
   price?: number;
+  transactionId?: Types.ObjectId;
   isDeleted?: boolean;
   deletedAt?: Date | null;
 }

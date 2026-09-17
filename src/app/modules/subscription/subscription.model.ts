@@ -45,16 +45,13 @@ const subscriptionSchema = new Schema<TSubscription>(
     position: {
       type: Number,
     },
-    stripeSubscriptionId: {
-      type: String,
-      index: true,
-    },
     datafastRegistrationToken: {
       type: String,
       index: true,
     },
-    stripeSessionId: {
+    checkoutSessionId: {
       type: String,
+      index: true,
     },
     amountPaid: {
       type: Number,

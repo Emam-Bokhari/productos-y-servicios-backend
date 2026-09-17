@@ -82,6 +82,11 @@ const advertisementSchema = new Schema<IAdvertisement>(
       type: Number,
       default: 0,
     },
+    transactionId: {
+      type: Schema.Types.ObjectId,
+      ref: "Transaction",
+      required: false,
+    },
   },
   {
     timestamps: true,

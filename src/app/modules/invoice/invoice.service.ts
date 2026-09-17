@@ -144,9 +144,8 @@ class InvoiceService {
     // 1. Try finding transaction
     const txQuery: Record<string, any>[] = [
       { transactionId: identifier },
-      { stripePaymentIntentId: identifier },
       { gatewayTransactionId: identifier },
-      { stripeCheckoutSessionId: identifier },
+      { checkoutSessionId: identifier },
     ];
     if (isObjectId) {
       txQuery.push({ _id: new Types.ObjectId(identifier) });
@@ -167,11 +166,8 @@ class InvoiceService {
 
     if (!subscription && transaction) {
       const subQueries: any[] = [];
-      if (transaction.stripeCheckoutSessionId) {
-        subQueries.push({ stripeSessionId: transaction.stripeCheckoutSessionId });
-      }
-      if (transaction.stripePaymentIntentId) {
-        subQueries.push({ trxId: transaction.stripePaymentIntentId });
+      if (transaction.checkoutSessionId) {
+        subQueries.push({ checkoutSessionId: transaction.checkoutSessionId });
       }
       if (transaction.gatewayTransactionId) {
         subQueries.push({ trxId: transaction.gatewayTransactionId });
@@ -195,7 +191,7 @@ class InvoiceService {
         $or: [
           { invoiceNumber: identifier },
           { trxId: identifier },
-          { stripeSessionId: identifier },
+          { checkoutSessionId: identifier },
         ],
       })
         .populate("userId")
@@ -217,8 +213,14 @@ class InvoiceService {
       store = await Store.findOne({ owner: user._id });
     }
 
-    // Resolve City Ad Configuration if post_add
+    // Resolve City Ad Configuration if post_add or advertisement booking
     let cityConfig: any = subscription?.cityConfigId;
+    if (!cityConfig && transaction?.metadata?.cityConfigId) {
+      cityConfig = await CityAdConfiguration.findById(
+        transaction.metadata.cityConfigId,
+      );
+    }
+
     let advertisement: any = null;
 
     if (user?._id) {
@@ -242,12 +244,11 @@ class InvoiceService {
 
     // Resolve Payment Method & Status
     const paymentMethod =
-      transaction?.paymentMethod || (subscription?.amountPaid === 0 ? "Free Trial" : "Card / Online");
+      transaction?.paymentMethod || (subscription?.amountPaid === 0 ? "Free Trial" : "DATAFAST");
     const paymentStatus =
       transaction?.paymentStatus || (subscription?.status === "active" ? "PAID" : "PAID");
 
     const trxId =
-      transaction?.stripePaymentIntentId ||
       transaction?.gatewayTransactionId ||
       subscription?.trxId ||
       "";
@@ -261,6 +262,10 @@ class InvoiceService {
           : pkg?.price || 0;
 
     const currency = transaction?.currency || "USD";
+
+    const isDirectAdBooking =
+      transaction?.metadata?.bookingType === "advertisement" ||
+      Boolean(transaction?.metadata?.cityConfigId);
 
     // Build Line Items
     const items: IInvoiceItem[] = [];
@@ -286,6 +291,24 @@ class InvoiceService {
         details,
         type: isPostAdd ? "Advertisement" : "Store Subscription",
         duration: formatDuration(pkg.duration),
+        unitPrice: totalAmount,
+        total: totalAmount,
+      });
+    } else if (isDirectAdBooking) {
+      const pos =
+        transaction?.metadata?.position || advertisement?.position || 1;
+      const cityName =
+        transaction?.metadata?.cityName ||
+        cityConfig?.city ||
+        advertisement?.city ||
+        "Selected City";
+
+      items.push({
+        itemNumber: 1,
+        description: `Featured Advertisement Slot - Position ${pos}`,
+        details: `City: ${cityName} | Featured Home Screen Slot #${pos}`,
+        type: "Advertisement",
+        duration: "7 Days",
         unitPrice: totalAmount,
         total: totalAmount,
       });
@@ -374,7 +397,6 @@ class InvoiceService {
         {
           $or: [
             { transactionId: invoiceData.invoiceNumber },
-            { stripePaymentIntentId: invoiceData.trxId },
             { gatewayTransactionId: invoiceData.trxId },
           ],
         },

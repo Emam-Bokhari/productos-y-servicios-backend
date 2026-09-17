@@ -15,9 +15,8 @@ export type TSubscription = {
   expiresAt: Date;
   cityConfigId?: Types.ObjectId;
   position?: number;
-  stripeSubscriptionId?: string;
   datafastRegistrationToken?: string;
-  stripeSessionId?: string;
+  checkoutSessionId?: string;
   amountPaid?: number;
   trxId?: string;
   invoiceNumber?: string;

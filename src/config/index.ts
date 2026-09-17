@@ -27,14 +27,6 @@ export default {
     projectId: process.env.FIREBASE_PROJECT_ID,
   },
   googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
-
-  stripe: {
-    stripeSecretKey: process.env.STRIPE_SECRET_KEY!,
-    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
-    paymentSuccess: process.env.STRIPE_PAYMENT_SUCCESS!,
-    BASE_URL: process.env.BASE_URL!,
-    currency: process.env.CURRENCY!,
-  },
   datafast: {
     baseUrl: process.env.DATAFAST_BASE_URL || "https://test.oppwa.com",
     entityId: process.env.DATAFAST_ENTITY_ID || "8a8294185a65bf5e015a6c8b89a10d8d",

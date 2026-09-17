@@ -274,6 +274,7 @@
       <!-- Formulario COPYandPAY de Datafast -->
       <form action="<%= callbackUrl %>" class="paymentWidgets" data-brands="VISA MASTER AMEX DINERS DISCOVER"></form>
 
+      <% if (locals.isSandbox) { %>
       <!-- Testing Helper Info for Sandbox -->
       <div style="margin-top: 18px; padding: 14px 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; font-size: 0.8rem; color: #166534;">
         <div style="font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
@@ -281,7 +282,7 @@
         </div>
         <div style="display: grid; grid-template-columns: auto 1fr; gap: 4px 10px;">
           <span style="color: #15803d; font-weight: 600;">Número:</span>
-          <code>4540 6300 0000 0000</code>
+          <code>4200 0000 0000 0000</code>
           <span style="color: #15803d; font-weight: 600;">Expira:</span>
           <span>12/28</span>
           <span style="color: #15803d; font-weight: 600;">CVV:</span>
@@ -290,6 +291,7 @@
           <span>Su Empresa</span>
         </div>
       </div>
+      <% } %>
 
       <div class="footer">
         <div class="security-notice">
