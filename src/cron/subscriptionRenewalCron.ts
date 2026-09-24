@@ -13,6 +13,9 @@ import {
   PAYMENT_METHOD,
   TRANSACTION_TYPE,
 } from "../app/modules/transaction/transaction.constant";
+import { Store } from "../app/modules/store/store.model";
+import { Seller } from "../app/modules/seller/seller.model";
+import { STORE_STATUS } from "../app/modules/store/store.constant";
 
 /**
  * Execute renewal check for all due store_creation subscriptions
@@ -96,6 +99,17 @@ export const runSubscriptionRenewalCheck = async (): Promise<{
           subscriptionStatus: "active",
           subscriptionExpiresAt: nextExpiration,
         });
+
+        // Ensure store is published/active upon successful renewal
+        await Store.findOneAndUpdate(
+          { owner: user._id },
+          { status: STORE_STATUS.ACTIVE },
+        );
+
+        await Seller.findOneAndUpdate(
+          { user: user._id },
+          { status: "active" },
+        );
 
         const safeInvoice = invoiceTxId.replace(/[^a-zA-Z0-9_-]/g, "_");
         const invoiceUrl = `/uploads/invoices/${safeInvoice}.pdf`;

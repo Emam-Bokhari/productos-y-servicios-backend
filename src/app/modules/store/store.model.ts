@@ -127,7 +127,7 @@ const storeSchema = new Schema<IStore>(
     status: {
       type: String,
       enum: Object.values(STORE_STATUS),
-      default: STORE_STATUS.UNDER_REVIEW,
+      default: STORE_STATUS.ACTIVE,
     },
     documentType: {
       type: String,

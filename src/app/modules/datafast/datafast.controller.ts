@@ -8,6 +8,9 @@ import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.
 import { Subscription } from "../subscription/subscription.model";
 import { CityAdConfiguration } from "../cityAdConfiguration/cityAdConfiguration.model";
 import { Transaction } from "../transaction/transaction.model";
+import { Store } from "../store/store.model";
+import { Seller } from "../seller/seller.model";
+import { STORE_STATUS } from "../store/store.constant";
 import {
   PAYMENT_METHOD,
   PAYMENT_STATUS,
@@ -241,6 +244,25 @@ export const fulfillDatafastPayment = async (params: IFulfillPaymentParams) => {
   });
 
   if (existingTx && existingTx.paymentStatus === "PAID") {
+    // Ensure store is published if user has a store
+    if (
+      existingTx.userId &&
+      existingTx.transactionType === TRANSACTION_TYPE.SUBSCRIPTION_PAYMENT
+    ) {
+      const existingStore = await Store.findOneAndUpdate(
+        { owner: existingTx.userId },
+        { status: STORE_STATUS.ACTIVE },
+        { new: true },
+      );
+      if (existingStore) {
+        await Seller.findOneAndUpdate(
+          { user: existingTx.userId },
+          { status: "active", store: existingStore._id },
+          { upsert: true },
+        );
+      }
+    }
+
     const safeInvoice = existingTx.transactionId
       ? existingTx.transactionId.replace(/[^a-zA-Z0-9_-]/g, "_")
       : existingTx._id.toString();
@@ -436,6 +458,21 @@ export const fulfillDatafastPayment = async (params: IFulfillPaymentParams) => {
     subscriptionExpiresAt: expiresAt,
     datafastRegistrationToken: registrationToken,
   });
+
+  // Automatically publish store once payment has been successfully completed
+  const publishedStore = await Store.findOneAndUpdate(
+    { owner: resolvedUserId },
+    { status: STORE_STATUS.ACTIVE },
+    { new: true },
+  );
+
+  if (publishedStore) {
+    await Seller.findOneAndUpdate(
+      { user: resolvedUserId },
+      { status: "active", store: publishedStore._id },
+      { upsert: true },
+    );
+  }
 
   let finalTx = existingTx;
   if (!finalTx) {

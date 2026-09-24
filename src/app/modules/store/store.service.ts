@@ -222,7 +222,7 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
 
   const ownerUser = await User.findById(ownerId);
 
-  // Create a new store (status defaults to under_review)
+  // Create a new store (published automatically once payment / trial is active)
   const store = await Store.create({
     ...payload,
     owner: ownerId,
@@ -234,10 +234,10 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
       payload.isVerified !== undefined
         ? payload.isVerified
         : ownerUser?.isVerified ?? false,
-    status: "under_review",
+    status: STORE_STATUS.ACTIVE,
   });
 
-  // Automatically create Seller Profile if not exists
+  // Automatically create or activate Seller Profile
   let seller = await Seller.findOne({ user: ownerId });
   if (!seller) {
     seller = await Seller.create({
@@ -245,6 +245,12 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
       store: store._id,
       status: "active",
     });
+  } else {
+    seller = await Seller.findOneAndUpdate(
+      { user: ownerId },
+      { store: store._id, status: "active" },
+      { new: true },
+    );
   }
 
   return { store, seller };
@@ -391,9 +397,18 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
     Object.entries(payload).filter(([_, v]) => v !== undefined),
   );
 
-  // If store status was rejected, reset it back to under_review on re-submission/edit
-  if (store.status === "rejected") {
-    cleanedUpdateData.status = "under_review";
+  // If store status was rejected or under_review, republish it if user has active subscription
+  if (store.status === "rejected" || store.status === "under_review") {
+    const hasActiveSubscription = await Subscription.findOne({
+      userId: ownerId,
+      packageType: "store_creation",
+      status: { $in: ["active", "trialing"] },
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (hasActiveSubscription) {
+      cleanedUpdateData.status = STORE_STATUS.ACTIVE;
+    }
   }
 
   const updatedStore = await Store.findOneAndUpdate(
@@ -472,6 +487,13 @@ const getMyStoreFromDB = async (ownerId: string) => {
         expiresAt: { $gt: new Date() },
       }).populate("packageId"),
     ]);
+
+  // Auto-publish stores previously in under_review if user has an active subscription
+  if (store.status === STORE_STATUS.UNDER_REVIEW && activeSubscription) {
+    store.status = STORE_STATUS.ACTIVE;
+    await store.save();
+    await Seller.findOneAndUpdate({ user: ownerId }, { status: "active" });
+  }
 
   const breakdown: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   ratingStats.forEach((stat: any) => {
