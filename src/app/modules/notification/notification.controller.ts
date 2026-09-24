@@ -146,6 +146,133 @@ const adminReadSingleNotification = catchAsync(async (req, res) => {
   });
 });
 
+// user single delete
+const deleteSingleNotification = catchAsync(async (req, res) => {
+  const result = await NotificationService.deleteSingleNotificationFromDB(
+    req.user,
+    req.params.id,
+  );
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Notification deleted successfully",
+    data: result,
+  });
+});
+
+// user delete notifications (all or selected ids)
+const deleteNotification = catchAsync(async (req, res) => {
+  const ids =
+    req.body?.ids ||
+    (req.query?.ids
+      ? typeof req.query.ids === "string"
+        ? req.query.ids.split(",")
+        : (req.query.ids as string[])
+      : undefined);
+
+  const result = await NotificationService.deleteNotificationsFromDB(
+    req.user,
+    ids,
+  );
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Notifications deleted successfully",
+    data: result,
+  });
+});
+
+// admin single delete
+const adminDeleteSingleNotification = catchAsync(async (req, res) => {
+  const result = await NotificationService.adminDeleteSingleNotificationFromDB(
+    req.params.id,
+  );
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Admin notification deleted successfully",
+    data: result,
+  });
+});
+
+// admin delete notifications (all or selected ids)
+const adminDeleteNotification = catchAsync(async (req, res) => {
+  const ids =
+    req.body?.ids ||
+    (req.query?.ids
+      ? typeof req.query.ids === "string"
+        ? req.query.ids.split(",")
+        : (req.query.ids as string[])
+      : undefined);
+
+  const result = await NotificationService.adminDeleteNotificationsFromDB(ids);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Admin notifications deleted successfully",
+    data: result,
+  });
+});
+
+// ================= MESSAGE NOTIFICATIONS (SEPARATE) =================
+
+// get message notifications only
+const getMessageNotifications = catchAsync(async (req, res) => {
+  const user = req.user;
+  const result = await NotificationService.getMessageNotificationsFromDB(
+    user,
+    req.query,
+  );
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Message notifications retrieved successfully",
+    data: result.data,
+    meta: result.meta,
+  });
+});
+
+// read all message notifications
+const readMessageNotifications = catchAsync(async (req, res) => {
+  const user = req.user;
+  const result = await NotificationService.readMessageNotificationsToDB(user);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Message notifications marked as read",
+    data: result,
+  });
+});
+
+// delete message notifications (all or selected ids)
+const deleteMessageNotifications = catchAsync(async (req, res) => {
+  const ids =
+    req.body?.ids ||
+    (req.query?.ids
+      ? typeof req.query.ids === "string"
+        ? req.query.ids.split(",")
+        : (req.query.ids as string[])
+      : undefined);
+
+  const result = await NotificationService.deleteMessageNotificationsFromDB(
+    req.user,
+    ids,
+  );
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Message notifications deleted successfully",
+    data: result,
+  });
+});
+
 export const NotificationController = {
   adminNotificationFromDB,
   getNotificationFromDB,
@@ -157,4 +284,11 @@ export const NotificationController = {
   readSingleNotification,
   adminGetSingleNotification,
   adminReadSingleNotification,
+  deleteSingleNotification,
+  deleteNotification,
+  adminDeleteSingleNotification,
+  adminDeleteNotification,
+  getMessageNotifications,
+  readMessageNotifications,
+  deleteMessageNotifications,
 };

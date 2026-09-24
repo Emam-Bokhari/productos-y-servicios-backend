@@ -185,6 +185,9 @@ class NotificationHelper {
           type: NOTIFICATION_TYPE.MESSAGE_NEW,
           chatId: chat._id.toString(),
           messageId: message._id.toString(),
+          referenceId: chat._id.toString(),
+          referenceModel: "Chat",
+          sender: senderId,
           click_action: "FLUTTER_NOTIFICATION_CLICK",
         },
       });
@@ -257,6 +260,7 @@ class NotificationHelper {
     try {
       const notifications = userIds.map((userId) => ({
         receiver: userId,
+        sender: payload.data?.sender || undefined,
         title: payload.title,
         text: payload.body,
         type: payload.type,

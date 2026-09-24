@@ -22,6 +22,8 @@ export type INotification = {
     | "Message"
     | "Broadcast";
   type?: string;
+  isDeleted?: boolean;
+  deletedAt?: Date | null;
 };
 
 export type NotificationModel = ISoftDeleteModel<INotification>;
