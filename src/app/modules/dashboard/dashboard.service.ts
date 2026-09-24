@@ -3,6 +3,8 @@ import { Store } from "../store/store.model";
 import { Subscription } from "../subscription/subscription.model";
 import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
 import { USER_ROLES } from "../../../enums/user";
+import { Report } from "../report/report.model";
+import { REPORT_STATUS } from "../report/report.constant";
 
 const getDashboardOverview = async (queryYear?: string) => {
   const now = new Date();
@@ -26,6 +28,8 @@ const getDashboardOverview = async (queryYear?: string) => {
     activeSubscriptions,
     storeTypeCounts,
     monthlyRevenueAgg,
+    pendingReports,
+    totalReports,
   ] = await Promise.all([
     // 1. Total Users (excluding admins and super_admins)
     User.countDocuments({
@@ -79,6 +83,12 @@ const getDashboardOverview = async (queryYear?: string) => {
         },
       },
     ]),
+
+    // 7. Pending Reports Count
+    Report.countDocuments({ status: REPORT_STATUS.PENDING }),
+
+    // 8. Total Reports Count
+    Report.countDocuments({}),
   ]);
 
   // Calculate MRR
@@ -161,6 +171,8 @@ const getDashboardOverview = async (queryYear?: string) => {
       totalStores,
       activeSubscriptions: activeSubscriptionsCount,
       mrr: totalMRR,
+      pendingReports,
+      totalReports,
     },
     storeTypesSplit: {
       productStoresCount,

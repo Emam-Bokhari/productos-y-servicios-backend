@@ -105,6 +105,11 @@ const getAllCategoriesFromDB = async (query: Record<string, any>) => {
     includeSubCategories,
     tree,
     searchTerm,
+    page,
+    limit,
+    sort,
+    sortBy,
+    sortOrder,
   } = query;
   const filter: Record<string, any> = {};
 
@@ -152,9 +157,52 @@ const getAllCategoriesFromDB = async (query: Record<string, any>) => {
     includeSubCategories === "true" ||
     (onlyParents !== "true" && tree === "true");
 
+  // Sorting setup
+  let sortCriteria: any = { createdAt: 1 };
+  if (sort) {
+    if (typeof sort === "string") {
+      const parts = sort.split(",");
+      const parsedSort: Record<string, 1 | -1> = {};
+      parts.forEach((p) => {
+        const trimmed = p.trim();
+        if (trimmed.startsWith("-")) {
+          parsedSort[trimmed.substring(1)] = -1;
+        } else {
+          parsedSort[trimmed] = 1;
+        }
+      });
+      sortCriteria = parsedSort;
+    } else {
+      sortCriteria = sort;
+    }
+  } else if (sortBy) {
+    const order = sortOrder === "desc" || sortOrder === "-1" ? -1 : 1;
+    sortCriteria = { [sortBy]: order };
+  }
+
+  // Pagination setup
+  const pageNumber = Number(page) > 0 ? Math.floor(Number(page)) : 1;
+  const isLimitProvided = limit !== undefined && limit !== "";
+  const parsedLimit = Number(limit);
+
+  // Allow disabling pagination if all=true, pagination=false, or limit=0
+  const isPaginationDisabled =
+    all === "true" ||
+    query.pagination === "false" ||
+    (isLimitProvided && parsedLimit === 0);
+
+  const limitNumber = isPaginationDisabled
+    ? 0
+    : isLimitProvided && parsedLimit > 0
+      ? Math.floor(parsedLimit)
+      : 10;
+
+  const isPaginated = !isPaginationDisabled && limitNumber > 0;
+  const skip = isPaginated ? (pageNumber - 1) * limitNumber : 0;
+
   let categoriesQuery = StoreCategory.find(filter)
     .populate("parentId", "name type")
-    .sort({ createdAt: 1 });
+    .sort(sortCriteria);
 
   if (shouldIncludeSubCategories) {
     categoriesQuery = categoriesQuery.populate({
@@ -164,7 +212,25 @@ const getAllCategoriesFromDB = async (query: Record<string, any>) => {
     });
   }
 
-  const categories = await categoriesQuery;
+  if (isPaginated) {
+    categoriesQuery = categoriesQuery.skip(skip).limit(limitNumber);
+  }
+
+  const [categories, total] = await Promise.all([
+    categoriesQuery,
+    StoreCategory.countDocuments(filter),
+  ]);
+
+  const totalPage = isPaginated ? Math.ceil(total / limitNumber) || 1 : 1;
+
+  const meta = {
+    page: isPaginated ? pageNumber : 1,
+    limit: isPaginated ? limitNumber : total,
+    total,
+    totalPage,
+    hasPrevPage: isPaginated ? pageNumber > 1 : false,
+    hasNextPage: isPaginated ? pageNumber < totalPage : false,
+  };
 
   const categoriesWithCount = await Promise.all(
     categories.map(async (category) => {
@@ -201,7 +267,10 @@ const getAllCategoriesFromDB = async (query: Record<string, any>) => {
     }),
   );
 
-  return categoriesWithCount;
+  return {
+    meta,
+    data: categoriesWithCount,
+  };
 };
 
 const getCategoryByIdFromDB = async (storeCategoryId: string) => {
