@@ -176,6 +176,10 @@ const getMyFavoritesFromDB = async (
         strictPopulate: false,
       },
       {
+        path: "subCategoryId",
+        strictPopulate: false,
+      },
+      {
         path: "cityId",
         strictPopulate: false,
       },
@@ -185,6 +189,10 @@ const getMyFavoritesFromDB = async (
         populate: [
           {
             path: "categoryId",
+            strictPopulate: false,
+          },
+          {
+            path: "subCategoryId",
             strictPopulate: false,
           },
           {

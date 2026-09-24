@@ -21,6 +21,13 @@ const createStoreSchema = z.object({
       .refine((val) => /^[0-9a-fA-F]{24}$/.test(val), {
         message: "Invalid category ID format",
       }),
+    subCategoryId: z
+      .string()
+      .refine((val) => /^[0-9a-fA-F]{24}$/.test(val), {
+        message: "Invalid subcategory ID format",
+      })
+      .optional()
+      .nullable(),
     logo: z.string({
       required_error: "Logo is required",
     }),
@@ -95,6 +102,13 @@ const updateStoreSchema = z.object({
         message: "Invalid category ID format",
       })
       .optional(),
+    subCategoryId: z
+      .string()
+      .refine((val) => /^[0-9a-fA-F]{24}$/.test(val), {
+        message: "Invalid subcategory ID format",
+      })
+      .optional()
+      .nullable(),
     logo: z.string().optional(),
     coverImage: z.string().optional(),
     phone: z.string().optional(),

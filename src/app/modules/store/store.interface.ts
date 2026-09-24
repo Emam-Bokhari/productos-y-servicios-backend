@@ -9,6 +9,7 @@ export type IStore = {
   displayName?: string;
   description?: string;
   categoryId?: Schema.Types.ObjectId;
+  subCategoryId?: Schema.Types.ObjectId;
   logo?: string;
   coverImage?: string;
   phone?: string;

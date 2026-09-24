@@ -31,6 +31,11 @@ const storeSchema = new Schema<IStore>(
       ref: "StoreCategory",
       required: false,
     },
+    subCategoryId: {
+      type: Schema.Types.ObjectId,
+      ref: "StoreCategory",
+      required: false,
+    },
     logo: {
       type: String,
       required: false,
@@ -192,6 +197,8 @@ storeSchema.index({ phone: 1 }, { sparse: true });
 storeSchema.index({ businessLicenseNumber: 1 }, { sparse: true });
 storeSchema.index({ storeType: 1 });
 storeSchema.index({ status: 1 });
+storeSchema.index({ categoryId: 1 });
+storeSchema.index({ subCategoryId: 1 });
 storeSchema.index({ cityId: 1 });
 storeSchema.index({ country: 1 });
 storeSchema.index({ province: 1 });

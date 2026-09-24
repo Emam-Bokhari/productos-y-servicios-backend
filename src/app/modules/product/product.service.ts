@@ -1,8 +1,9 @@
 import { StatusCodes } from "http-status-codes";
 import ApiError from "../../../errors/ApiErrors";
 import QueryBuilder from "../../builder/queryBuilder";
-import { STORE_TYPE } from "../store/store.constant";
+import { STORE_STATUS, STORE_TYPE } from "../store/store.constant";
 import { Store } from "../store/store.model";
+import { StoreCategory } from "../storeCategory/storeCategory.model";
 import { PRODUCT_SEARCHABLE_FIELDS, PRODUCT_STATUS } from "./product.constant";
 import { IProduct } from "./product.interface";
 import { Product } from "./product.model";
@@ -95,7 +96,36 @@ const getAllProductsFromDB = async (
   query: Record<string, unknown>,
   user?: any,
 ) => {
-  const filterQuery = { status: PRODUCT_STATUS.ACTIVE, ...query };
+  const filterQuery: Record<string, any> = {
+    status: PRODUCT_STATUS.ACTIVE,
+    ...query,
+  };
+
+  if (filterQuery.categoryId || filterQuery.subCategoryId) {
+    const storeQuery: any = { status: STORE_STATUS.ACTIVE };
+    if (filterQuery.categoryId) {
+      const requestedCatId = filterQuery.categoryId;
+      delete filterQuery.categoryId;
+      const childSubs = await StoreCategory.find({
+        parentId: requestedCatId,
+      })
+        .select("_id")
+        .lean();
+      const allCatIds = [requestedCatId, ...childSubs.map((c: any) => c._id)];
+      storeQuery.$or = [
+        { categoryId: { $in: allCatIds } },
+        { subCategoryId: { $in: allCatIds } },
+      ];
+    }
+    if (filterQuery.subCategoryId) {
+      storeQuery.subCategoryId = filterQuery.subCategoryId;
+      delete filterQuery.subCategoryId;
+    }
+    const matchingStores = await Store.find(storeQuery).select("_id").lean();
+    const matchingStoreIds = matchingStores.map((s) => s._id);
+    filterQuery.storeId = { $in: matchingStoreIds };
+  }
+
   const builder = new QueryBuilder(Product.find(), filterQuery)
     .search(PRODUCT_SEARCHABLE_FIELDS)
     .filter()
@@ -148,6 +178,9 @@ const getSingleProductFromDB = async (id: string, user?: any) => {
       populate: [
         {
           path: "categoryId",
+        },
+        {
+          path: "subCategoryId",
         },
         {
           path: "cityId",

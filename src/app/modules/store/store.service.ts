@@ -23,6 +23,11 @@ import { NOTIFICATION_TYPE } from "../notification/notification.constant";
 import { Review } from "../review/review.model";
 import { Favorite } from "../favorite/favorite.model";
 import { FAVORITE_TYPE } from "../../../enums/favorite";
+import {
+  buildFuzzySearchRegex,
+  escapeRegex,
+  calculateRelevanceScore,
+} from "../../../helpers/searchHelper";
 
 const createStoreToDB = async (ownerId: string, payload: any) => {
   // Check if user already has a store
@@ -107,7 +112,13 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
     });
   }
 
-  const { categoryId, displayName, phone, businessLicenseNumber } = payload;
+  const {
+    categoryId,
+    subCategoryId,
+    displayName,
+    phone,
+    businessLicenseNumber,
+  } = payload;
 
   // Validate category exists and is active
   const category = await StoreCategory.findById(categoryId);
@@ -122,6 +133,32 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
       StatusCodes.BAD_REQUEST,
       "Selected category is inactive",
     );
+  }
+
+  // Validate subCategory if provided
+  if (subCategoryId) {
+    const subCategory = await StoreCategory.findById(subCategoryId);
+    if (!subCategory) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "Selected subcategory does not exist",
+      );
+    }
+    if (subCategory.status === "inactive") {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "Selected subcategory is inactive",
+      );
+    }
+    if (
+      subCategory.parentId &&
+      subCategory.parentId.toString() !== categoryId.toString()
+    ) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "Selected subcategory does not belong to the chosen category",
+      );
+    }
   }
 
   // Validate duplicate display name
@@ -219,7 +256,15 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
     throw new ApiError(StatusCodes.NOT_FOUND, "Store not found.");
   }
 
-  const { categoryId, displayName, phone, businessLicenseNumber } = payload;
+  const {
+    categoryId,
+    subCategoryId,
+    displayName,
+    phone,
+    businessLicenseNumber,
+  } = payload;
+
+  const activeCategoryId = categoryId || store.categoryId?.toString();
 
   // Validate new category if changing
   if (categoryId && categoryId !== store.categoryId?.toString()) {
@@ -234,6 +279,33 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
         "Selected category is inactive",
+      );
+    }
+  }
+
+  // Validate subCategory if provided
+  if (subCategoryId) {
+    const subCategory = await StoreCategory.findById(subCategoryId);
+    if (!subCategory) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "Selected subcategory does not exist",
+      );
+    }
+    if (subCategory.status === "inactive") {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "Selected subcategory is inactive",
+      );
+    }
+    if (
+      activeCategoryId &&
+      subCategory.parentId &&
+      subCategory.parentId.toString() !== activeCategoryId.toString()
+    ) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "Selected subcategory does not belong to the chosen category",
       );
     }
   }
@@ -350,7 +422,8 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
 const getMyStoreFromDB = async (ownerId: string) => {
   const store = await Store.findOne({ owner: ownerId })
     .populate("cityId")
-    .populate("categoryId");
+    .populate("categoryId")
+    .populate("subCategoryId");
   const seller = await Seller.findOne({ user: ownerId });
 
   if (!store) {
@@ -462,6 +535,7 @@ const getStoreDetailsFromDB = async (storeId: string, user: any) => {
     { new: true },
   )
     .populate("categoryId")
+    .populate("subCategoryId")
     .populate("owner", "name profileImage email phone")
     .populate("cityId");
   if (!store) {
@@ -751,44 +825,123 @@ const getAllStoresFromDB = async (
   }
 
   // Search term logic
-  if (searchTerm) {
-    const categories = await StoreCategory.find({
-      name: { $regex: searchTerm, $options: "i" },
-    }).select("_id");
-    const categoryIds = categories.map((c) => c._id);
+  let categoryIds: any[] = [];
+  let userIds: any[] = [];
+  let cityAdConfigIds: any[] = [];
+  let itemStoreIds: string[] = [];
+  let productTitleExactStoreIds = new Set<string>();
+  let serviceTitleExactStoreIds = new Set<string>();
+  let productStoreIdSet = new Set<string>();
+  let serviceStoreIdSet = new Set<string>();
+  let cleanSearchTerm = "";
+  let searchRegex: RegExp | null = null;
 
-    const users = await User.find({
-      name: { $regex: searchTerm, $options: "i" },
-    }).select("_id");
-    const userIds = users.map((u) => u._id);
+  if (searchTerm && typeof searchTerm === "string" && searchTerm.trim()) {
+    cleanSearchTerm = searchTerm.trim();
+    searchRegex =
+      buildFuzzySearchRegex(cleanSearchTerm) ||
+      new RegExp(escapeRegex(cleanSearchTerm), "i");
 
-    const cityAdConfigs = await CityAdConfiguration.find({
-      $or: [
-        { country: { $regex: searchTerm, $options: "i" } },
-        { province: { $regex: searchTerm, $options: "i" } },
-        { city: { $regex: searchTerm, $options: "i" } },
-        { canton: { $regex: searchTerm, $options: "i" } },
-        { sector: { $regex: searchTerm, $options: "i" } },
-        { neighborhood: { $regex: searchTerm, $options: "i" } },
-      ],
-    }).select("_id");
-    const cityAdConfigIds = cityAdConfigs.map((c) => c._id);
+    const [
+      categories,
+      users,
+      cityAdConfigs,
+      matchingProducts,
+      matchingServices,
+    ] = await Promise.all([
+      StoreCategory.find({ name: searchRegex }).select("_id").lean(),
+      User.find({ name: searchRegex }).select("_id").lean(),
+      CityAdConfiguration.find({
+        $or: [
+          { country: searchRegex },
+          { province: searchRegex },
+          { city: searchRegex },
+          { canton: searchRegex },
+          { sector: searchRegex },
+          { neighborhood: searchRegex },
+        ],
+      })
+        .select("_id")
+        .lean(),
+      Product.find({
+        status: PRODUCT_STATUS.ACTIVE,
+        $or: [
+          { title: searchRegex },
+          { description: searchRegex },
+          { additionalInformation: searchRegex },
+        ],
+      })
+        .select("storeId title")
+        .lean(),
+      Service.find({
+        status: SERVICE_STATUS.ACTIVE,
+        $or: [
+          { title: searchRegex },
+          { description: searchRegex },
+          { whatsIncluded: searchRegex },
+        ],
+      })
+        .select("storeId title")
+        .lean(),
+    ]);
+
+    const matchingSubCategories = await StoreCategory.find({
+      parentId: { $in: categories.map((c: any) => c._id) },
+    })
+      .select("_id")
+      .lean();
+
+    categoryIds = [
+      ...categories.map((c: any) => c._id),
+      ...matchingSubCategories.map((c: any) => c._id),
+    ];
+    userIds = users.map((u: any) => u._id);
+    cityAdConfigIds = cityAdConfigs.map((c: any) => c._id);
+
+    const productStoreIds = matchingProducts
+      .map((p: any) => p.storeId?.toString())
+      .filter(Boolean);
+    const serviceStoreIds = matchingServices
+      .map((s: any) => s.storeId?.toString())
+      .filter(Boolean);
+
+    productStoreIdSet = new Set(productStoreIds);
+    serviceStoreIdSet = new Set(serviceStoreIds);
+    itemStoreIds = [...new Set([...productStoreIds, ...serviceStoreIds])];
+
+    const exactWordRegex = new RegExp(
+      `\\b${escapeRegex(cleanSearchTerm)}\\b`,
+      "i",
+    );
+    productTitleExactStoreIds = new Set(
+      matchingProducts
+        .filter((p: any) => exactWordRegex.test(p.title || ""))
+        .map((p: any) => p.storeId?.toString()),
+    );
+    serviceTitleExactStoreIds = new Set(
+      matchingServices
+        .filter((s: any) => exactWordRegex.test(s.title || ""))
+        .map((s: any) => s.storeId?.toString()),
+    );
 
     andConditions.push({
       $or: [
-        { displayName: { $regex: searchTerm, $options: "i" } },
-        { phone: { $regex: searchTerm, $options: "i" } },
-        { documentNumber: { $regex: searchTerm, $options: "i" } },
-        { streetAddress: { $regex: searchTerm, $options: "i" } },
-        { country: { $regex: searchTerm, $options: "i" } },
-        { province: { $regex: searchTerm, $options: "i" } },
-        { city: { $regex: searchTerm, $options: "i" } },
-        { canton: { $regex: searchTerm, $options: "i" } },
-        { sector: { $regex: searchTerm, $options: "i" } },
-        { neighborhood: { $regex: searchTerm, $options: "i" } },
+        { displayName: searchRegex },
+        { description: searchRegex },
+        { phone: searchRegex },
+        { documentNumber: searchRegex },
+        { streetAddress: searchRegex },
+        { country: searchRegex },
+        { province: searchRegex },
+        { city: searchRegex },
+        { canton: searchRegex },
+        { sector: searchRegex },
+        { neighborhood: searchRegex },
         { cityId: { $in: cityAdConfigIds } },
         { categoryId: { $in: categoryIds } },
+        { subCategoryId: { $in: categoryIds } },
         { owner: { $in: userIds } },
+        ...(itemStoreIds.length > 0 ? [{ _id: { $in: itemStoreIds } }] : []),
       ],
     });
   }
@@ -905,22 +1058,163 @@ const getAllStoresFromDB = async (
     }
   }
 
-  const builder = new QueryBuilder(Store.find(), remainingQuery)
-    .filter()
-    .sort()
-    .paginate()
-    .fields();
+  const hasCustomSort = Boolean(query.sort);
 
-  builder.modelQuery = builder.modelQuery.find(filter);
+  // Handle direct categoryId query parameter (matches category and its subcategories)
+  if (remainingQuery.categoryId) {
+    const requestedCatId = remainingQuery.categoryId;
+    delete remainingQuery.categoryId;
+    const childSubs = await StoreCategory.find({
+      parentId: requestedCatId,
+    })
+      .select("_id")
+      .lean();
+    const allCatIds = [requestedCatId, ...childSubs.map((c: any) => c._id)];
 
-  const [rawStores, meta] = await Promise.all([
-    builder.modelQuery
-      .populate("categoryId")
-      .populate("owner", "name profileImage email phone")
-      .populate("cityId")
-      .lean(),
-    builder.countTotal(),
-  ]);
+    filter.$and = filter.$and || [];
+    filter.$and.push({
+      $or: [
+        { categoryId: { $in: allCatIds } },
+        { subCategoryId: { $in: allCatIds } },
+      ],
+    });
+  }
+
+  // Handle direct subCategoryId query parameter
+  if (remainingQuery.subCategoryId) {
+    filter.subCategoryId = remainingQuery.subCategoryId;
+    delete remainingQuery.subCategoryId;
+  }
+
+  // Apply any remaining direct filter properties from remainingQuery (e.g. isVerified)
+  const remainingFilterObj: Record<string, any> = { ...remainingQuery };
+  const excludeFields = ["searchTerm", "sort", "limit", "page", "fields"];
+  excludeFields.forEach((el) => delete remainingFilterObj[el]);
+  if (Object.keys(remainingFilterObj).length > 0) {
+    Object.assign(filter, remainingFilterObj);
+  }
+
+  let rawStores: any[] = [];
+  let meta: any = {};
+
+  if (cleanSearchTerm && !hasCustomSort) {
+    // When searching without explicit sort, rank all matching candidate stores by relevance
+    const candidateStores = await Store.find(filter)
+      .select(
+        "_id displayName description categoryId subCategoryId owner averageRating createdAt",
+      )
+      .lean();
+
+    const scoredStores = candidateStores.map((store: any) => {
+      let score = 0;
+      const storeIdStr = store._id.toString();
+
+      // 1. Store display name match
+      score +=
+        calculateRelevanceScore(
+          store.displayName,
+          cleanSearchTerm,
+          searchRegex,
+        ) * 1.5;
+
+      // 2. Product / Service title exact match
+      if (
+        productTitleExactStoreIds.has(storeIdStr) ||
+        serviceTitleExactStoreIds.has(storeIdStr)
+      ) {
+        score += 85;
+      } else if (
+        productStoreIdSet.has(storeIdStr) ||
+        serviceStoreIdSet.has(storeIdStr)
+      ) {
+        score += 45;
+      }
+
+      // 3. Category match (either categoryId or subCategoryId)
+      if (
+        categoryIds.some(
+          (cid: any) =>
+            cid.toString() === store.categoryId?.toString() ||
+            cid.toString() === store.subCategoryId?.toString(),
+        )
+      ) {
+        score += 50;
+      }
+
+      // 4. Description match
+      if (store.description) {
+        score +=
+          calculateRelevanceScore(
+            store.description,
+            cleanSearchTerm,
+            searchRegex,
+          ) * 0.5;
+      }
+
+      return {
+        ...store,
+        _searchScore: score,
+      };
+    });
+
+    // Sort descending by relevance score, secondary sort by rating or creation date
+    scoredStores.sort((a, b) => {
+      if (b._searchScore !== a._searchScore) {
+        return b._searchScore - a._searchScore;
+      }
+      return (b.averageRating || 0) - (a.averageRating || 0);
+    });
+
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 10;
+    const total = scoredStores.length;
+    const totalPage = Math.ceil(total / limit);
+
+    meta = { page, limit, total, totalPage };
+
+    const pagedStoreIds = scoredStores
+      .slice((page - 1) * limit, page * limit)
+      .map((s) => s._id);
+
+    if (pagedStoreIds.length > 0) {
+      const unorderedStores = await Store.find({ _id: { $in: pagedStoreIds } })
+        .populate("categoryId")
+        .populate("subCategoryId")
+        .populate("owner", "name profileImage email phone")
+        .populate("cityId")
+        .lean();
+
+      const storeMap = new Map(
+        unorderedStores.map((s: any) => [s._id.toString(), s]),
+      );
+      rawStores = pagedStoreIds
+        .map((id) => storeMap.get(id.toString()))
+        .filter(Boolean);
+    } else {
+      rawStores = [];
+    }
+  } else {
+    const builder = new QueryBuilder(Store.find(), remainingQuery)
+      .filter()
+      .sort()
+      .paginate()
+      .fields();
+
+    builder.modelQuery = builder.modelQuery.find(filter);
+
+    const [stores, countMeta] = await Promise.all([
+      builder.modelQuery
+        .populate("categoryId")
+        .populate("subCategoryId")
+        .populate("owner", "name profileImage email phone")
+        .populate("cityId")
+        .lean(),
+      builder.countTotal(),
+    ]);
+
+    rawStores = stores;
+    meta = countMeta;
+  }
 
   const currentUserId = user?.id || user?._id;
   const storeIds = rawStores.map((s: any) => s._id);

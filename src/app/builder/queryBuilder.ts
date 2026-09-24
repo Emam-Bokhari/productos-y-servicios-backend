@@ -1,4 +1,8 @@
 import { FilterQuery, Query, Types } from "mongoose";
+import {
+  buildFuzzySearchRegex,
+  escapeRegex,
+} from "../../helpers/searchHelper";
 
 class QueryBuilder<T> {
   public modelQuery: Query<T[], T>;
@@ -15,11 +19,14 @@ class QueryBuilder<T> {
     if (!searchTerm) return this;
 
     const orConditions: FilterQuery<T>[] = [];
+    const searchRegex =
+      buildFuzzySearchRegex(searchTerm) ||
+      new RegExp(escapeRegex(searchTerm), "i");
 
     // String field search only
     searchableFields.forEach((field) => {
       orConditions.push({
-        [field]: { $regex: searchTerm, $options: "i" },
+        [field]: searchRegex,
       } as FilterQuery<T>);
     });
 

@@ -11,6 +11,7 @@ const createCategoryZodSchema = z.object({
     type: z.enum(["product", "service"], {
       required_error: "Type is required and must be either product or service",
     }),
+    parentId: z.string().nullable().optional(),
     status: z.enum(["active", "inactive"]).optional(),
   }),
 });
@@ -20,6 +21,7 @@ const updateCategoryZodSchema = z.object({
     name: z.string().min(1, "Category name cannot be empty").optional(),
     description: z.string().optional(),
     type: z.enum(["product", "service"]).optional(),
+    parentId: z.string().nullable().optional(),
     status: z.enum(["active", "inactive"]).optional(),
   }),
 });

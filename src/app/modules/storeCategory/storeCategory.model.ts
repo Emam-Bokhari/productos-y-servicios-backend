@@ -9,7 +9,6 @@ const storeCategorySchema = new Schema<IStoreCategory>(
     name: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
     },
     description: {
@@ -21,6 +20,12 @@ const storeCategorySchema = new Schema<IStoreCategory>(
       enum: Object.values(CATEGORY_TYPE),
       required: true,
     },
+    parentId: {
+      type: Schema.Types.ObjectId,
+      ref: "StoreCategory",
+      default: null,
+      index: true,
+    },
     status: {
       type: String,
       enum: Object.values(STATUS),
@@ -30,8 +35,28 @@ const storeCategorySchema = new Schema<IStoreCategory>(
   {
     timestamps: true,
     versionKey: false,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   },
 );
+
+// Virtual for child subcategories
+storeCategorySchema.virtual("subCategories", {
+  ref: "StoreCategory",
+  localField: "_id",
+  foreignField: "parentId",
+});
+
+// Virtual for parent category
+storeCategorySchema.virtual("parent", {
+  ref: "StoreCategory",
+  localField: "parentId",
+  foreignField: "_id",
+  justOne: true,
+});
+
+// Compound index for unique category/subcategory name under the same parent, type, and active status
+storeCategorySchema.index({ name: 1, parentId: 1, type: 1, isDeleted: 1 });
 
 // Apply soft delete plugin
 storeCategorySchema.plugin(softDeletePlugin);

@@ -21,6 +21,12 @@ router.get(
   StoreCategoryController.getCategoryById,
 );
 
+router.get(
+  "/:storeCategoryId/sub-categories",
+  isAuthenticated,
+  StoreCategoryController.getSubCategoriesByParentId,
+);
+
 router.patch(
   "/:storeCategoryId",
   isAdmin,

@@ -66,10 +66,26 @@ const deleteCategory = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getSubCategoriesByParentId = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await StoreCategoryService.getSubCategoriesByParentIdFromDB(
+      req.params.storeCategoryId,
+    );
+
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: "Subcategories Retrieved Successfully",
+      data: result,
+    });
+  },
+);
+
 export const StoreCategoryController = {
   createCategory,
   getAllCategories,
   getCategoryById,
+  getSubCategoriesByParentId,
   updateCategory,
   deleteCategory,
 };

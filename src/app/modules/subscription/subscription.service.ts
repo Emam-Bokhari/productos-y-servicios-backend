@@ -176,6 +176,7 @@ const getAllSubscriptionsFromDB = async (query: Record<string, unknown>) => {
     userIds.length > 0
       ? await Store.find({ owner: { $in: userIds } })
           .populate("categoryId", "name")
+          .populate("subCategoryId", "name")
           .lean()
       : [];
 
