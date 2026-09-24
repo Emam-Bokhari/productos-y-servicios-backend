@@ -58,9 +58,35 @@ const storeSchema = new Schema<IStore>(
       type: String,
       required: false,
     },
+    country: {
+      type: String,
+      required: false,
+      trim: true,
+    },
+    province: {
+      type: String,
+      required: false,
+      trim: true,
+    },
     city: {
       type: String,
       required: false,
+      trim: true,
+    },
+    canton: {
+      type: String,
+      required: false,
+      trim: true,
+    },
+    sector: {
+      type: String,
+      required: false,
+      trim: true,
+    },
+    neighborhood: {
+      type: String,
+      required: false,
+      trim: true,
     },
     cityId: {
       type: Schema.Types.ObjectId,
@@ -102,6 +128,11 @@ const storeSchema = new Schema<IStore>(
       type: String,
       enum: Object.values(DOCUMENT_TYPE),
       required: false,
+    },
+    documentNumber: {
+      type: String,
+      required: false,
+      trim: true,
     },
     documentFront: {
       type: String,
@@ -162,5 +193,10 @@ storeSchema.index({ businessLicenseNumber: 1 }, { sparse: true });
 storeSchema.index({ storeType: 1 });
 storeSchema.index({ status: 1 });
 storeSchema.index({ cityId: 1 });
+storeSchema.index({ country: 1 });
+storeSchema.index({ province: 1 });
+storeSchema.index({ city: 1 });
+storeSchema.index({ sector: 1 });
+storeSchema.index({ neighborhood: 1 });
 
 export const Store = model<IStore, StoreModel>("Store", storeSchema);

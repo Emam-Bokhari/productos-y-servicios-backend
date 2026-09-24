@@ -17,19 +17,30 @@ const createCityAdConfigToDB = async (
   payload: ICityAdConfiguration,
 ): Promise<ICityAdConfiguration> => {
   // Normalize names
-  payload.city = payload.city.trim();
   payload.country = payload.country.trim();
+  payload.countryCode = payload.countryCode.trim();
+  payload.province = (payload.province || "").trim();
+  payload.city = payload.city.trim();
+  payload.canton = (payload.canton || payload.city).trim();
+  payload.sector = (payload.sector || "").trim();
+  payload.neighborhood = (payload.neighborhood || "").trim();
 
-  // Unique check
+  // Unique check for exact location hierarchy: COUNTRY > PROVINCE > CITY/CANTON > SECTOR > NEIGHBORHOOD
   const exists = await CityAdConfiguration.findOne({
     country: { $regex: `^${payload.country}$`, $options: "i" },
-    city: { $regex: `^${payload.city}$`, $options: "i" },
+    province: { $regex: `^${payload.province}$`, $options: "i" },
+    $or: [
+      { city: { $regex: `^${payload.city}$`, $options: "i" } },
+      { canton: { $regex: `^${payload.canton}$`, $options: "i" } },
+    ],
+    sector: { $regex: `^${payload.sector}$`, $options: "i" },
+    neighborhood: { $regex: `^${payload.neighborhood}$`, $options: "i" },
   });
 
   if (exists) {
     throw new ApiError(
       StatusCodes.CONFLICT,
-      `A city configuration for "${payload.city}, ${payload.country}" already exists.`,
+      `A location configuration for "${payload.neighborhood}, ${payload.sector}, ${payload.city}, ${payload.province}, ${payload.country}" already exists.`,
     );
   }
 
@@ -40,7 +51,15 @@ const getCityAdConfigsFromDB = async (
   query: Record<string, unknown>,
 ): Promise<any> => {
   const cityConfigsQuery = new QueryBuilder(CityAdConfiguration.find(), query)
-    .search(["country", "city"])
+    .search([
+      "country",
+      "countryCode",
+      "province",
+      "city",
+      "canton",
+      "sector",
+      "neighborhood",
+    ])
     .filter()
     .sort()
     .paginate()
@@ -80,24 +99,53 @@ const updateCityAdConfigInDB = async (
     throw new ApiError(StatusCodes.NOT_FOUND, "City configuration not found");
   }
 
-  if (payload.city || payload.country) {
-    const city = (payload.city || configDoc.city).trim();
+  if (
+    payload.city ||
+    payload.country ||
+    payload.province ||
+    payload.canton ||
+    payload.sector ||
+    payload.neighborhood
+  ) {
     const country = (payload.country || configDoc.country).trim();
+    const province = (
+      payload.province !== undefined ? payload.province : configDoc.province || ""
+    ).trim();
+    const city = (payload.city || configDoc.city).trim();
+    const canton = (payload.canton || configDoc.canton || city).trim();
+    const sector = (
+      payload.sector !== undefined ? payload.sector : configDoc.sector || ""
+    ).trim();
+    const neighborhood = (
+      payload.neighborhood !== undefined
+        ? payload.neighborhood
+        : configDoc.neighborhood || ""
+    ).trim();
 
     const exists = await CityAdConfiguration.findOne({
       _id: { $ne: id },
       country: { $regex: `^${country}$`, $options: "i" },
-      city: { $regex: `^${city}$`, $options: "i" },
+      province: { $regex: `^${province}$`, $options: "i" },
+      $or: [
+        { city: { $regex: `^${city}$`, $options: "i" } },
+        { canton: { $regex: `^${canton}$`, $options: "i" } },
+      ],
+      sector: { $regex: `^${sector}$`, $options: "i" },
+      neighborhood: { $regex: `^${neighborhood}$`, $options: "i" },
     });
 
     if (exists) {
       throw new ApiError(
         StatusCodes.CONFLICT,
-        `Another configuration for "${city}, ${country}" already exists.`,
+        `Another configuration for "${neighborhood}, ${sector}, ${city}, ${province}, ${country}" already exists.`,
       );
     }
-    payload.city = city;
     payload.country = country;
+    payload.province = province;
+    payload.city = city;
+    payload.canton = canton;
+    payload.sector = sector;
+    payload.neighborhood = neighborhood;
   }
 
   if (
@@ -138,10 +186,48 @@ const updateCityAdCapacityInDB = async (
   return await updateCityAdConfigInDB(id, { featuredCapacity: capacity });
 };
 
-const getSellerActiveCitiesFromDB = async (): Promise<
-  ICityAdConfiguration[]
-> => {
-  return await CityAdConfiguration.find({ status: SLOT_CONFIG_STATUS.ACTIVE });
+const getSellerActiveCitiesFromDB = async (
+  query?: Record<string, unknown>,
+): Promise<ICityAdConfiguration[]> => {
+  const filter: Record<string, any> = { status: SLOT_CONFIG_STATUS.ACTIVE };
+
+  if (query) {
+    if (query.country) {
+      filter.country = {
+        $regex: (query.country as string).trim(),
+        $options: "i",
+      };
+    }
+    if (query.province) {
+      filter.province = {
+        $regex: (query.province as string).trim(),
+        $options: "i",
+      };
+    }
+    if (query.city) {
+      filter.city = { $regex: (query.city as string).trim(), $options: "i" };
+    }
+    if (query.canton) {
+      filter.$or = [
+        { canton: { $regex: (query.canton as string).trim(), $options: "i" } },
+        { city: { $regex: (query.canton as string).trim(), $options: "i" } },
+      ];
+    }
+    if (query.sector) {
+      filter.sector = {
+        $regex: (query.sector as string).trim(),
+        $options: "i",
+      };
+    }
+    if (query.neighborhood) {
+      filter.neighborhood = {
+        $regex: (query.neighborhood as string).trim(),
+        $options: "i",
+      };
+    }
+  }
+
+  return await CityAdConfiguration.find(filter);
 };
 
 const getCityWiseAvailabilitySummaryFromDB = async (
@@ -177,7 +263,11 @@ const getCityWiseAvailabilitySummaryFromDB = async (
           _id: city._id,
           country: city.country,
           countryCode: city.countryCode,
+          province: city.province || "",
           city: city.city,
+          canton: city.canton || city.city,
+          sector: city.sector || "",
+          neighborhood: city.neighborhood || "",
           latitude: city.latitude,
           longitude: city.longitude,
           status: city.status,
@@ -249,8 +339,13 @@ const getCityBookingStatisticsFromDB = async (
   return {
     cityConfig: {
       _id: config._id,
-      city: config.city,
       country: config.country,
+      countryCode: config.countryCode,
+      province: config.province || "",
+      city: config.city,
+      canton: config.canton || config.city,
+      sector: config.sector || "",
+      neighborhood: config.neighborhood || "",
     },
     statistics: {
       active: activeCount,

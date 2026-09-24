@@ -13,7 +13,11 @@ export interface IAdvertisement {
   cityAdConfigId: Types.ObjectId;
   country: string;
   countryCode: string;
+  province?: string;
   city: string;
+  canton?: string;
+  sector?: string;
+  neighborhood?: string;
   latitude: number;
   longitude: number;
   startDate: Date;

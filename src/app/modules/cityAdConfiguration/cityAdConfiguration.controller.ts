@@ -90,11 +90,11 @@ const getCityBookingStatistics = catchAsync(
 const getSellerActiveCities = catchAsync(
   async (req: Request, res: Response) => {
     const result =
-      await CityAdConfigurationService.getSellerActiveCitiesFromDB();
+      await CityAdConfigurationService.getSellerActiveCitiesFromDB(req.query);
     sendResponse(res, {
       statusCode: StatusCodes.OK,
       success: true,
-      message: "Available advertisement cities retrieved successfully.",
+      message: "Available advertisement locations retrieved successfully.",
       data: result,
     });
   },

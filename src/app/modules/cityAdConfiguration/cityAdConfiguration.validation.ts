@@ -14,8 +14,18 @@ const createCityConfigSchema = z.object({
     countryCode: z.string({
       required_error: "Country Code is required",
     }),
+    province: z.string({
+      required_error: "Province is required",
+    }),
     city: z.string({
-      required_error: "City is required",
+      required_error: "City / Canton is required",
+    }),
+    canton: z.string().optional(),
+    sector: z.string({
+      required_error: "Sector is required",
+    }),
+    neighborhood: z.string({
+      required_error: "Neighborhood is required",
     }),
     latitude: z
       .number({
@@ -47,7 +57,11 @@ const updateCityConfigSchema = z.object({
   body: z.object({
     country: z.string().optional(),
     countryCode: z.string().optional(),
+    province: z.string().optional(),
     city: z.string().optional(),
+    canton: z.string().optional(),
+    sector: z.string().optional(),
+    neighborhood: z.string().optional(),
     latitude: z
       .number()
       .min(-90, "Latitude must be between -90 and 90")

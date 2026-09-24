@@ -17,7 +17,7 @@ const router = express.Router();
 router
   .route("/profile")
   .get(isAuthenticated, UserController.getMyProfile)
-  .delete(isAuthenticated, UserController.deleteProfile); 
+  .delete(isAuthenticated, UserController.deleteProfile);  
 /* ---------------------------- SUPER ADMIN (PUBLIC) ---------------------- */
 router.get("/super-admin", UserController.getSuperAdmin);
 
@@ -37,7 +37,25 @@ router.delete("/admins/:id", isSuperAdmin, UserController.deleteAdmin);
 router
   .route("/")
   .get(isAdmin, UserController.getUsers)
-  .post(UserController.createUser)
+  .post(
+    fileUploadHandler(),
+    parseFileData(
+      {
+        fieldName: "documentFront",
+        mode: "single",
+      },
+      {
+        fieldName: "documentBack",
+        mode: "single",
+      },
+      {
+        fieldName: "profileImage",
+        mode: "single",
+      },
+    ),
+    validateRequest(UserValidation.createUserZodSchema),
+    UserController.createUser,
+  )
 
   .patch(
     isAuthenticated,
@@ -49,6 +67,14 @@ router
       },
       {
         fieldName: "coverImage",
+        mode: "single",
+      },
+      {
+        fieldName: "documentFront",
+        mode: "single",
+      },
+      {
+        fieldName: "documentBack",
         mode: "single",
       },
     ),
@@ -67,6 +93,6 @@ router.patch("/status/:id", isAdmin, UserController.updateUserStatusById);
 router
   .route("/:id")
   .get(isAdmin, UserController.getUserById)
-  .delete(isAdmin, UserController.deleteUserById);
+  .delete(isAdmin, UserController.deleteUserById); 
 
 export const UserRoutes = router;

@@ -15,3 +15,8 @@ export enum STATUS {
   ACTIVE = "active",
   INACTIVE = "inactive",
 }
+
+export enum DOCUMENT_TYPE {
+  NID = "nid",
+  PASSPORT = "passport",
+}

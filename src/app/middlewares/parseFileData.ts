@@ -86,6 +86,20 @@ export const parseFileData = (...fields: FieldInput[]) => {
           fieldFiles = (files as any)["images"];
         }
 
+        // Fallback for documentFront / nidFrontPic
+        if (
+          (!fieldFiles || fieldFiles.length === 0) &&
+          fieldName === "documentFront"
+        ) {
+          fieldFiles = (files as any)["nidFrontPic"];
+        }
+        if (
+          (!fieldFiles || fieldFiles.length === 0) &&
+          fieldName === "documentBack"
+        ) {
+          fieldFiles = (files as any)["nidBackPic"];
+        }
+
         if (!fieldFiles || fieldFiles.length === 0) continue;
 
         const resolvedMode = resolveMode(mode, fieldName, fieldFiles);
@@ -94,7 +108,7 @@ export const parseFileData = (...fields: FieldInput[]) => {
           ? fieldName
           : fieldName === "images"
             ? "image"
-            : "images";
+            : (fieldName as IFolderName);
 
         if (
           fieldName === "taxDocuments" ||

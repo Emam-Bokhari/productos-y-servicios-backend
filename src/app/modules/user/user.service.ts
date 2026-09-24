@@ -111,10 +111,56 @@ const deleteAdminFromDB = async (id: any) => {
 const createUserToDB = async (payload: any) => {
   const isExistUser = await User.findOne({ email: payload.email });
   if (isExistUser) {
-    throw new ApiError(StatusCodes.CONFLICT, "This Email already taken");
+    if (isExistUser.verified) {
+      throw new ApiError(StatusCodes.CONFLICT, "This Email already taken");
+    }
+
+    await User.deleteOne({ _id: isExistUser._id });
   }
 
   const { referredByCode, ...userData } = payload;
+
+  userData.documentNumber =
+    userData.documentNumber ||
+    userData.idNumber ||
+    userData.cedula ||
+    userData.passportNumber ||
+    userData.nationalId;
+
+  if (!userData.documentType) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "Document type (nid or passport) is required",
+    );
+  }
+
+  if (!userData.documentNumber) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "National ID (Cédula) or passport number is required",
+    );
+  }
+
+  if (!userData.documentFront) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "Identity document front upload is required",
+    );
+  }
+
+  userData.isVerified = false;
+
+  const isExistDocNumber = await User.findOne({
+    documentNumber: userData.documentNumber,
+    _id: { $ne: isExistUser?._id },
+    verified: true,
+  });
+  if (isExistDocNumber) {
+    throw new ApiError(
+      StatusCodes.CONFLICT,
+      "This document number is already registered with another account",
+    );
+  }
 
   const createUser = await User.create(userData);
   
@@ -362,6 +408,12 @@ const updateProfileToDB = async (
   if (payload.profileImage && isExistUser.profileImage) {
     unlinkFile(isExistUser.profileImage);
   }
+  if (payload.documentFront && isExistUser.documentFront) {
+    unlinkFile(isExistUser.documentFront);
+  }
+  if (payload.documentBack && isExistUser.documentBack) {
+    unlinkFile(isExistUser.documentBack);
+  }
 
   const updateDoc = await User.findOneAndUpdate({ _id: id }, payload, {
     new: true,
@@ -375,7 +427,17 @@ const getUsersFromDB = async (query: Record<string, unknown>) => {
   }).populate("store", "displayName _id");
 
   const queryBuilder = new QueryBuilder<IUser>(baseQuery, query)
-    .search(["name", "email"])
+    .search([
+      "name",
+      "email",
+      "documentNumber",
+      "country",
+      "province",
+      "city",
+      "canton",
+      "sector",
+      "neighborhood",
+    ])
     .filter()
     .sort()
     .fields()

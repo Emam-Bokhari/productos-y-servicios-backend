@@ -1,5 +1,5 @@
 import { model, Schema } from "mongoose";
-import { GENDER, STATUS, USER_ROLES } from "../../../enums/user";
+import { DOCUMENT_TYPE, GENDER, STATUS, USER_ROLES } from "../../../enums/user";
 import { IUser, IUserModel, UserModal } from "./user.interface";
 import bcrypt from "bcrypt";
 import config from "../../../config";
@@ -79,6 +79,28 @@ const userSchema = new Schema<IUser, IUserModel>(
       type: Boolean,
       default: false,
     },
+    documentType: {
+      type: String,
+      enum: Object.values(DOCUMENT_TYPE),
+      required: false,
+    },
+    documentNumber: {
+      type: String,
+      required: false,
+      trim: true,
+    },
+    documentFront: {
+      type: String,
+      required: false,
+    },
+    documentBack: {
+      type: String,
+      required: false,
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
     location: {
       type: {
         type: String,
@@ -91,6 +113,30 @@ const userSchema = new Schema<IUser, IUserModel>(
         index: "2dsphere",
       },
       address: {
+        type: String,
+        default: "",
+      },
+      country: {
+        type: String,
+        default: "",
+      },
+      province: {
+        type: String,
+        default: "",
+      },
+      city: {
+        type: String,
+        default: "",
+      },
+      canton: {
+        type: String,
+        default: "",
+      },
+      sector: {
+        type: String,
+        default: "",
+      },
+      neighborhood: {
         type: String,
         default: "",
       },
@@ -159,6 +205,26 @@ const userSchema = new Schema<IUser, IUserModel>(
       default: "Asia/Dhaka",
     },
     country: {
+      type: String,
+      required: false,
+    },
+    province: {
+      type: String,
+      required: false,
+    },
+    city: {
+      type: String,
+      required: false,
+    },
+    canton: {
+      type: String,
+      required: false,
+    },
+    sector: {
+      type: String,
+      required: false,
+    },
+    neighborhood: {
       type: String,
       required: false,
     },
@@ -254,5 +320,6 @@ userSchema.pre("save", async function (next) {
 
 userSchema.index({ role: 1 });
 userSchema.index({ role: 1, status: 1 });
+userSchema.index({ documentNumber: 1 }, { sparse: true });
 
 export const User = model<IUser, IUserModel>("User", userSchema);

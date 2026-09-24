@@ -278,7 +278,11 @@ const getSlotAvailabilityFromDB = async (
       _id: cityConfig._id,
       country: cityConfig.country,
       countryCode: cityConfig.countryCode,
+      province: cityConfig.province || "",
       city: cityConfig.city,
+      canton: cityConfig.canton || cityConfig.city,
+      sector: cityConfig.sector || "",
+      neighborhood: cityConfig.neighborhood || "",
       latitude: cityConfig.latitude,
       longitude: cityConfig.longitude,
       defaultFeaturedImage: cityConfig.defaultFeaturedImage || "",
@@ -504,7 +508,11 @@ const createAdvertisementToDB = async (
     payload.storeId = store._id as Types.ObjectId;
     payload.country = cityConfig.country;
     payload.countryCode = cityConfig.countryCode;
+    payload.province = cityConfig.province || "";
     payload.city = cityConfig.city;
+    payload.canton = cityConfig.canton || cityConfig.city;
+    payload.sector = cityConfig.sector || "";
+    payload.neighborhood = cityConfig.neighborhood || "";
     payload.latitude = cityConfig.latitude;
     payload.longitude = cityConfig.longitude;
     payload.status = ADVERTISEMENT_STATUS.ACTIVE;
@@ -696,7 +704,15 @@ const getBookingsByStatusFromDB = async (
   const extendedQuery = { ...restQuery, ...filterQuery };
 
   const builder = new QueryBuilder(Advertisement.find(), extendedQuery)
-    .search(["campaignName", "city", "country"])
+    .search([
+      "campaignName",
+      "country",
+      "province",
+      "city",
+      "canton",
+      "sector",
+      "neighborhood",
+    ])
     .filter()
     .sort()
     .paginate()
@@ -866,7 +882,11 @@ const getUserAdvertisementsFromDB = async (
         cityAdConfigId: targetCity._id,
         country: targetCity.country,
         countryCode: targetCity.countryCode,
+        province: targetCity.province || "",
         city: targetCity.city,
+        canton: targetCity.canton || targetCity.city,
+        sector: targetCity.sector || "",
+        neighborhood: targetCity.neighborhood || "",
         latitude: targetCity.latitude,
         longitude: targetCity.longitude,
         status: ADVERTISEMENT_STATUS.ACTIVE,
@@ -964,6 +984,10 @@ const getAdvertisementPaymentsFromDB = async (
         CityAdConfiguration.find({
           $or: [
             { city: { $regex: searchRegex } },
+            { canton: { $regex: searchRegex } },
+            { sector: { $regex: searchRegex } },
+            { neighborhood: { $regex: searchRegex } },
+            { province: { $regex: searchRegex } },
             { country: { $regex: searchRegex } },
           ],
         })

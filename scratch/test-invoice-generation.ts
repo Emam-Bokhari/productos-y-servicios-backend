@@ -50,7 +50,7 @@ async function testInvoice() {
     discount: 0.0,
     total: 70.0,
     notes:
-      "Thank you for choosing Productos Y Servicios. Your active subscription guarantees full storefront exposure across our Ecuador marketplace network.",
+      "Thank you for choosing JAGANA. Your active subscription guarantees full storefront exposure across our Ecuador marketplace network.",
   };
 
   try {

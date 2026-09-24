@@ -43,9 +43,33 @@ const advertisementSchema = new Schema<IAdvertisement>(
       required: true,
       trim: true,
     },
+    province: {
+      type: String,
+      required: false,
+      default: "",
+      trim: true,
+    },
     city: {
       type: String,
       required: true,
+      trim: true,
+    },
+    canton: {
+      type: String,
+      required: false,
+      default: "",
+      trim: true,
+    },
+    sector: {
+      type: String,
+      required: false,
+      default: "",
+      trim: true,
+    },
+    neighborhood: {
+      type: String,
+      required: false,
+      default: "",
       trim: true,
     },
     latitude: {
@@ -106,6 +130,11 @@ advertisementSchema.index({
   startDate: 1,
   endDate: 1,
 });
+advertisementSchema.index({ country: 1, province: 1, city: 1 });
+advertisementSchema.index({ province: 1 });
+advertisementSchema.index({ city: 1 });
+advertisementSchema.index({ sector: 1 });
+advertisementSchema.index({ neighborhood: 1 });
 
 export const Advertisement = model<IAdvertisement, AdvertisementModel>(
   "Advertisement",

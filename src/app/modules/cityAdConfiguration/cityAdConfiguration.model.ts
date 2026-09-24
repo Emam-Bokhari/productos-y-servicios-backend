@@ -18,9 +18,33 @@ const cityAdConfigurationSchema = new Schema<ICityAdConfiguration>(
       required: true,
       trim: true,
     },
+    province: {
+      type: String,
+      required: false,
+      default: "",
+      trim: true,
+    },
     city: {
       type: String,
       required: true,
+      trim: true,
+    },
+    canton: {
+      type: String,
+      required: false,
+      default: "",
+      trim: true,
+    },
+    sector: {
+      type: String,
+      required: false,
+      default: "",
+      trim: true,
+    },
+    neighborhood: {
+      type: String,
+      required: false,
+      default: "",
       trim: true,
     },
     latitude: {
@@ -80,8 +104,32 @@ const cityAdConfigurationSchema = new Schema<ICityAdConfiguration>(
 
 cityAdConfigurationSchema.plugin(softDeletePlugin);
 
-// Compound unique index to prevent duplicate city configurations
-cityAdConfigurationSchema.index({ country: 1, city: 1 }, { unique: true });
+// Sync city and canton if either is missing
+cityAdConfigurationSchema.pre("save", function (next) {
+  if (this.city && !this.canton) {
+    this.canton = this.city;
+  } else if (this.canton && !this.city) {
+    this.city = this.canton;
+  }
+  next();
+});
+
+// Compound unique index for location hierarchy: COUNTRY > PROVINCE > CITY/CANTON > SECTOR > NEIGHBORHOOD
+cityAdConfigurationSchema.index(
+  {
+    country: 1,
+    province: 1,
+    city: 1,
+    sector: 1,
+    neighborhood: 1,
+  },
+  { unique: true },
+);
+cityAdConfigurationSchema.index({ country: 1, province: 1, city: 1 });
+cityAdConfigurationSchema.index({ province: 1 });
+cityAdConfigurationSchema.index({ city: 1 });
+cityAdConfigurationSchema.index({ sector: 1 });
+cityAdConfigurationSchema.index({ neighborhood: 1 });
 cityAdConfigurationSchema.index({ latitude: 1, longitude: 1 });
 cityAdConfigurationSchema.index({ status: 1 });
 
@@ -89,3 +137,8 @@ export const CityAdConfiguration = model<
   ICityAdConfiguration,
   CityAdConfigurationModel
 >("CityAdConfiguration", cityAdConfigurationSchema);
+
+// Safe cleanup of legacy unique index if it exists in DB
+CityAdConfiguration.collection.dropIndex("country_1_city_1").catch(() => {
+  // Legacy index does not exist, ignore
+});

@@ -120,7 +120,7 @@ const forgetPasswordToDB = async (email: string) => {
   await User.findOneAndUpdate({ email }, { $set: { authentication } });
 };
 
-// ======================================= afriksms verify phone otp============================
+// =======================afriksms verify phone otp=============
 const verifyEmailToDB = async (payload: IVerifyEmail) => {
   const { email, oneTimeCode } = payload;
   const isExistUser = await User.findOne({ email }).select("+authentication");
@@ -131,9 +131,8 @@ const verifyEmailToDB = async (payload: IVerifyEmail) => {
   if (!oneTimeCode) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-
       "Please give the otp, check your email we send a code",
-    );
+    ); 
   }
 
   if (isExistUser.authentication?.oneTimeCode !== oneTimeCode) {
@@ -211,7 +210,6 @@ const resetPasswordToDB = async (
   if (!isValid) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-
       "Token expired, Please click again to the forget password",
     );
   }
@@ -261,7 +259,6 @@ const changePasswordToDB = async (
   if (currentPassword === newPassword) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-
       "Please give different password from current password",
     );
   }
@@ -334,7 +331,7 @@ const resendVerificationEmailToDB = async (email: string) => {
     );
   }
 
-  if (existingUser?.isVerified) {
+  if (existingUser?.verified) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User is already verified!");
   }
 

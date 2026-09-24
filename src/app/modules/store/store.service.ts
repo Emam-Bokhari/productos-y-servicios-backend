@@ -151,7 +151,7 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
     );
   }
 
-  // Validate city exists in active configurations
+  // Validate city/location exists in active configurations
   if (payload.cityId) {
     const activeCity = await CityAdConfiguration.findOne({
       _id: payload.cityId,
@@ -160,8 +160,21 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
     if (!activeCity) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        "The selected city configuration is not configured or active for stores.",
+        "The selected location configuration is not configured or active for stores.",
       );
+    }
+    // Auto-fill hierarchy fields if not explicitly provided
+    payload.country = payload.country || activeCity.country;
+    payload.province = payload.province || activeCity.province;
+    payload.city = payload.city || activeCity.city;
+    payload.canton = payload.canton || activeCity.canton || activeCity.city;
+    payload.sector = payload.sector || activeCity.sector;
+    payload.neighborhood = payload.neighborhood || activeCity.neighborhood;
+    if (payload.latitude === undefined && activeCity.latitude) {
+      payload.latitude = activeCity.latitude;
+    }
+    if (payload.longitude === undefined && activeCity.longitude) {
+      payload.longitude = activeCity.longitude;
     }
   }
 
@@ -170,10 +183,20 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
     delete payload.timezone;
   }
 
+  const ownerUser = await User.findById(ownerId);
+
   // Create a new store (status defaults to under_review)
   const store = await Store.create({
     ...payload,
     owner: ownerId,
+    documentType: payload.documentType || ownerUser?.documentType,
+    documentNumber: payload.documentNumber || ownerUser?.documentNumber,
+    documentFront: payload.documentFront || ownerUser?.documentFront,
+    documentBack: payload.documentBack || ownerUser?.documentBack,
+    isVerified:
+      payload.isVerified !== undefined
+        ? payload.isVerified
+        : ownerUser?.isVerified ?? false,
     status: "under_review",
   });
 
@@ -260,7 +283,7 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
     }
   }
 
-  // Validate city exists in active configurations if changing
+  // Validate location exists in active configurations if changing
   if (payload.cityId && payload.cityId !== store.cityId?.toString()) {
     const activeCity = await CityAdConfiguration.findOne({
       _id: payload.cityId,
@@ -269,8 +292,20 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
     if (!activeCity) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        "The selected city configuration is not configured or active for stores.",
+        "The selected location configuration is not configured or active for stores.",
       );
+    }
+    payload.country = payload.country || activeCity.country;
+    payload.province = payload.province || activeCity.province;
+    payload.city = payload.city || activeCity.city;
+    payload.canton = payload.canton || activeCity.canton || activeCity.city;
+    payload.sector = payload.sector || activeCity.sector;
+    payload.neighborhood = payload.neighborhood || activeCity.neighborhood;
+    if (payload.latitude === undefined && activeCity.latitude) {
+      payload.latitude = activeCity.latitude;
+    }
+    if (payload.longitude === undefined && activeCity.longitude) {
+      payload.longitude = activeCity.longitude;
     }
   }
 
@@ -728,7 +763,14 @@ const getAllStoresFromDB = async (
     const userIds = users.map((u) => u._id);
 
     const cityAdConfigs = await CityAdConfiguration.find({
-      city: { $regex: searchTerm, $options: "i" },
+      $or: [
+        { country: { $regex: searchTerm, $options: "i" } },
+        { province: { $regex: searchTerm, $options: "i" } },
+        { city: { $regex: searchTerm, $options: "i" } },
+        { canton: { $regex: searchTerm, $options: "i" } },
+        { sector: { $regex: searchTerm, $options: "i" } },
+        { neighborhood: { $regex: searchTerm, $options: "i" } },
+      ],
     }).select("_id");
     const cityAdConfigIds = cityAdConfigs.map((c) => c._id);
 
@@ -736,6 +778,14 @@ const getAllStoresFromDB = async (
       $or: [
         { displayName: { $regex: searchTerm, $options: "i" } },
         { phone: { $regex: searchTerm, $options: "i" } },
+        { documentNumber: { $regex: searchTerm, $options: "i" } },
+        { streetAddress: { $regex: searchTerm, $options: "i" } },
+        { country: { $regex: searchTerm, $options: "i" } },
+        { province: { $regex: searchTerm, $options: "i" } },
+        { city: { $regex: searchTerm, $options: "i" } },
+        { canton: { $regex: searchTerm, $options: "i" } },
+        { sector: { $regex: searchTerm, $options: "i" } },
+        { neighborhood: { $regex: searchTerm, $options: "i" } },
         { cityId: { $in: cityAdConfigIds } },
         { categoryId: { $in: categoryIds } },
         { owner: { $in: userIds } },
@@ -753,8 +803,68 @@ const getAllStoresFromDB = async (
     delete remainingQuery.cityId;
   }
 
-  // Handle city configuration filtering via latitude/longitude or city/location name fallback
-  let cityConfig = null;
+  // Handle location hierarchy filtering (country, province, city, canton, sector, neighborhood)
+  const locFilters: Record<string, any> = { status: SLOT_CONFIG_STATUS.ACTIVE };
+  let hasLocationFilter = false;
+
+  if (remainingQuery.country) {
+    locFilters.country = {
+      $regex: `^${(remainingQuery.country as string).trim()}$`,
+      $options: "i",
+    };
+    delete remainingQuery.country;
+    hasLocationFilter = true;
+  }
+  if (remainingQuery.province) {
+    locFilters.province = {
+      $regex: `^${(remainingQuery.province as string).trim()}$`,
+      $options: "i",
+    };
+    delete remainingQuery.province;
+    hasLocationFilter = true;
+  }
+  if (remainingQuery.city) {
+    locFilters.city = {
+      $regex: `^${(remainingQuery.city as string).trim()}$`,
+      $options: "i",
+    };
+    delete remainingQuery.city;
+    hasLocationFilter = true;
+  }
+  if (remainingQuery.canton) {
+    locFilters.$or = [
+      {
+        canton: {
+          $regex: `^${(remainingQuery.canton as string).trim()}$`,
+          $options: "i",
+        },
+      },
+      {
+        city: {
+          $regex: `^${(remainingQuery.canton as string).trim()}$`,
+          $options: "i",
+        },
+      },
+    ];
+    delete remainingQuery.canton;
+    hasLocationFilter = true;
+  }
+  if (remainingQuery.sector) {
+    locFilters.sector = {
+      $regex: `^${(remainingQuery.sector as string).trim()}$`,
+      $options: "i",
+    };
+    delete remainingQuery.sector;
+    hasLocationFilter = true;
+  }
+  if (remainingQuery.neighborhood) {
+    locFilters.neighborhood = {
+      $regex: `^${(remainingQuery.neighborhood as string).trim()}$`,
+      $options: "i",
+    };
+    delete remainingQuery.neighborhood;
+    hasLocationFilter = true;
+  }
 
   if (remainingQuery.latitude && remainingQuery.longitude) {
     const lat = parseFloat(remainingQuery.latitude as string);
@@ -763,41 +873,36 @@ const getAllStoresFromDB = async (
     delete remainingQuery.longitude;
 
     if (!isNaN(lat) && !isNaN(lng)) {
-      cityConfig = await CityAdConfiguration.findOne({
-        latitude: lat,
-        longitude: lng,
-        status: SLOT_CONFIG_STATUS.ACTIVE,
-      });
-    }
-  } else if (remainingQuery.city) {
-    const cityStr = remainingQuery.city as string;
-    delete remainingQuery.city;
-    if (cityStr) {
-      cityConfig = await CityAdConfiguration.findOne({
-        city: { $regex: `^${cityStr.trim()}$`, $options: "i" },
-        status: SLOT_CONFIG_STATUS.ACTIVE,
-      });
+      locFilters.latitude = lat;
+      locFilters.longitude = lng;
+      hasLocationFilter = true;
     }
   } else if (remainingQuery.location) {
-    const locationStr = remainingQuery.location as string;
+    const locationStr = (remainingQuery.location as string).trim();
     delete remainingQuery.location;
     if (locationStr) {
-      cityConfig = await CityAdConfiguration.findOne({
-        city: { $regex: `^${locationStr.trim()}$`, $options: "i" },
-        status: SLOT_CONFIG_STATUS.ACTIVE,
-      });
+      locFilters.$or = [
+        { city: { $regex: locationStr, $options: "i" } },
+        { canton: { $regex: locationStr, $options: "i" } },
+        { sector: { $regex: locationStr, $options: "i" } },
+        { neighborhood: { $regex: locationStr, $options: "i" } },
+        { province: { $regex: locationStr, $options: "i" } },
+        { country: { $regex: locationStr, $options: "i" } },
+      ];
+      hasLocationFilter = true;
     }
   }
 
-  if (cityConfig) {
-    filter.cityId = cityConfig._id;
-  } else if (
-    query.latitude ||
-    query.longitude ||
-    query.city ||
-    query.location
-  ) {
-    filter.cityId = new Types.ObjectId();
+  if (hasLocationFilter) {
+    const matchedConfigs = await CityAdConfiguration.find(locFilters).select(
+      "_id",
+    );
+    const matchedConfigIds = matchedConfigs.map((c) => c._id);
+    if (matchedConfigIds.length > 0) {
+      filter.cityId = { $in: matchedConfigIds };
+    } else {
+      filter.cityId = new Types.ObjectId();
+    }
   }
 
   const builder = new QueryBuilder(Store.find(), remainingQuery)
@@ -932,6 +1037,7 @@ const verifyStoreIdentityInDB = async (
   ownerId: string,
   payload: {
     documentType: "nid" | "passport";
+    documentNumber?: string;
     documentFront: string;
     documentBack?: string;
   },
@@ -947,6 +1053,9 @@ const verifyStoreIdentityInDB = async (
     {
       $set: {
         documentType: payload.documentType,
+        ...(payload.documentNumber
+          ? { documentNumber: payload.documentNumber }
+          : {}),
         documentFront: payload.documentFront,
         documentBack: payload.documentBack || undefined,
         isVerified: false,
@@ -962,6 +1071,17 @@ const verifyStoreIdentityInDB = async (
     );
   }
 
+  // Also sync to User
+  await User.findByIdAndUpdate(ownerId, {
+    documentType: payload.documentType,
+    ...(payload.documentNumber
+      ? { documentNumber: payload.documentNumber }
+      : {}),
+    documentFront: payload.documentFront,
+    documentBack: payload.documentBack || undefined,
+    isVerified: false,
+  });
+
   return updatedStore;
 };
 
@@ -976,6 +1096,11 @@ const updateStoreVerificationInDB = async (
 
   store.isVerified = isVerified;
   await store.save();
+
+  // Also sync verification status to owner User
+  if (store.owner) {
+    await User.findByIdAndUpdate(store.owner, { isVerified });
+  }
 
   return store;
 };

@@ -9,7 +9,11 @@ export interface IPositionPricing {
 export interface ICityAdConfiguration {
   country: string;
   countryCode: string;
+  province: string;
   city: string;
+  canton?: string;
+  sector: string;
+  neighborhood: string;
   latitude: number;
   longitude: number;
   featuredCapacity: number;

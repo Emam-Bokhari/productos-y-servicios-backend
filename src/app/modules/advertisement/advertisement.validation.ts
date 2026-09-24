@@ -69,6 +69,12 @@ const updateAdvertisementSchema = z.object({
 const getUserAdsQuerySchema = z.object({
   query: z.object({
     cityAdConfigId: z.string().optional(),
+    country: z.string().optional(),
+    province: z.string().optional(),
+    city: z.string().optional(),
+    canton: z.string().optional(),
+    sector: z.string().optional(),
+    neighborhood: z.string().optional(),
     latitude: z
       .string()
       .refine((val) => !isNaN(parseFloat(val)), {

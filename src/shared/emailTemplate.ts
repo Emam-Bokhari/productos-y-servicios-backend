@@ -10,7 +10,7 @@ const COLORS = {
 };
 
 const LOGO =
-  "https://res.cloudinary.com/dphkhbunv/image/upload/v1785990667/Frame_2147226136_cyu9kb.png";
+  "https://res.cloudinary.com/dphkhbunv/image/upload/v1790221907/logo_z98k6d.png";
 
 const baseLayout = (title: string, content: string) => `
 <!DOCTYPE html>
@@ -66,29 +66,26 @@ overflow:hidden;
 
 <td
 align="center"
-style="padding:45px 36px 28px;"
+style="padding:40px 36px 28px;"
 >
 
 <img
 src="${LOGO}"
-width="74"
-alt="Productos Y Servicios"
+width="180"
+alt="JAGANA"
 style="
 display:block;
-margin-bottom:18px;
+max-width:180px;
+width:100%;
+height:auto;
+margin:0 auto;
+font-family:Arial,Helvetica,sans-serif;
+font-size:24px;
+font-weight:700;
+color:${COLORS.text};
+text-align:center;
 "
 />
-
-<h1
-style="
-margin:0;
-font-size:30px;
-color:${COLORS.text};
-font-weight:700;
-"
->
-Productos Y Servicios
-</h1>
 
 </td>
 
@@ -141,7 +138,7 @@ color:${COLORS.secondary};
 "
 >
 
-This is an automated email from Productos Y Servicios.
+This is an automated email from JAGANA.
 
 </p>
 
@@ -153,7 +150,7 @@ color:#6B7280;
 "
 >
 
-© ${new Date().getFullYear()} Productos Y Servicios.
+© ${new Date().getFullYear()} JAGANA.
 All rights reserved.
 
 </p>
@@ -253,7 +250,7 @@ Security Tips
 
 <br>
 
-• Productos Y Servicios will never ask for your OTP.
+• JAGANA will never ask for your OTP.
 
 </td>
 
@@ -283,7 +280,7 @@ line-height:1.8;
 color:${COLORS.secondary};
 "
 >
-Welcome to <b style="color:${COLORS.text};">Productos Y Servicios</b>.
+Welcome to <b style="color:${COLORS.text};">JAGANA</b>.
 
 Thank you for creating your account.
 
@@ -303,15 +300,15 @@ line-height:1.8;
 color:${COLORS.secondary};
 "
 >
-If you didn't create a Productos Y Servicios account, you can safely ignore this email.
+If you didn't create a JAGANA account, you can safely ignore this email.
 No further action is required.
 </p>
 `;
 
   return {
     to: values.email,
-    subject: "Verify your Productos Y Servicios account",
-    html: baseLayout("Verify your Productos Y Servicios account", content),
+    subject: "Verify your JAGANA account",
+    html: baseLayout("Verify your JAGANA account", content),
   };
 };
 
@@ -337,7 +334,7 @@ color:${COLORS.secondary};
 "
 >
 We received a request to reset the password for your
-<b style="color:${COLORS.text};">Productos Y Servicios</b> account.
+<b style="color:${COLORS.text};">JAGANA</b> account.
 
 Use the verification code below to continue.
 </p>
@@ -362,8 +359,8 @@ Your account remains secure.
 
   return {
     to: values.email,
-    subject: "Reset your Productos Y Servicios password",
-    html: baseLayout("Reset your Productos Y Servicios password", content),
+    subject: "Reset your JAGANA password",
+    html: baseLayout("Reset your JAGANA password", content),
   };
 };
 
@@ -397,7 +394,7 @@ color:${COLORS.secondary};
 "
 >
 A new support request has been submitted through the
-<b style="color:${COLORS.text};">Productos Y Servicios</b> platform.
+<b style="color:${COLORS.text};">JAGANA</b> platform.
 
 The request details are shown below.
 </p>
@@ -592,7 +589,7 @@ Internal Notification
 
 <br><br>
 
-This email was automatically generated after a user submitted a support request through Productos Y Servicios.
+This email was automatically generated after a user submitted a support request through JAGANA.
 
 <br><br>
 
@@ -607,7 +604,7 @@ Please review the request and respond as soon as possible.
 
   return {
     to: values.to,
-    subject: `Productos Y Servicios Support Request: ${values.subject}`,
+    subject: `JAGANA Support Request: ${values.subject}`,
     html: baseLayout("Support Request", content),
   };
 };

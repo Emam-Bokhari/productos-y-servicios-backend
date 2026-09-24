@@ -108,7 +108,7 @@ const getAllServicesFromDB = async (
     select: "displayName logo cityId averageRating",
     populate: {
       path: "cityId",
-      select: "city country countryCode",
+      select: "country countryCode province city canton sector neighborhood latitude longitude",
     },
   });
   const meta = await builder.countTotal();

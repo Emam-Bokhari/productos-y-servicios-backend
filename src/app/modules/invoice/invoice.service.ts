@@ -278,9 +278,15 @@ class InvoiceService {
 
       if (isPostAdd) {
         const slotPos = subscription?.position || advertisement?.position;
-        const cityName =
-          cityConfig?.city || advertisement?.city || "Selected City";
-        details = `City: ${cityName}${slotPos ? ` | Featured Slot #${slotPos}` : ""}`;
+        const locationParts = [
+          cityConfig?.neighborhood || advertisement?.neighborhood,
+          cityConfig?.sector || advertisement?.sector,
+          cityConfig?.city || advertisement?.city,
+          cityConfig?.province || advertisement?.province,
+          cityConfig?.country || advertisement?.country,
+        ].filter(Boolean);
+        const locationName = locationParts.join(", ") || "Selected Location";
+        details = `Location: ${locationName}${slotPos ? ` | Featured Slot #${slotPos}` : ""}`;
       } else {
         details = `Store Creation & Vendor Membership Plan`;
       }
@@ -297,16 +303,29 @@ class InvoiceService {
     } else if (isDirectAdBooking) {
       const pos =
         transaction?.metadata?.position || advertisement?.position || 1;
-      const cityName =
+      const locationParts = [
+        transaction?.metadata?.neighborhood ||
+          cityConfig?.neighborhood ||
+          advertisement?.neighborhood,
+        transaction?.metadata?.sector ||
+          cityConfig?.sector ||
+          advertisement?.sector,
         transaction?.metadata?.cityName ||
-        cityConfig?.city ||
-        advertisement?.city ||
-        "Selected City";
+          cityConfig?.city ||
+          advertisement?.city,
+        transaction?.metadata?.province ||
+          cityConfig?.province ||
+          advertisement?.province,
+        transaction?.metadata?.country ||
+          cityConfig?.country ||
+          advertisement?.country,
+      ].filter(Boolean);
+      const locationName = locationParts.join(", ") || "Selected Location";
 
       items.push({
         itemNumber: 1,
         description: `Featured Advertisement Slot - Position ${pos}`,
-        details: `City: ${cityName} | Featured Home Screen Slot #${pos}`,
+        details: `Location: ${locationName} | Featured Home Screen Slot #${pos}`,
         type: "Advertisement",
         duration: "7 Days",
         unitPrice: totalAmount,
@@ -315,7 +334,7 @@ class InvoiceService {
     } else {
       items.push({
         itemNumber: 1,
-        description: "Productos Y Servicios Platform Service",
+        description: "JAGANA Platform Service",
         details: "Digital subscription & advertisement service",
         type: "Service",
         duration: "30 Days",
@@ -353,7 +372,7 @@ class InvoiceService {
       tax: 0,
       discount: 0,
       total: totalAmount,
-      notes: "Thank you for partnering with Productos Y Servicios. Your active subscription contributes directly to your store's visibility across our marketplace.",
+      notes: "Thank you for partnering with JAGANA. Your active subscription contributes directly to your store's visibility across our marketplace.",
       downloadUrl: `/api/v1/invoices/download/${safeInvoiceNumber}`,
       previewUrl: `/api/v1/invoices/preview/${safeInvoiceNumber}`,
       pdfUrl: `/uploads/invoices/${safeInvoiceNumber}.pdf`,

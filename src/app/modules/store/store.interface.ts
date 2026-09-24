@@ -15,7 +15,12 @@ export type IStore = {
   whatsapp?: string;
   email?: string;
   streetAddress?: string;
+  country?: string;
+  province?: string;
   city?: string;
+  canton?: string;
+  sector?: string;
+  neighborhood?: string;
   cityId?: Schema.Types.ObjectId;
   postalCode?: string;
   latitude?: number;
@@ -25,6 +30,7 @@ export type IStore = {
   tinNumber?: string;
   status: STORE_STATUS;
   documentType?: DOCUMENT_TYPE;
+  documentNumber?: string;
   documentFront?: string;
   documentBack?: string;
   isVerified?: boolean;

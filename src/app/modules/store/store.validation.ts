@@ -43,6 +43,16 @@ const createStoreSchema = z.object({
       .refine((val) => /^[0-9a-fA-F]{24}$/.test(val), {
         message: "Invalid city ID format",
       }),
+    country: z.string().optional(),
+    province: z.string().optional(),
+    city: z.string().optional(),
+    canton: z.string().optional(),
+    sector: z.string().optional(),
+    neighborhood: z.string().optional(),
+    streetAddress: z.string().optional(),
+    postalCode: z.string().optional(),
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
     businessLicenseNumber: z.string({
       required_error: "Business License Number is required",
     }),
@@ -62,6 +72,10 @@ const createStoreSchema = z.object({
       .refine((val) => !val || isValidTimezone(val), {
         message: "Invalid IANA timezone identifier",
       }),
+    documentType: z.enum(["nid", "passport"]).optional(),
+    documentNumber: z.string().optional(),
+    documentFront: z.string().optional(),
+    documentBack: z.string().optional(),
   }),
 });
 
@@ -96,6 +110,16 @@ const updateStoreSchema = z.object({
         message: "Invalid city ID format",
       })
       .optional(),
+    country: z.string().optional(),
+    province: z.string().optional(),
+    city: z.string().optional(),
+    canton: z.string().optional(),
+    sector: z.string().optional(),
+    neighborhood: z.string().optional(),
+    streetAddress: z.string().optional(),
+    postalCode: z.string().optional(),
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
     businessLicenseNumber: z.string().optional(),
     tradeLicense: z.string().optional(),
     tinNumber: z.string().optional(),
@@ -109,6 +133,10 @@ const updateStoreSchema = z.object({
       .refine((val) => !val || isValidTimezone(val), {
         message: "Invalid IANA timezone identifier",
       }),
+    documentType: z.enum(["nid", "passport"]).optional(),
+    documentNumber: z.string().optional(),
+    documentFront: z.string().optional(),
+    documentBack: z.string().optional(),
   }),
 });
 
@@ -125,6 +153,7 @@ const verifyIdentitySchema = z.object({
     documentType: z.enum(["nid", "passport"], {
       required_error: "Document type must be either nid or passport",
     }),
+    documentNumber: z.string().optional(),
     documentFront: z.string({
       required_error: "Front side document image is required",
     }),

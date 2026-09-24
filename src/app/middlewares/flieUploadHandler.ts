@@ -151,12 +151,46 @@ export const FILE_CONFIG = {
   documentFront: {
     dir: "documentFront",
     maxCount: 1,
-    mimeTypes: new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]),
+    mimeTypes: new Set([
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "image/webp",
+      "application/pdf",
+    ]),
   },
   documentBack: {
     dir: "documentBack",
     maxCount: 1,
-    mimeTypes: new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]),
+    mimeTypes: new Set([
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "image/webp",
+      "application/pdf",
+    ]),
+  },
+  nidFrontPic: {
+    dir: "documentFront",
+    maxCount: 1,
+    mimeTypes: new Set([
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "image/webp",
+      "application/pdf",
+    ]),
+  },
+  nidBackPic: {
+    dir: "documentBack",
+    maxCount: 1,
+    mimeTypes: new Set([
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "image/webp",
+      "application/pdf",
+    ]),
   },
   audio: {
     dir: "audio",
