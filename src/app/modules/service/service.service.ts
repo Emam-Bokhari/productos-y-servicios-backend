@@ -138,7 +138,8 @@ const getAllServicesFromDB = async (
     select: "displayName logo cityId averageRating",
     populate: {
       path: "cityId",
-      select: "country countryCode province city canton sector neighborhood latitude longitude",
+      select:
+        "country countryCode province city canton sector neighborhood latitude longitude",
     },
   });
   const meta = await builder.countTotal();

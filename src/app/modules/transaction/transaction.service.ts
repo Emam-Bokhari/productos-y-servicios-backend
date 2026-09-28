@@ -285,9 +285,7 @@ const getTransactions = async (
           ? "SUBSCRIPTION_RENEWAL"
           : "SUBSCRIPTION_PAYMENT";
       const pkgName = (txObj.packageId as any)?.name;
-      title = pkgName
-        ? `Suscripción: ${pkgName}`
-        : "Suscripción de Tienda";
+      title = pkgName ? `Suscripción: ${pkgName}` : "Suscripción de Tienda";
       icon = "store";
       displayColor = "emerald";
       type = "SPEND";
@@ -388,8 +386,12 @@ const getAllSubscriptionTransactions = async (queryOptions: {
 
     // Run store and package matching in parallel
     const [matchingStores, matchingPackages] = await Promise.all([
-      Store.find({ displayName: { $regex: searchRegex } }).select("owner").lean(),
-      SubscriptionPackage.find({ name: { $regex: searchRegex } }).select("_id").lean(),
+      Store.find({ displayName: { $regex: searchRegex } })
+        .select("owner")
+        .lean(),
+      SubscriptionPackage.find({ name: { $regex: searchRegex } })
+        .select("_id")
+        .lean(),
     ]);
 
     const ownerIds = matchingStores.map((store: any) => store.owner);
@@ -490,9 +492,7 @@ const getAllSubscriptionTransactions = async (queryOptions: {
       invoiceNumber: tx.transactionId,
       invoiceUrl,
       invoiceDownloadUrl,
-      store: store
-        ? store.displayName || "N/A"
-        : tx.userId?.name || "N/A",
+      store: store ? store.displayName || "N/A" : tx.userId?.name || "N/A",
       plan: planName,
       method,
       amount: tx.amount,
@@ -512,7 +512,6 @@ const getAllSubscriptionTransactions = async (queryOptions: {
     data,
   };
 };
-
 
 const refundTransactionFromDB = async (id: string): Promise<any> => {
   if (!mongoose.Types.ObjectId.isValid(id)) {

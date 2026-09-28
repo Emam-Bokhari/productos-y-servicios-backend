@@ -66,7 +66,10 @@ class InvoiceService {
       );
     }
 
-    const safeInvoiceNumber = invoiceData.invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const safeInvoiceNumber = invoiceData.invoiceNumber.replace(
+      /[^a-zA-Z0-9_-]/g,
+      "_",
+    );
     const filename = `${safeInvoiceNumber}.pdf`;
     const filePath = path.join(INVOICE_DIR, filename);
     const relativeUrl = `/uploads/invoices/${filename}`;
@@ -175,7 +178,8 @@ class InvoiceService {
       if (transaction.userId && transaction.packageId) {
         subQueries.push({
           userId: (transaction.userId as any)._id || transaction.userId,
-          packageId: (transaction.packageId as any)._id || transaction.packageId,
+          packageId:
+            (transaction.packageId as any)._id || transaction.packageId,
         });
       }
       if (subQueries.length > 0) {
@@ -237,21 +241,22 @@ class InvoiceService {
       `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     // Resolve Date
-    const rawDate = transaction?.createdAt || subscription?.createdAt || new Date();
+    const rawDate =
+      transaction?.createdAt || subscription?.createdAt || new Date();
     const formattedDate = DateTime.fromJSDate(new Date(rawDate)).toFormat(
       "LLL d, yyyy",
     );
 
     // Resolve Payment Method & Status
     const paymentMethod =
-      transaction?.paymentMethod || (subscription?.amountPaid === 0 ? "Free Trial" : "DATAFAST");
+      transaction?.paymentMethod ||
+      (subscription?.amountPaid === 0 ? "Free Trial" : "DATAFAST");
     const paymentStatus =
-      transaction?.paymentStatus || (subscription?.status === "active" ? "PAID" : "PAID");
+      transaction?.paymentStatus ||
+      (subscription?.status === "active" ? "PAID" : "PAID");
 
     const trxId =
-      transaction?.gatewayTransactionId ||
-      subscription?.trxId ||
-      "";
+      transaction?.gatewayTransactionId || subscription?.trxId || "";
 
     // Amount & Currency
     const totalAmount =
@@ -271,7 +276,8 @@ class InvoiceService {
     const items: IInvoiceItem[] = [];
     if (pkg) {
       const isPostAdd =
-        pkg.packageType === "post_add" || subscription?.packageType === "post_add";
+        pkg.packageType === "post_add" ||
+        subscription?.packageType === "post_add";
 
       let description = pkg.name || "Subscription Plan";
       let details = "";
@@ -372,7 +378,8 @@ class InvoiceService {
       tax: 0,
       discount: 0,
       total: totalAmount,
-      notes: "Thank you for partnering with JAGANA. Your active subscription contributes directly to your store's visibility across our marketplace.",
+      notes:
+        "Thank you for partnering with JAGANA. Your active subscription contributes directly to your store's visibility across our marketplace.",
       downloadUrl: `/api/v1/invoices/download/${safeInvoiceNumber}`,
       previewUrl: `/api/v1/invoices/preview/${safeInvoiceNumber}`,
       pdfUrl: `/uploads/invoices/${safeInvoiceNumber}.pdf`,
@@ -388,7 +395,10 @@ class InvoiceService {
     ensureDirectoryExists(INVOICE_DIR);
 
     const invoiceData = await this.buildInvoiceData(identifier);
-    const safeInvoiceNumber = invoiceData.invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const safeInvoiceNumber = invoiceData.invoiceNumber.replace(
+      /[^a-zA-Z0-9_-]/g,
+      "_",
+    );
     const filename = `${safeInvoiceNumber}.pdf`;
     const filePath = path.join(INVOICE_DIR, filename);
     const relativeUrl = `/uploads/invoices/${filename}`;
@@ -437,7 +447,9 @@ class InvoiceService {
         },
       );
     } catch (err: any) {
-      logger.warn(`[InvoiceService] Failed to update DB invoiceUrl: ${err.message}`);
+      logger.warn(
+        `[InvoiceService] Failed to update DB invoiceUrl: ${err.message}`,
+      );
     }
 
     return result;

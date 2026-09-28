@@ -36,14 +36,23 @@ async function testTokenAndRecurring() {
       const recRes = await datafastService.executeRecurringPayment(
         token,
         1.12, // exactly as in user's prompt example ($1.12)
-        trxId
+        trxId,
       );
 
-      console.log("Recurring Payment HTTP Response Data:", JSON.stringify(recRes, null, 2));
-      console.log("Is Recurring Success?:", datafastService.isSuccessCode(recRes.result?.code));
+      console.log(
+        "Recurring Payment HTTP Response Data:",
+        JSON.stringify(recRes, null, 2),
+      );
+      console.log(
+        "Is Recurring Success?:",
+        datafastService.isSuccessCode(recRes.result?.code),
+      );
     }
   } catch (err: any) {
-    console.error("Error:", JSON.stringify(err.response?.data, null, 2) || err.message);
+    console.error(
+      "Error:",
+      JSON.stringify(err.response?.data, null, 2) || err.message,
+    );
   }
 }
 

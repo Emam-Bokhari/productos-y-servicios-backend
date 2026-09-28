@@ -30,7 +30,7 @@ async function testMerchantQuery() {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-    }
+    },
   );
 
   const checkoutId = createRes.data.id;
@@ -50,7 +50,7 @@ async function testMerchantQuery() {
     }).toString(),
     {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    }
+    },
   );
 
   console.log("Querying by merchantTransactionId:", mTxId);
@@ -59,7 +59,7 @@ async function testMerchantQuery() {
       `https://eu-test.oppwa.com/v1/query?entityId=${entityId}&merchantTransactionId=${mTxId}`,
       {
         headers: { Authorization: `Bearer ${token}` },
-      }
+      },
     );
     console.log("Query Response:", queryRes.data);
   } catch (err: any) {

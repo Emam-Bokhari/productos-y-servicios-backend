@@ -106,10 +106,7 @@ export const runSubscriptionRenewalCheck = async (): Promise<{
           { status: STORE_STATUS.ACTIVE },
         );
 
-        await Seller.findOneAndUpdate(
-          { user: user._id },
-          { status: "active" },
-        );
+        await Seller.findOneAndUpdate({ user: user._id }, { status: "active" });
 
         const safeInvoice = invoiceTxId.replace(/[^a-zA-Z0-9_-]/g, "_");
         const invoiceUrl = `/uploads/invoices/${safeInvoice}.pdf`;

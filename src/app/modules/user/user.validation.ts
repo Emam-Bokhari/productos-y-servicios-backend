@@ -56,9 +56,9 @@ const createUserZodSchema = z.object({
       (data) =>
         Boolean(
           (data.documentNumber && data.documentNumber.trim().length > 0) ||
-            (data.idNumber && data.idNumber.trim().length > 0) ||
-            (data.cedula && data.cedula.trim().length > 0) ||
-            (data.passportNumber && data.passportNumber.trim().length > 0),
+          (data.idNumber && data.idNumber.trim().length > 0) ||
+          (data.cedula && data.cedula.trim().length > 0) ||
+          (data.passportNumber && data.passportNumber.trim().length > 0),
         ),
       {
         message: "National ID (Cédula) or passport number is required",

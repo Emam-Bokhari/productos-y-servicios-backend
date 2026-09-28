@@ -1,21 +1,15 @@
 import { z } from "zod";
 import { FAVORITE_TYPE } from "../../../enums/favorite";
 
-const allowedTargetTypes = [
-  ...Object.values(FAVORITE_TYPE),
-  "store",
-];
+const allowedTargetTypes = [...Object.values(FAVORITE_TYPE), "store"];
 
 const targetTypeValidator = z
   .string()
   .transform((val) => val.toLowerCase())
-  .refine(
-    (val) => allowedTargetTypes.includes(val as any),
-    {
-      message:
-        "Target type must be one of store, product_store, service_store, product, or service",
-    },
-  )
+  .refine((val) => allowedTargetTypes.includes(val as any), {
+    message:
+      "Target type must be one of store, product_store, service_store, product, or service",
+  })
   .optional();
 
 const toggleFavoriteSchema = z.object({

@@ -17,13 +17,13 @@ const router = express.Router();
 router
   .route("/profile")
   .get(isAuthenticated, UserController.getMyProfile)
-  .delete(isAuthenticated, UserController.deleteProfile);  
+  .delete(isAuthenticated, UserController.deleteProfile);
 /* ---------------------------- SUPER ADMIN (PUBLIC) ---------------------- */
 router.get("/super-admin", UserController.getSuperAdmin);
 
 /* ---------------------------- ADMIN CREATE ------------------------------ */
 router.post(
-  "/create-admin", 
+  "/create-admin",
   isSuperAdmin,
   validateRequest(UserValidation.createAdminZodSchema),
   UserController.createAdmin,
@@ -93,6 +93,6 @@ router.patch("/status/:id", isAdmin, UserController.updateUserStatusById);
 router
   .route("/:id")
   .get(isAdmin, UserController.getUserById)
-  .delete(isAdmin, UserController.deleteUserById); 
+  .delete(isAdmin, UserController.deleteUserById);
 
 export const UserRoutes = router;

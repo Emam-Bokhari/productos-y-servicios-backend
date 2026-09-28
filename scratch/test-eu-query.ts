@@ -14,7 +14,7 @@ async function testEu() {
     console.log("Checking URL:", url);
     try {
       const res = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       console.log("Response:", res.status, res.data.result);
     } catch (err: any) {

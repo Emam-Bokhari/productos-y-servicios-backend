@@ -21,33 +21,47 @@ const runMigration = async () => {
 
   console.log("--- 1. Migrating Transactions Collection ---");
   // A. For transactions having stripeCheckoutSessionId, rename to checkoutSessionId
-  const txSessionResult = await db.collection("transactions").updateMany(
-    { stripeCheckoutSessionId: { $exists: true } },
-    { $rename: { stripeCheckoutSessionId: "checkoutSessionId" } }
+  const txSessionResult = await db
+    .collection("transactions")
+    .updateMany(
+      { stripeCheckoutSessionId: { $exists: true } },
+      { $rename: { stripeCheckoutSessionId: "checkoutSessionId" } },
+    );
+  console.log(
+    `Renamed stripeCheckoutSessionId -> checkoutSessionId on ${txSessionResult.modifiedCount} transactions.`,
   );
-  console.log(`Renamed stripeCheckoutSessionId -> checkoutSessionId on ${txSessionResult.modifiedCount} transactions.`);
 
   // B. For transactions having stripeCustomerId, rename to customerId
-  const txCustomerResult = await db.collection("transactions").updateMany(
-    { stripeCustomerId: { $exists: true } },
-    { $rename: { stripeCustomerId: "customerId" } }
+  const txCustomerResult = await db
+    .collection("transactions")
+    .updateMany(
+      { stripeCustomerId: { $exists: true } },
+      { $rename: { stripeCustomerId: "customerId" } },
+    );
+  console.log(
+    `Renamed stripeCustomerId -> customerId on ${txCustomerResult.modifiedCount} transactions.`,
   );
-  console.log(`Renamed stripeCustomerId -> customerId on ${txCustomerResult.modifiedCount} transactions.`);
 
   // C. For transactions having stripePaymentIntentId, copy to gatewayTransactionId if empty
-  const txCursor = db.collection("transactions").find({ stripePaymentIntentId: { $exists: true } });
+  const txCursor = db
+    .collection("transactions")
+    .find({ stripePaymentIntentId: { $exists: true } });
   let txCopied = 0;
   while (await txCursor.hasNext()) {
     const doc = await txCursor.next();
     if (doc && !doc.gatewayTransactionId) {
-      await db.collection("transactions").updateOne(
-        { _id: doc._id },
-        { $set: { gatewayTransactionId: doc.stripePaymentIntentId } }
-      );
+      await db
+        .collection("transactions")
+        .updateOne(
+          { _id: doc._id },
+          { $set: { gatewayTransactionId: doc.stripePaymentIntentId } },
+        );
       txCopied++;
     }
   }
-  console.log(`Copied stripePaymentIntentId to gatewayTransactionId on ${txCopied} transactions.`);
+  console.log(
+    `Copied stripePaymentIntentId to gatewayTransactionId on ${txCopied} transactions.`,
+  );
 
   // D. Unset dead stripe fields in transactions
   const txUnsetResult = await db.collection("transactions").updateMany(
@@ -60,24 +74,31 @@ const runMigration = async () => {
         stripePayoutId: "",
         stripeRefundId: "",
       },
-    }
+    },
   );
-  console.log(`Unset old stripe fields on ${txUnsetResult.modifiedCount} transactions.`);
+  console.log(
+    `Unset old stripe fields on ${txUnsetResult.modifiedCount} transactions.`,
+  );
 
   console.log("--- 2. Migrating Subscriptions Collection ---");
   // A. Rename stripeSessionId -> checkoutSessionId
-  const subSessionResult = await db.collection("subscriptions").updateMany(
-    { stripeSessionId: { $exists: true } },
-    { $rename: { stripeSessionId: "checkoutSessionId" } }
+  const subSessionResult = await db
+    .collection("subscriptions")
+    .updateMany(
+      { stripeSessionId: { $exists: true } },
+      { $rename: { stripeSessionId: "checkoutSessionId" } },
+    );
+  console.log(
+    `Renamed stripeSessionId -> checkoutSessionId on ${subSessionResult.modifiedCount} subscriptions.`,
   );
-  console.log(`Renamed stripeSessionId -> checkoutSessionId on ${subSessionResult.modifiedCount} subscriptions.`);
 
   // B. Unset stripeSubscriptionId
-  const subUnsetResult = await db.collection("subscriptions").updateMany(
-    {},
-    { $unset: { stripeSubscriptionId: "" } }
+  const subUnsetResult = await db
+    .collection("subscriptions")
+    .updateMany({}, { $unset: { stripeSubscriptionId: "" } });
+  console.log(
+    `Unset stripeSubscriptionId on ${subUnsetResult.modifiedCount} subscriptions.`,
   );
-  console.log(`Unset stripeSubscriptionId on ${subUnsetResult.modifiedCount} subscriptions.`);
 
   console.log("--- 3. Migrating Users Collection ---");
   const userUnsetResult = await db.collection("users").updateMany(
@@ -88,7 +109,7 @@ const runMigration = async () => {
         stripeSubscriptionId: "",
         stripeConnectedAccountId: "",
       },
-    }
+    },
   );
   console.log(`Unset stripe fields on ${userUnsetResult.modifiedCount} users.`);
 
@@ -100,12 +121,16 @@ const runMigration = async () => {
         stripeProductId: "",
         stripePriceId: "",
       },
-    }
+    },
   );
-  console.log(`Unset stripe fields on ${pkgUnsetResult.modifiedCount} subscription packages.`);
+  console.log(
+    `Unset stripe fields on ${pkgUnsetResult.modifiedCount} subscription packages.`,
+  );
 
   console.log("\n--- Verification: Checking our test merchant records ---");
-  const testUser = await db.collection("users").findOne({ email: "datafast.merchant.2026@gmail.com" });
+  const testUser = await db
+    .collection("users")
+    .findOne({ email: "datafast.merchant.2026@gmail.com" });
   console.log("Test User:", {
     _id: testUser?._id,
     email: testUser?.email,
@@ -115,13 +140,18 @@ const runMigration = async () => {
     stripeCustomerId: testUser?.stripeCustomerId,
   });
 
-  const testStore = await db.collection("stores").findOne({ owner: testUser?._id });
+  const testStore = await db
+    .collection("stores")
+    .findOne({ owner: testUser?._id });
   console.log("Test Store:", {
     _id: testStore?._id,
     displayName: testStore?.displayName,
   });
 
-  const testSubs = await db.collection("subscriptions").find({ userId: testUser?._id }).toArray();
+  const testSubs = await db
+    .collection("subscriptions")
+    .find({ userId: testUser?._id })
+    .toArray();
   console.log(`Test Subscriptions count: ${testSubs.length}`);
   testSubs.forEach((s, idx) => {
     console.log(`Sub #${idx + 1}:`, {
@@ -136,7 +166,10 @@ const runMigration = async () => {
     });
   });
 
-  const testTxs = await db.collection("transactions").find({ userId: testUser?._id }).toArray();
+  const testTxs = await db
+    .collection("transactions")
+    .find({ userId: testUser?._id })
+    .toArray();
   console.log(`Test Transactions count: ${testTxs.length}`);
   testTxs.forEach((t, idx) => {
     console.log(`Tx #${idx + 1}:`, {

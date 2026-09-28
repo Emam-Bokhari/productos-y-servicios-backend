@@ -4,11 +4,7 @@ async function testCards() {
   const token = "OGE4Mjk0MTg1MzNjZjMxZDAxNTMzZDA2ZmQwNDA3NDh8WHQ3RjIyUUVOWA==";
   const entityId = "8a829418533cf31d01533d06f2ee06fa";
 
-  const cards = [
-    "4540630000000000",
-    "4540630400000000",
-    "4200000000000000",
-  ];
+  const cards = ["4540630000000000", "4540630400000000", "4200000000000000"];
 
   for (const cardNum of cards) {
     console.log(`\n=== Testing Card: ${cardNum} ===`);
@@ -45,7 +41,7 @@ async function testCards() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/x-www-form-urlencoded",
           },
-        }
+        },
       );
 
       const checkoutId = createRes.data.id;
@@ -62,20 +58,27 @@ async function testCards() {
           "card.cvv": "123",
           shopperResultUrl: `http://localhost:5009/api/v1/datafast/callback?checkoutId=${checkoutId}`,
         }).toString(),
-        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+        { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
       );
       console.log("Pay Status HTTP:", payRes.status);
-      console.log("Pay Data:", payRes.data.result || payRes.data.redirect?.parameters);
+      console.log(
+        "Pay Data:",
+        payRes.data.result || payRes.data.redirect?.parameters,
+      );
 
       // Status query
       const statusRes = await axios.get(
         `https://eu-test.oppwa.com/v1/checkouts/${checkoutId}/payment?entityId=${entityId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       console.log("STATUS QUERY RESULT:", statusRes.data.result);
       console.log("STATUS FULL DATA:", statusRes.data);
     } catch (err: any) {
-      console.log("Error:", err.response?.status, err.response?.data || err.message);
+      console.log(
+        "Error:",
+        err.response?.status,
+        err.response?.data || err.message,
+      );
     }
   }
 }

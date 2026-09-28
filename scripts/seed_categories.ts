@@ -298,13 +298,17 @@ const seedCategories = async () => {
 
       if (parentCat) {
         if (parentCat.name !== group.name) {
-          console.log(`Updating existing product category "${parentCat.name}" -> "${group.name}" (_id: ${parentCat._id})`);
+          console.log(
+            `Updating existing product category "${parentCat.name}" -> "${group.name}" (_id: ${parentCat._id})`,
+          );
           parentCat.name = group.name;
           parentCat.status = STATUS.ACTIVE;
           parentCat.parentId = null;
           await parentCat.save();
         } else {
-          console.log(`Product category already exists: "${group.name}" (_id: ${parentCat._id})`);
+          console.log(
+            `Product category already exists: "${group.name}" (_id: ${parentCat._id})`,
+          );
         }
       } else {
         parentCat = await StoreCategory.create({
@@ -313,7 +317,9 @@ const seedCategories = async () => {
           status: STATUS.ACTIVE,
           parentId: null,
         });
-        console.log(`Created product category: "${group.name}" (_id: ${parentCat._id})`);
+        console.log(
+          `Created product category: "${group.name}" (_id: ${parentCat._id})`,
+        );
       }
 
       // Seed subcategories
@@ -331,9 +337,13 @@ const seedCategories = async () => {
             status: STATUS.ACTIVE,
             parentId: parentCat._id,
           });
-          console.log(`  └─ Created subcategory: "${subName}" (_id: ${subCat._id})`);
+          console.log(
+            `  └─ Created subcategory: "${subName}" (_id: ${subCat._id})`,
+          );
         } else {
-          console.log(`  └─ Subcategory exists: "${subName}" (_id: ${subCat._id})`);
+          console.log(
+            `  └─ Subcategory exists: "${subName}" (_id: ${subCat._id})`,
+          );
         }
       }
     }
@@ -357,13 +367,17 @@ const seedCategories = async () => {
 
       if (parentCat) {
         if (parentCat.name !== group.name) {
-          console.log(`Updating existing service category "${parentCat.name}" -> "${group.name}" (_id: ${parentCat._id})`);
+          console.log(
+            `Updating existing service category "${parentCat.name}" -> "${group.name}" (_id: ${parentCat._id})`,
+          );
           parentCat.name = group.name;
           parentCat.status = STATUS.ACTIVE;
           parentCat.parentId = null;
           await parentCat.save();
         } else {
-          console.log(`Service category already exists: "${group.name}" (_id: ${parentCat._id})`);
+          console.log(
+            `Service category already exists: "${group.name}" (_id: ${parentCat._id})`,
+          );
         }
       } else {
         parentCat = await StoreCategory.create({
@@ -372,7 +386,9 @@ const seedCategories = async () => {
           status: STATUS.ACTIVE,
           parentId: null,
         });
-        console.log(`Created service category: "${group.name}" (_id: ${parentCat._id})`);
+        console.log(
+          `Created service category: "${group.name}" (_id: ${parentCat._id})`,
+        );
       }
 
       // Seed subcategories
@@ -390,9 +406,13 @@ const seedCategories = async () => {
             status: STATUS.ACTIVE,
             parentId: parentCat._id,
           });
-          console.log(`  └─ Created subcategory: "${subName}" (_id: ${subCat._id})`);
+          console.log(
+            `  └─ Created subcategory: "${subName}" (_id: ${subCat._id})`,
+          );
         } else {
-          console.log(`  └─ Subcategory exists: "${subName}" (_id: ${subCat._id})`);
+          console.log(
+            `  └─ Subcategory exists: "${subName}" (_id: ${subCat._id})`,
+          );
         }
       }
     }
@@ -400,8 +420,12 @@ const seedCategories = async () => {
     console.log("\nSeeding completed successfully!");
     const totalCount = await StoreCategory.countDocuments({});
     const parentCount = await StoreCategory.countDocuments({ parentId: null });
-    const subCount = await StoreCategory.countDocuments({ parentId: { $ne: null } });
-    console.log(`Total categories in DB: ${totalCount} (Main Categories: ${parentCount}, Subcategories: ${subCount})`);
+    const subCount = await StoreCategory.countDocuments({
+      parentId: { $ne: null },
+    });
+    console.log(
+      `Total categories in DB: ${totalCount} (Main Categories: ${parentCount}, Subcategories: ${subCount})`,
+    );
 
     await mongoose.disconnect();
     console.log("Disconnected from MongoDB.");

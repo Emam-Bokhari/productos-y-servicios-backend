@@ -41,7 +41,10 @@ async function runFullE2ETest() {
   let user = await User.findOne({ email: testEmail });
 
   if (!user) {
-    const hashedPassword = await bcrypt.hash("Admin@1234", Number(config.bcrypt_salt_rounds) || 12);
+    const hashedPassword = await bcrypt.hash(
+      "Admin@1234",
+      Number(config.bcrypt_salt_rounds) || 12,
+    );
     user = await User.create({
       name: "Datafast Merchant Ecuador",
       email: testEmail,
@@ -53,9 +56,16 @@ async function runFullE2ETest() {
       countryCode: "+593",
       address: "Av. Amazonas y Naciones Unidas, Quito",
     });
-    console.log("✨ New user created:", { id: user._id.toString(), email: user.email, name: user.name });
+    console.log("✨ New user created:", {
+      id: user._id.toString(),
+      email: user.email,
+      name: user.name,
+    });
   } else {
-    console.log("ℹ️ Using existing test user:", { id: user._id.toString(), email: user.email });
+    console.log("ℹ️ Using existing test user:", {
+      id: user._id.toString(),
+      email: user.email,
+    });
   }
 
   const userId = user._id.toString();
@@ -67,14 +77,20 @@ async function runFullE2ETest() {
   console.log("2. PURCHASING STORE CREATION PACKAGE VIA DATAFAST");
   console.log("----------------------------------------------------");
 
-  const storePackage = await SubscriptionPackage.findById("6a7ff377c24d0046a564c737"); // MEMBRESÍA ANUAL ($17.25)
+  const storePackage = await SubscriptionPackage.findById(
+    "6a7ff377c24d0046a564c737",
+  ); // MEMBRESÍA ANUAL ($17.25)
   if (!storePackage) throw new Error("Store package not found");
 
-  const count1 = await Transaction.countDocuments({ transactionId: { $regex: "^INV-" } });
+  const count1 = await Transaction.countDocuments({
+    transactionId: { $regex: "^INV-" },
+  });
   const invoiceNumber1 = 1000 + count1 + 1;
   const merchantTxId1 = `INV-${new Date().getFullYear()}-${invoiceNumber1}`;
 
-  console.log(`Preparing Datafast checkout for Package: ${storePackage.name} ($${storePackage.price})...`);
+  console.log(
+    `Preparing Datafast checkout for Package: ${storePackage.name} ($${storePackage.price})...`,
+  );
   const checkout1 = await datafastService.prepareCheckoutSession({
     amount: storePackage.price,
     currency: "USD",
@@ -116,7 +132,10 @@ async function runFullE2ETest() {
   console.log("✅ Store Subscription Payment Fulfilled Successfully!");
   console.log("Subscription Status:", fulfillment1.subscription.status);
   console.log("Subscription Expires At:", fulfillment1.subscription.expiresAt);
-  console.log("Datafast Token Stored:", fulfillment1.subscription.datafastRegistrationToken);
+  console.log(
+    "Datafast Token Stored:",
+    fulfillment1.subscription.datafastRegistrationToken,
+  );
   console.log("Transaction ID:", fulfillment1.transaction.transactionId);
   console.log("Transaction Status:", fulfillment1.transaction.paymentStatus);
   console.log("Invoice Generated URL:", fulfillment1.invoiceUrl);
@@ -136,7 +155,8 @@ async function runFullE2ETest() {
     const storeRes = await StoreService.createStoreToDB(userId, {
       storeType: "product_store",
       displayName: "Mega Tienda Tecnológica Datafast",
-      description: "Tienda autorizada de tecnología en Ecuador integrada con Datafast.",
+      description:
+        "Tienda autorizada de tecnología en Ecuador integrada con Datafast.",
       categoryId: category?._id.toString() || "6a76eb808624bba43547e992",
       cityId: city?._id.toString() || "6aaa3703dac1e18f5f869b25",
       logo: "/uploads/stores/datafast-logo.png",
@@ -184,14 +204,20 @@ async function runFullE2ETest() {
   targetCity.featuredEnabled = true;
   await targetCity.save();
 
-  const adPackage = await SubscriptionPackage.findById("6aaab5899a44a5eb878781ab"); // post_add ($20)
+  const adPackage = await SubscriptionPackage.findById(
+    "6aaab5899a44a5eb878781ab",
+  ); // post_add ($20)
   if (!adPackage) throw new Error("Advertisement package not found");
 
-  const count2 = await Transaction.countDocuments({ transactionId: { $regex: "^INV-" } });
+  const count2 = await Transaction.countDocuments({
+    transactionId: { $regex: "^INV-" },
+  });
   const invoiceNumber2 = 1000 + count2 + 1;
   const merchantTxId2 = `INV-${new Date().getFullYear()}-${invoiceNumber2}`;
 
-  console.log(`Preparing Datafast checkout for Ad Package: ${adPackage.name} ($${adPackage.price}) for City: ${targetCity.city}...`);
+  console.log(
+    `Preparing Datafast checkout for Ad Package: ${adPackage.name} ($${adPackage.price}) for City: ${targetCity.city}...`,
+  );
   const checkout2 = await datafastService.prepareCheckoutSession({
     amount: adPackage.price,
     currency: "USD",
@@ -252,7 +278,9 @@ async function runFullE2ETest() {
 
   const today = new Date();
   const startDate = today.toISOString();
-  const endDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
+  const endDate = new Date(
+    today.getTime() + 7 * 24 * 60 * 60 * 1000,
+  ).toISOString(); // 7 days
 
   const ad = await AdvertisementService.createAdvertisementToDB(userId, {
     campaignName: "Campaña Especial Tecnología 2026",
@@ -306,20 +334,28 @@ async function runFullE2ETest() {
 
   console.log(`\n📋 Subscriptions in DB (${finalSubscriptions.length} total):`);
   finalSubscriptions.forEach((s, idx) => {
-    console.log(`  [${idx + 1}] ID: ${s._id} | Type: ${s.packageType} | Status: ${s.status} | Expires: ${s.expiresAt} | Token: ${s.datafastRegistrationToken || 'N/A'}`);
+    console.log(
+      `  [${idx + 1}] ID: ${s._id} | Type: ${s.packageType} | Status: ${s.status} | Expires: ${s.expiresAt} | Token: ${s.datafastRegistrationToken || "N/A"}`,
+    );
   });
 
   console.log(`\n💳 Transactions in DB (${finalTransactions.length} total):`);
   finalTransactions.forEach((t, idx) => {
-    console.log(`  [${idx + 1}] ID: ${t._id} | TxId: ${t.transactionId} | Amount: $${t.amount} | Status: ${t.paymentStatus} | Invoice: ${t.invoiceUrl}`);
+    console.log(
+      `  [${idx + 1}] ID: ${t._id} | TxId: ${t.transactionId} | Amount: $${t.amount} | Status: ${t.paymentStatus} | Invoice: ${t.invoiceUrl}`,
+    );
   });
 
   console.log(`\n📢 Advertisements in DB (${finalAds.length} total):`);
   finalAds.forEach((a, idx) => {
-    console.log(`  [${idx + 1}] ID: ${a._id} | Campaign: ${a.campaignName} | Status: ${a.status} | Position: ${a.position}`);
+    console.log(
+      `  [${idx + 1}] ID: ${a._id} | Campaign: ${a.campaignName} | Status: ${a.status} | Position: ${a.position}`,
+    );
   });
 
-  console.log("\n🔒 ALL DATA HAS BEEN RETAINED AND KEPT IN THE DATABASE AS REQUESTED.");
+  console.log(
+    "\n🔒 ALL DATA HAS BEEN RETAINED AND KEPT IN THE DATABASE AS REQUESTED.",
+  );
   console.log("🎉 VERIFICATION COMPLETED WITH 100% SUCCESS!");
 
   await mongoose.disconnect();

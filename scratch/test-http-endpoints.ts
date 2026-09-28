@@ -24,9 +24,12 @@ async function testHttpEndpoints() {
 
     // 2. Verify seller status and get seller token
     console.log("\n2. Calling GET /api/v1/advertisements/verify-seller...");
-    const verifyRes = await axios.get(`${BASE_URL}/advertisements/verify-seller`, {
-      headers: userHeaders,
-    });
+    const verifyRes = await axios.get(
+      `${BASE_URL}/advertisements/verify-seller`,
+      {
+        headers: userHeaders,
+      },
+    );
     console.log(`   ✔ Seller verification response: ${verifyRes.data.message}`);
     const sellerToken = verifyRes.data.data?.tokens?.accessToken || userToken;
     console.log("   ✔ Seller access token acquired!");
@@ -37,7 +40,9 @@ async function testHttpEndpoints() {
     };
 
     // 3. Create Checkout Session for Position 2 (Position price should be $80)
-    console.log("\n3. Calling POST /api/v1/datafast/create-checkout-session for Position 2...");
+    console.log(
+      "\n3. Calling POST /api/v1/datafast/create-checkout-session for Position 2...",
+    );
     const sessionRes = await axios.post(
       `${BASE_URL}/datafast/create-checkout-session`,
       {
@@ -48,7 +53,10 @@ async function testHttpEndpoints() {
     );
 
     console.log("   Status:", sessionRes.status);
-    console.log("   Checkout Response:", JSON.stringify(sessionRes.data, null, 2));
+    console.log(
+      "   Checkout Response:",
+      JSON.stringify(sessionRes.data, null, 2),
+    );
     const checkoutId = sessionRes.data.data?.checkoutId;
     const paymentUrl = sessionRes.data.data?.paymentUrl;
     console.log(`   ✔ Session created with checkoutId: ${checkoutId}`);
@@ -57,7 +65,9 @@ async function testHttpEndpoints() {
     // 4. Test Pay Page
     console.log("\n4. Testing GET payment widget page...");
     const payPageRes = await axios.get(paymentUrl);
-    console.log(`   ✔ Payment HTML page rendered (status: ${payPageRes.status}, length: ${payPageRes.data.length})`);
+    console.log(
+      `   ✔ Payment HTML page rendered (status: ${payPageRes.status}, length: ${payPageRes.data.length})`,
+    );
 
     // 5. Test Callback to fulfill payment
     console.log("\n5. Simulating Datafast callback...");
@@ -97,11 +107,18 @@ async function testHttpEndpoints() {
       const urlParams = new URL(redirectLocation).searchParams;
       const invoiceNumber = urlParams.get("invoiceNumber");
       if (invoiceNumber) {
-        console.log(`\n7. Testing GET /api/v1/invoices/preview/${invoiceNumber}...`);
-        const invoiceRes = await axios.get(`${BASE_URL}/invoices/preview/${invoiceNumber}`, {
-          responseType: "arraybuffer",
-        });
-        console.log(`   ✔ Invoice PDF preview fetched: ${invoiceRes.data.length} bytes (Status: ${invoiceRes.status})`);
+        console.log(
+          `\n7. Testing GET /api/v1/invoices/preview/${invoiceNumber}...`,
+        );
+        const invoiceRes = await axios.get(
+          `${BASE_URL}/invoices/preview/${invoiceNumber}`,
+          {
+            responseType: "arraybuffer",
+          },
+        );
+        console.log(
+          `   ✔ Invoice PDF preview fetched: ${invoiceRes.data.length} bytes (Status: ${invoiceRes.status})`,
+        );
       }
     }
 
@@ -110,7 +127,11 @@ async function testHttpEndpoints() {
     console.log("=========================================");
   } catch (err: any) {
     if (err.response) {
-      console.error("HTTP Error Response:", err.response.status, err.response.data);
+      console.error(
+        "HTTP Error Response:",
+        err.response.status,
+        err.response.data,
+      );
     } else {
       console.error("Error:", err.message);
     }

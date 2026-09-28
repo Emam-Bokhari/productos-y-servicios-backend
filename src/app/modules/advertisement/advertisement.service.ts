@@ -380,7 +380,9 @@ const createAdvertisementToDB = async (
       );
     }
 
-    const startDate = payload.startDate ? new Date(payload.startDate) : new Date();
+    const startDate = payload.startDate
+      ? new Date(payload.startDate)
+      : new Date();
 
     // Look for a PAID transaction for this advertisement slot
     const paidTransactions = await Transaction.find({
@@ -797,9 +799,9 @@ const getUserAdvertisementsFromDB = async (
       const a =
         Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.cos(lat1 * (Math.PI / 180)) *
-        Math.cos(lat2 * (Math.PI / 180)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+          Math.cos(lat2 * (Math.PI / 180)) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     };
@@ -963,47 +965,56 @@ const getAdvertisementPaymentsFromDB = async (
   }
 
   // 6. Search Term (search user name, email, store displayName, trxId, package name, city name)
-  if (searchTerm && typeof searchTerm === "string" && searchTerm.trim() !== "") {
+  if (
+    searchTerm &&
+    typeof searchTerm === "string" &&
+    searchTerm.trim() !== ""
+  ) {
     const searchRegex = new RegExp(searchTerm.trim(), "i");
 
-    const [matchingUsers, matchingStores, matchingCities, matchingPackages, matchingAds] =
-      await Promise.all([
-        User.find({
-          $or: [
-            { name: { $regex: searchRegex } },
-            { email: { $regex: searchRegex } },
-          ],
-        })
-          .select("_id")
-          .lean(),
-        Store.find({
-          displayName: { $regex: searchRegex },
-        })
-          .select("owner")
-          .lean(),
-        CityAdConfiguration.find({
-          $or: [
-            { city: { $regex: searchRegex } },
-            { canton: { $regex: searchRegex } },
-            { sector: { $regex: searchRegex } },
-            { neighborhood: { $regex: searchRegex } },
-            { province: { $regex: searchRegex } },
-            { country: { $regex: searchRegex } },
-          ],
-        })
-          .select("_id")
-          .lean(),
-        SubscriptionPackage.find({
-          name: { $regex: searchRegex },
-        })
-          .select("_id")
-          .lean(),
-        Advertisement.find({
-          campaignName: { $regex: searchRegex },
-        })
-          .select("sellerId")
-          .lean(),
-      ]);
+    const [
+      matchingUsers,
+      matchingStores,
+      matchingCities,
+      matchingPackages,
+      matchingAds,
+    ] = await Promise.all([
+      User.find({
+        $or: [
+          { name: { $regex: searchRegex } },
+          { email: { $regex: searchRegex } },
+        ],
+      })
+        .select("_id")
+        .lean(),
+      Store.find({
+        displayName: { $regex: searchRegex },
+      })
+        .select("owner")
+        .lean(),
+      CityAdConfiguration.find({
+        $or: [
+          { city: { $regex: searchRegex } },
+          { canton: { $regex: searchRegex } },
+          { sector: { $regex: searchRegex } },
+          { neighborhood: { $regex: searchRegex } },
+          { province: { $regex: searchRegex } },
+          { country: { $regex: searchRegex } },
+        ],
+      })
+        .select("_id")
+        .lean(),
+      SubscriptionPackage.find({
+        name: { $regex: searchRegex },
+      })
+        .select("_id")
+        .lean(),
+      Advertisement.find({
+        campaignName: { $regex: searchRegex },
+      })
+        .select("sellerId")
+        .lean(),
+    ]);
 
     const userIds = matchingUsers.map((u: any) => u._id);
     const storeOwnerIds = matchingStores.map((s: any) => s.owner);
@@ -1034,39 +1045,37 @@ const getAdvertisementPaymentsFromDB = async (
   const now = new Date();
 
   // Run paginated find, total count, and summary statistics concurrently
-  const [
-    total,
-    subscriptions,
-    totalRevenueAgg,
-    activeAdsCount,
-    trialCount,
-  ] = await Promise.all([
-    Subscription.countDocuments(baseFilter),
-    Subscription.find(baseFilter)
-      .sort(sortObj)
-      .skip(skip)
-      .limit(limitNum)
-      .populate("userId", "name email phone profileImage")
-      .populate("packageId", "name duration price trialPeriodDays packageType")
-      .populate(
-        "cityConfigId",
-        "city country countryCode latitude longitude defaultFeaturedImage featuredCapacity",
-      )
-      .lean(),
-    Subscription.aggregate([
-      { $match: { packageType: "post_add", amountPaid: { $gt: 0 } } },
-      { $group: { _id: null, total: { $sum: "$amountPaid" } } },
-    ]),
-    Subscription.countDocuments({
-      packageType: "post_add",
-      status: "active",
-      expiresAt: { $gt: now },
-    }),
-    Subscription.countDocuments({
-      packageType: "post_add",
-      status: "trialing",
-    }),
-  ]);
+  const [total, subscriptions, totalRevenueAgg, activeAdsCount, trialCount] =
+    await Promise.all([
+      Subscription.countDocuments(baseFilter),
+      Subscription.find(baseFilter)
+        .sort(sortObj)
+        .skip(skip)
+        .limit(limitNum)
+        .populate("userId", "name email phone profileImage")
+        .populate(
+          "packageId",
+          "name duration price trialPeriodDays packageType",
+        )
+        .populate(
+          "cityConfigId",
+          "city country countryCode latitude longitude defaultFeaturedImage featuredCapacity",
+        )
+        .lean(),
+      Subscription.aggregate([
+        { $match: { packageType: "post_add", amountPaid: { $gt: 0 } } },
+        { $group: { _id: null, total: { $sum: "$amountPaid" } } },
+      ]),
+      Subscription.countDocuments({
+        packageType: "post_add",
+        status: "active",
+        expiresAt: { $gt: now },
+      }),
+      Subscription.countDocuments({
+        packageType: "post_add",
+        status: "trialing",
+      }),
+    ]);
 
   const totalPage = Math.ceil(total / limitNum);
   const totalRevenue =
@@ -1087,7 +1096,9 @@ const getAdvertisementPaymentsFromDB = async (
     ...new Set(subscriptions.map((s: any) => s.trxId).filter(Boolean)),
   ];
   const sessionIds = [
-    ...new Set(subscriptions.map((s: any) => s.checkoutSessionId).filter(Boolean)),
+    ...new Set(
+      subscriptions.map((s: any) => s.checkoutSessionId).filter(Boolean),
+    ),
   ];
 
   const txConditions: any[] = [];
@@ -1101,25 +1112,25 @@ const getAdvertisementPaymentsFromDB = async (
   const [stores, ads, transactions] = await Promise.all([
     sellerIds.length > 0
       ? Store.find({ owner: { $in: sellerIds } })
-        .select(
-          "displayName logo storeType phone email address streetAddress owner",
-        )
-        .lean()
+          .select(
+            "displayName logo storeType phone email address streetAddress owner",
+          )
+          .lean()
       : [],
     sellerIds.length > 0
       ? Advertisement.find({
-        sellerId: { $in: sellerIds },
-        isDeleted: { $ne: true },
-      })
-        .sort({ createdAt: -1 })
-        .lean()
+          sellerId: { $in: sellerIds },
+          isDeleted: { $ne: true },
+        })
+          .sort({ createdAt: -1 })
+          .lean()
       : [],
     txConditions.length > 0
       ? Transaction.find({ $or: txConditions })
-        .select(
-          "transactionId paymentMethod paymentStatus amount createdAt gatewayTransactionId checkoutSessionId",
-        )
-        .lean()
+          .select(
+            "transactionId paymentMethod paymentStatus amount createdAt gatewayTransactionId checkoutSessionId",
+          )
+          .lean()
       : [],
   ]);
 
@@ -1142,7 +1153,8 @@ const getAdvertisementPaymentsFromDB = async (
   const txMap = new Map<string, any>();
   for (const tx of transactions) {
     const txObj = tx as any;
-    if (txObj.gatewayTransactionId) txMap.set(txObj.gatewayTransactionId, txObj);
+    if (txObj.gatewayTransactionId)
+      txMap.set(txObj.gatewayTransactionId, txObj);
     if (txObj.checkoutSessionId) txMap.set(txObj.checkoutSessionId, txObj);
   }
 
@@ -1202,7 +1214,7 @@ const getAdvertisementPaymentsFromDB = async (
       typeof subObj.amountPaid === "number"
         ? subObj.amountPaid
         : transaction?.amount ||
-        (subObj.status === "trialing" ? 0 : pkg?.price || 0);
+          (subObj.status === "trialing" ? 0 : pkg?.price || 0);
 
     const invoiceNumber =
       transaction?.transactionId || subObj.invoiceNumber || null;
@@ -1235,41 +1247,41 @@ const getAdvertisementPaymentsFromDB = async (
       subscriptionId: subObj._id,
       seller: seller
         ? {
-          id: seller._id,
-          name: seller.name,
-          email: seller.email,
-          phone: seller.phone || null,
-          profileImage: seller.profileImage || null,
-        }
+            id: seller._id,
+            name: seller.name,
+            email: seller.email,
+            phone: seller.phone || null,
+            profileImage: seller.profileImage || null,
+          }
         : null,
       store: store
         ? {
-          id: store._id,
-          displayName: store.displayName || null,
-          logo: store.logo || null,
-          storeType: store.storeType || null,
-          phone: store.phone || null,
-          email: store.email || null,
-        }
+            id: store._id,
+            displayName: store.displayName || null,
+            logo: store.logo || null,
+            storeType: store.storeType || null,
+            phone: store.phone || null,
+            email: store.email || null,
+          }
         : null,
       city: cityConfig
         ? {
-          id: cityConfig._id,
-          name: cityConfig.city,
-          country: cityConfig.country,
-          countryCode: cityConfig.countryCode,
-          latitude: cityConfig.latitude,
-          longitude: cityConfig.longitude,
-        }
+            id: cityConfig._id,
+            name: cityConfig.city,
+            country: cityConfig.country,
+            countryCode: cityConfig.countryCode,
+            latitude: cityConfig.latitude,
+            longitude: cityConfig.longitude,
+          }
         : ad
           ? {
-            id: ad.cityAdConfigId,
-            name: ad.city,
-            country: ad.country,
-            countryCode: ad.countryCode,
-            latitude: ad.latitude,
-            longitude: ad.longitude,
-          }
+              id: ad.cityAdConfigId,
+              name: ad.city,
+              country: ad.country,
+              countryCode: ad.countryCode,
+              latitude: ad.latitude,
+              longitude: ad.longitude,
+            }
           : null,
       position,
       amountPaid,
@@ -1285,11 +1297,11 @@ const getAdvertisementPaymentsFromDB = async (
         subObj.status === "trialing" || subObj.trxId === "trial_activated",
       package: pkg
         ? {
-          id: pkg._id,
-          name: pkg.name,
-          duration: pkg.duration,
-          price: pkg.price,
-        }
+            id: pkg._id,
+            name: pkg.name,
+            duration: pkg.duration,
+            price: pkg.price,
+          }
         : null,
       subscription: {
         status: subObj.status,
@@ -1299,14 +1311,14 @@ const getAdvertisementPaymentsFromDB = async (
       },
       advertisement: ad
         ? {
-          id: ad._id,
-          campaignName: ad.campaignName,
-          featuredImage: ad.featuredImage || null,
-          status: ad.status,
-          startDate: ad.startDate,
-          endDate: ad.endDate,
-          price: ad.price,
-        }
+            id: ad._id,
+            campaignName: ad.campaignName,
+            featuredImage: ad.featuredImage || null,
+            status: ad.status,
+            startDate: ad.startDate,
+            endDate: ad.endDate,
+            price: ad.price,
+          }
         : null,
       isAdSubmitted: Boolean(ad),
     };
@@ -1369,8 +1381,8 @@ const getSingleAdvertisementPaymentFromDB = async (
 
   const store = seller?._id
     ? await Store.findOne({ owner: seller._id }).select(
-      "displayName logo storeType phone email address streetAddress",
-    )
+        "displayName logo storeType phone email address streetAddress",
+      )
     : null;
 
   const adQuery: Record<string, any> = {
@@ -1416,11 +1428,17 @@ const getSingleAdvertisementPaymentFromDB = async (
     typeof subObj.amountPaid === "number"
       ? subObj.amountPaid
       : transaction?.amount ||
-      (subObj.status === "trialing" ? 0 : pkg?.price || 0);
+        (subObj.status === "trialing" ? 0 : pkg?.price || 0);
 
-  const invoiceNumber = transaction?.transactionId || subObj.invoiceNumber || null;
-  const safeInvoice = invoiceNumber ? invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_") : null;
-  const invoiceUrl = transaction?.invoiceUrl || subObj.invoiceUrl || (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
+  const invoiceNumber =
+    transaction?.transactionId || subObj.invoiceNumber || null;
+  const safeInvoice = invoiceNumber
+    ? invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_")
+    : null;
+  const invoiceUrl =
+    transaction?.invoiceUrl ||
+    subObj.invoiceUrl ||
+    (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
   const invoiceDownloadUrl = safeInvoice
     ? `/api/v1/invoices/download/${safeInvoice}`
     : subObj._id
@@ -1443,42 +1461,42 @@ const getSingleAdvertisementPaymentFromDB = async (
     subscriptionId: subObj._id,
     seller: seller
       ? {
-        id: seller._id,
-        name: seller.name,
-        email: seller.email,
-        phone: seller.phone || null,
-        profileImage: seller.profileImage || null,
-      }
+          id: seller._id,
+          name: seller.name,
+          email: seller.email,
+          phone: seller.phone || null,
+          profileImage: seller.profileImage || null,
+        }
       : null,
     store: store
       ? {
-        id: store._id,
-        displayName: store.displayName || null,
-        logo: store.logo || null,
-        storeType: store.storeType || null,
-        phone: store.phone || null,
-        email: store.email || null,
-        address: store.streetAddress || null,
-      }
+          id: store._id,
+          displayName: store.displayName || null,
+          logo: store.logo || null,
+          storeType: store.storeType || null,
+          phone: store.phone || null,
+          email: store.email || null,
+          address: store.streetAddress || null,
+        }
       : null,
     city: cityConfig
       ? {
-        id: cityConfig._id,
-        name: cityConfig.city,
-        country: cityConfig.country,
-        countryCode: cityConfig.countryCode,
-        latitude: cityConfig.latitude,
-        longitude: cityConfig.longitude,
-      }
+          id: cityConfig._id,
+          name: cityConfig.city,
+          country: cityConfig.country,
+          countryCode: cityConfig.countryCode,
+          latitude: cityConfig.latitude,
+          longitude: cityConfig.longitude,
+        }
       : ad
         ? {
-          id: ad.cityAdConfigId,
-          name: ad.city,
-          country: ad.country,
-          countryCode: ad.countryCode,
-          latitude: ad.latitude,
-          longitude: ad.longitude,
-        }
+            id: ad.cityAdConfigId,
+            name: ad.city,
+            country: ad.country,
+            countryCode: ad.countryCode,
+            latitude: ad.latitude,
+            longitude: ad.longitude,
+          }
         : null,
     position,
     amountPaid,
@@ -1490,15 +1508,14 @@ const getSingleAdvertisementPaymentFromDB = async (
     paymentMethod,
     paymentStatus,
     paymentDate: subObj.createdAt,
-    isTrial:
-      subObj.status === "trialing" || subObj.trxId === "trial_activated",
+    isTrial: subObj.status === "trialing" || subObj.trxId === "trial_activated",
     package: pkg
       ? {
-        id: pkg._id,
-        name: pkg.name,
-        duration: pkg.duration,
-        price: pkg.price,
-      }
+          id: pkg._id,
+          name: pkg.name,
+          duration: pkg.duration,
+          price: pkg.price,
+        }
       : null,
     subscription: {
       status: subObj.status,
@@ -1508,14 +1525,14 @@ const getSingleAdvertisementPaymentFromDB = async (
     },
     advertisement: ad
       ? {
-        id: ad._id,
-        campaignName: ad.campaignName,
-        featuredImage: ad.featuredImage || null,
-        status: ad.status,
-        startDate: ad.startDate,
-        endDate: ad.endDate,
-        price: ad.price,
-      }
+          id: ad._id,
+          campaignName: ad.campaignName,
+          featuredImage: ad.featuredImage || null,
+          status: ad.status,
+          startDate: ad.startDate,
+          endDate: ad.endDate,
+          price: ad.price,
+        }
       : null,
     isAdSubmitted: Boolean(ad),
   };

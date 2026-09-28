@@ -10,7 +10,7 @@ import optionalAuth from "../../middlewares/optionalAuth";
 const router = express.Router();
 
 router.post(
-  "/", 
+  "/",
   isSeller,
   fileUploadHandler(),
   parseFileData({ fieldName: "images", mode: "multiple" }),

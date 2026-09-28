@@ -24,7 +24,9 @@ async function migrateTransactionTypes() {
       $set: { transactionType: TRANSACTION_TYPE.ADVERTISEMENT_PAYMENT },
     },
   );
-  console.log(`Updated advertisement transactions: matched ${adResult.matchedCount}, modified ${adResult.modifiedCount}`);
+  console.log(
+    `Updated advertisement transactions: matched ${adResult.matchedCount}, modified ${adResult.modifiedCount}`,
+  );
 
   // 2. Update remaining booking_payment transactions to subscription_payment
   const subResult = await txCollection.updateMany(
@@ -35,7 +37,9 @@ async function migrateTransactionTypes() {
       $set: { transactionType: TRANSACTION_TYPE.SUBSCRIPTION_PAYMENT },
     },
   );
-  console.log(`Updated subscription transactions: matched ${subResult.matchedCount}, modified ${subResult.modifiedCount}`);
+  console.log(
+    `Updated subscription transactions: matched ${subResult.matchedCount}, modified ${subResult.modifiedCount}`,
+  );
 
   // 3. Verify counts
   const counts = await txCollection

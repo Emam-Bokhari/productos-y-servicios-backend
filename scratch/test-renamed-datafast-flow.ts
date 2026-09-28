@@ -20,10 +20,12 @@ const run = async () => {
   const rawPassword = "Password123!";
   const salt = await bcrypt.genSalt(12);
   const hashed = await bcrypt.hash(rawPassword, salt);
-  await db.collection("users").updateOne(
-    { email: "datafast.merchant.2026@gmail.com" },
-    { $set: { password: hashed } }
-  );
+  await db
+    .collection("users")
+    .updateOne(
+      { email: "datafast.merchant.2026@gmail.com" },
+      { $set: { password: hashed } },
+    );
 
   // Login via API to test auth flow
   const loginRes = await axios.post(`${BASE_URL}/api/v1/auth/login`, {
@@ -32,7 +34,9 @@ const run = async () => {
   });
 
   const token = loginRes.data.data.token || loginRes.data.data.accessToken;
-  console.log("Authenticated successfully via POST /auth/login. Token acquired.");
+  console.log(
+    "Authenticated successfully via POST /auth/login. Token acquired.",
+  );
 
   const authHeaders = {
     Authorization: `Bearer ${token}`,
@@ -45,22 +49,29 @@ const run = async () => {
   const user = profileRes.data.data;
   console.log("User activeRole:", user.activeRole);
   console.log("User subscriptionStatus:", user.subscriptionStatus);
-  console.log("User datafastRegistrationToken:", user.datafastRegistrationToken);
+  console.log(
+    "User datafastRegistrationToken:",
+    user.datafastRegistrationToken,
+  );
 
   console.log("\n=== 3. Querying Subscription Packages ===");
   const pkgRes = await axios.get(`${BASE_URL}/api/v1/subscription-packages`, {
     headers: authHeaders,
   });
   const storePackage = pkgRes.data.data.find(
-    (p: any) => p.packageType === "store_creation" && p.status === "active"
+    (p: any) => p.packageType === "store_creation" && p.status === "active",
   );
-  console.log(`Found store package: ${storePackage.name} ($${storePackage.price}) ID: ${storePackage._id}`);
+  console.log(
+    `Found store package: ${storePackage.name} ($${storePackage.price}) ID: ${storePackage._id}`,
+  );
 
-  console.log("\n=== 4. Initiating Datafast Checkout for Store Subscription ===");
+  console.log(
+    "\n=== 4. Initiating Datafast Checkout for Store Subscription ===",
+  );
   const initRes = await axios.post(
     `${BASE_URL}/api/v1/datafast/create-checkout-session`,
     { packageId: storePackage._id },
-    { headers: authHeaders }
+    { headers: authHeaders },
   );
 
   const checkoutId = initRes.data.data.checkoutId;
@@ -70,7 +81,7 @@ const run = async () => {
 
   console.log("\n=== 5. Fulfilling Payment via Datafast Callback ===");
   const callbackRes = await axios.get(
-    `${BASE_URL}/api/v1/datafast/callback?checkoutId=${checkoutId}`
+    `${BASE_URL}/api/v1/datafast/callback?checkoutId=${checkoutId}`,
   );
   console.log("Callback processed! Response status:", callbackRes.status);
 
@@ -103,9 +114,13 @@ const run = async () => {
     (latestTx as any).stripeCustomerId === undefined &&
     (latestTx as any).stripePaymentIntentId === undefined
   ) {
-    console.log("\nSUCCESS: All fields are correctly named and no stripe fields exist!");
+    console.log(
+      "\nSUCCESS: All fields are correctly named and no stripe fields exist!",
+    );
   } else {
-    console.error("\nFAILURE: Transaction fields did not match expected structure!");
+    console.error(
+      "\nFAILURE: Transaction fields did not match expected structure!",
+    );
     process.exit(1);
   }
 
@@ -129,9 +144,13 @@ const run = async () => {
     (subRecord as any).stripeSessionId === undefined &&
     (subRecord as any).stripeSubscriptionId === undefined
   ) {
-    console.log("\nSUCCESS: Subscription record is also correctly named and free of Stripe fields!");
+    console.log(
+      "\nSUCCESS: Subscription record is also correctly named and free of Stripe fields!",
+    );
   } else {
-    console.error("\nFAILURE: Subscription fields did not match expected structure!");
+    console.error(
+      "\nFAILURE: Subscription fields did not match expected structure!",
+    );
     process.exit(1);
   }
 

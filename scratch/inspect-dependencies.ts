@@ -8,13 +8,33 @@ async function inspect() {
   await mongoose.connect(config.database_url as string);
 
   const categories = await StoreCategory.find().limit(3);
-  console.log("Categories:", categories.map(c => ({ id: c._id.toString(), name: (c as any).name })));
+  console.log(
+    "Categories:",
+    categories.map((c) => ({ id: c._id.toString(), name: (c as any).name })),
+  );
 
   const cities = await CityAdConfiguration.find({ status: "active" }).limit(3);
-  console.log("Active Cities:", cities.map(c => ({ id: c._id.toString(), city: c.city, featuredCapacity: c.featuredCapacity })));
+  console.log(
+    "Active Cities:",
+    cities.map((c) => ({
+      id: c._id.toString(),
+      city: c.city,
+      featuredCapacity: c.featuredCapacity,
+    })),
+  );
 
   const packages = await SubscriptionPackage.find();
-  console.log("All Packages:", packages.map(p => ({ id: p._id.toString(), name: p.name, type: p.packageType, status: p.status, price: p.price, duration: p.duration })));
+  console.log(
+    "All Packages:",
+    packages.map((p) => ({
+      id: p._id.toString(),
+      name: p.name,
+      type: p.packageType,
+      status: p.status,
+      price: p.price,
+      duration: p.duration,
+    })),
+  );
 
   await mongoose.disconnect();
 }

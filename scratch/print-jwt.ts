@@ -8,7 +8,7 @@ const token = jwt.sign(
     role: "user",
   },
   config.jwt.jwt_secret as string,
-  { expiresIn: "30d" }
+  { expiresIn: "30d" },
 );
 
 console.log("LOGIN_JWT_TOKEN:", token);

@@ -11,7 +11,7 @@ async function f() {
       },
       {
         headers: { Authorization: `Bearer ${token}` },
-      }
+      },
     );
     console.log("STATUS:", res.status);
     console.log("PAYMENT_URL:", res.data.data.paymentUrl);

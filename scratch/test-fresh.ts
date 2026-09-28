@@ -41,7 +41,10 @@ async function testFresh() {
     });
     console.log("Status with entityId:", statusRes.data.result);
   } catch (err: any) {
-    console.log("Status with entityId Error:", err.response?.data?.result || err.message);
+    console.log(
+      "Status with entityId Error:",
+      err.response?.data?.result || err.message,
+    );
   }
 
   console.log("3. Querying status without entityId query param...");
@@ -54,7 +57,10 @@ async function testFresh() {
     });
     console.log("Status without entityId:", statusRes2.data.result);
   } catch (err: any) {
-    console.log("Status without entityId Error:", err.response?.data?.result || err.message);
+    console.log(
+      "Status without entityId Error:",
+      err.response?.data?.result || err.message,
+    );
   }
 }
 

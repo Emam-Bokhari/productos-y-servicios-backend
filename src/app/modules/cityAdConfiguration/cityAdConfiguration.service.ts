@@ -109,7 +109,9 @@ const updateCityAdConfigInDB = async (
   ) {
     const country = (payload.country || configDoc.country).trim();
     const province = (
-      payload.province !== undefined ? payload.province : configDoc.province || ""
+      payload.province !== undefined
+        ? payload.province
+        : configDoc.province || ""
     ).trim();
     const city = (payload.city || configDoc.city).trim();
     const canton = (payload.canton || configDoc.canton || city).trim();

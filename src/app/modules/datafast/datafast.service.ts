@@ -97,10 +97,16 @@ class DatafastService {
 
     // Pass metadata into custom parameters if supported
     if (metadata.packageId) {
-      params.append("customParameters[SHOPPER_PKG_ID]", String(metadata.packageId));
+      params.append(
+        "customParameters[SHOPPER_PKG_ID]",
+        String(metadata.packageId),
+      );
     }
     if (metadata.userId) {
-      params.append("customParameters[SHOPPER_USER_ID]", String(metadata.userId));
+      params.append(
+        "customParameters[SHOPPER_USER_ID]",
+        String(metadata.userId),
+      );
     }
 
     if (config.datafast.baseUrl.includes("test")) {
@@ -216,7 +222,7 @@ class DatafastService {
 
   /**
    * 4. Refund Payment
-   * 
+   *
    */
   async refundPayment(
     paymentId: string,

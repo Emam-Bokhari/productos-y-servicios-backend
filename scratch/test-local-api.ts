@@ -14,7 +14,7 @@ async function testLocalApi() {
   const token = jwtHelper.createToken(
     { id: user._id, role: user.role, email: user.email },
     config.jwt.jwt_secret as string,
-    config.jwt.jwt_expire_in as string
+    config.jwt.jwt_expire_in as string,
   );
 
   console.log("Token created successfully.");
@@ -27,9 +27,12 @@ async function testLocalApi() {
       },
       {
         headers: { Authorization: `Bearer ${token}` },
-      }
+      },
     );
-    console.log("Response from local server 5009:", JSON.stringify(res.data, null, 2));
+    console.log(
+      "Response from local server 5009:",
+      JSON.stringify(res.data, null, 2),
+    );
   } catch (err: any) {
     console.error("Local 5009 error:", err.response?.data || err.message);
   }

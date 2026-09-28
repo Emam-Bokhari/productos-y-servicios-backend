@@ -6,10 +6,7 @@ import { USER_ROLES, STATUS } from "../../../enums/user";
 import { STORE_TYPE, STORE_STATUS } from "../store/store.constant";
 import { Broadcast } from "./broadcast.model";
 import { IBroadcast } from "./broadcast.interface";
-import {
-  BROADCAST_AUDIENCE,
-  BROADCAST_STATUS,
-} from "./broadcast.constant";
+import { BROADCAST_AUDIENCE, BROADCAST_STATUS } from "./broadcast.constant";
 import { notificationHelper } from "../../builder/pushNotification";
 import { NOTIFICATION_TYPE } from "../notification/notification.constant";
 import QueryBuilder from "../../builder/queryBuilder";

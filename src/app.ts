@@ -30,12 +30,11 @@ app.use(
       "http://localhost:5174",
       "http://10.10.26.174:5173",
       "https://api.jaganaecuador.com",
-      "https://dashboard.jaganaecuador.com"
+      "https://dashboard.jaganaecuador.com",
     ],
     credentials: true,
   }),
 );
-
 
 app.use(
   express.json({

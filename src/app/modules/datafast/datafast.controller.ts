@@ -53,163 +53,168 @@ export const calculateExpirationDate = (
 /**
  * Create checkout session via Datafast
  */
-const createCheckoutSession = catchAsync(async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id || (req as any).user?._id;
-  const { packageId, cityConfigId, position } = req.body;
+const createCheckoutSession = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = (req as any).user?.id || (req as any).user?._id;
+    const { packageId, cityConfigId, position } = req.body;
 
-  let pkg: any = null;
-  let activeCity: any = null;
-  let chargedAmount = 0;
-  let selectedPosition: number | undefined;
-  let isSubscription = false;
-  let bookingType: "store_creation" | "advertisement" = "store_creation";
+    let pkg: any = null;
+    let activeCity: any = null;
+    let chargedAmount = 0;
+    let selectedPosition: number | undefined;
+    let isSubscription = false;
+    let bookingType: "store_creation" | "advertisement" = "store_creation";
 
-  if (cityConfigId) {
-    // ----------------------------------------------------------------------
-    // ADVERTISEMENT POSITION BOOKING (Direct City Position Slot Pricing)
-    // ----------------------------------------------------------------------
-    bookingType = "advertisement";
-    isSubscription = false;
+    if (cityConfigId) {
+      // ----------------------------------------------------------------------
+      // ADVERTISEMENT POSITION BOOKING (Direct City Position Slot Pricing)
+      // ----------------------------------------------------------------------
+      bookingType = "advertisement";
+      isSubscription = false;
 
-    activeCity = await CityAdConfiguration.findOne({
-      _id: cityConfigId,
-      status: "active",
+      activeCity = await CityAdConfiguration.findOne({
+        _id: cityConfigId,
+        status: "active",
+      });
+      if (!activeCity) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          "The selected city configuration is not active or does not exist",
+        );
+      }
+
+      if (position === undefined || position === null) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          "Position is required for advertisement booking",
+        );
+      }
+
+      selectedPosition = Number(position);
+      if (
+        isNaN(selectedPosition) ||
+        selectedPosition < 1 ||
+        selectedPosition > activeCity.featuredCapacity
+      ) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          `Invalid position: ${position}. Position must be between 1 and ${activeCity.featuredCapacity}.`,
+        );
+      }
+
+      const pricingObj = (activeCity.featuredPositionPricing || []).find(
+        (p: any) => p.position === selectedPosition,
+      );
+      if (!pricingObj || pricingObj.price <= 0) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          `No pricing configured for Position ${selectedPosition} in ${activeCity.city}.`,
+        );
+      }
+
+      chargedAmount = pricingObj.price;
+    } else if (packageId) {
+      // ----------------------------------------------------------------------
+      // STORE CREATION SUBSCRIPTION (Recurring Vendor Membership)
+      // ----------------------------------------------------------------------
+      pkg = await SubscriptionPackage.findById(packageId);
+      if (!pkg) {
+        throw new ApiError(
+          StatusCodes.NOT_FOUND,
+          "Subscription package not found",
+        );
+      }
+
+      bookingType = "store_creation";
+      isSubscription = true;
+      chargedAmount = pkg.price;
+    } else {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "Either packageId (for store subscription) or cityConfigId with position (for advertisement booking) is required",
+      );
+    }
+
+    const userProfile = await User.findById(userId);
+    if (!userProfile) {
+      throw new ApiError(StatusCodes.NOT_FOUND, "User profile not found");
+    }
+
+    // Generate unique merchant transaction ID
+    const count = await Transaction.countDocuments({
+      transactionId: { $regex: "^INV-" },
     });
-    if (!activeCity) {
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        "The selected city configuration is not active or does not exist",
-      );
-    }
+    const invoiceNumber = 1000 + count + 1;
+    const merchantTxId = `INV-${new Date().getFullYear()}-${invoiceNumber}`;
 
-    if (position === undefined || position === null) {
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        "Position is required for advertisement booking",
-      );
-    }
-
-    selectedPosition = Number(position);
-    if (
-      isNaN(selectedPosition) ||
-      selectedPosition < 1 ||
-      selectedPosition > activeCity.featuredCapacity
-    ) {
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        `Invalid position: ${position}. Position must be between 1 and ${activeCity.featuredCapacity}.`,
-      );
-    }
-
-    const pricingObj = (activeCity.featuredPositionPricing || []).find(
-      (p: any) => p.position === selectedPosition,
-    );
-    if (!pricingObj || pricingObj.price <= 0) {
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        `No pricing configured for Position ${selectedPosition} in ${activeCity.city}.`,
-      );
-    }
-
-    chargedAmount = pricingObj.price;
-  } else if (packageId) {
-    // ----------------------------------------------------------------------
-    // STORE CREATION SUBSCRIPTION (Recurring Vendor Membership)
-    // ----------------------------------------------------------------------
-    pkg = await SubscriptionPackage.findById(packageId);
-    if (!pkg) {
-      throw new ApiError(StatusCodes.NOT_FOUND, "Subscription package not found");
-    }
-
-    bookingType = "store_creation";
-    isSubscription = true;
-    chargedAmount = pkg.price;
-  } else {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      "Either packageId (for store subscription) or cityConfigId with position (for advertisement booking) is required",
-    );
-  }
-
-  const userProfile = await User.findById(userId);
-  if (!userProfile) {
-    throw new ApiError(StatusCodes.NOT_FOUND, "User profile not found");
-  }
-
-  // Generate unique merchant transaction ID
-  const count = await Transaction.countDocuments({
-    transactionId: { $regex: "^INV-" },
-  });
-  const invoiceNumber = 1000 + count + 1;
-  const merchantTxId = `INV-${new Date().getFullYear()}-${invoiceNumber}`;
-
-  const checkoutResult = await datafastService.prepareCheckoutSession({
-    amount: chargedAmount,
-    currency: "USD",
-    userEmail: userProfile.email,
-    userName: userProfile.name,
-    isSubscription,
-    merchantTransactionId: merchantTxId,
-    metadata: {
-      userId,
-      bookingType,
-      packageId: pkg ? pkg._id.toString() : "",
-      cityConfigId: activeCity ? activeCity._id.toString() : "",
-      cityName: activeCity ? activeCity.city : "",
-      country: activeCity ? activeCity.country : "",
-      province: activeCity ? activeCity.province : "",
-      sector: activeCity ? activeCity.sector : "",
-      neighborhood: activeCity ? activeCity.neighborhood : "",
-      position: selectedPosition ? selectedPosition.toString() : "",
-    },
-  });
-
-  const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-  const host = req.get("host");
-  const defaultBaseUrl = `${protocol}://${host}`;
-  const paymentUrl = `${defaultBaseUrl}/api/v1/datafast/pay/${checkoutResult.checkoutId}`;
-
-  // Persist pending transaction immediately
-  await Transaction.create({
-    transactionId: merchantTxId,
-    userId,
-    packageId: pkg ? pkg._id : undefined,
-    amount: chargedAmount,
-    paymentMethod: PAYMENT_METHOD.DATAFAST,
-    paymentStatus: "PENDING",
-    transactionType:
-      bookingType === "advertisement"
-        ? TRANSACTION_TYPE.ADVERTISEMENT_PAYMENT
-        : TRANSACTION_TYPE.SUBSCRIPTION_PAYMENT,
-    checkoutSessionId: checkoutResult.checkoutId,
-    metadata: {
-      bookingType,
-      packageId: pkg ? pkg._id.toString() : "",
-      cityConfigId: activeCity ? activeCity._id.toString() : "",
-      cityName: activeCity ? activeCity.city : "",
-      country: activeCity ? activeCity.country : "",
-      province: activeCity ? activeCity.province : "",
-      sector: activeCity ? activeCity.sector : "",
-      neighborhood: activeCity ? activeCity.neighborhood : "",
-      position: selectedPosition ? selectedPosition.toString() : "",
+    const checkoutResult = await datafastService.prepareCheckoutSession({
+      amount: chargedAmount,
+      currency: "USD",
+      userEmail: userProfile.email,
+      userName: userProfile.name,
+      isSubscription,
       merchantTransactionId: merchantTxId,
-    },
-  });
+      metadata: {
+        userId,
+        bookingType,
+        packageId: pkg ? pkg._id.toString() : "",
+        cityConfigId: activeCity ? activeCity._id.toString() : "",
+        cityName: activeCity ? activeCity.city : "",
+        country: activeCity ? activeCity.country : "",
+        province: activeCity ? activeCity.province : "",
+        sector: activeCity ? activeCity.sector : "",
+        neighborhood: activeCity ? activeCity.neighborhood : "",
+        position: selectedPosition ? selectedPosition.toString() : "",
+      },
+    });
 
-  sendResponse(res, {
-    success: true,
-    statusCode: StatusCodes.OK,
-    message: "Datafast checkout session created successfully",
-    data: {
-      sessionId: checkoutResult.checkoutId,
-      checkoutId: checkoutResult.checkoutId,
-      paymentUrl,
-      url: paymentUrl,
-      widgetScriptUrl: checkoutResult.redirectUrl,
-      raw: checkoutResult.raw,
-    },
-  });
-});
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+    const host = req.get("host");
+    const defaultBaseUrl = `${protocol}://${host}`;
+    const paymentUrl = `${defaultBaseUrl}/api/v1/datafast/pay/${checkoutResult.checkoutId}`;
+
+    // Persist pending transaction immediately
+    await Transaction.create({
+      transactionId: merchantTxId,
+      userId,
+      packageId: pkg ? pkg._id : undefined,
+      amount: chargedAmount,
+      paymentMethod: PAYMENT_METHOD.DATAFAST,
+      paymentStatus: "PENDING",
+      transactionType:
+        bookingType === "advertisement"
+          ? TRANSACTION_TYPE.ADVERTISEMENT_PAYMENT
+          : TRANSACTION_TYPE.SUBSCRIPTION_PAYMENT,
+      checkoutSessionId: checkoutResult.checkoutId,
+      metadata: {
+        bookingType,
+        packageId: pkg ? pkg._id.toString() : "",
+        cityConfigId: activeCity ? activeCity._id.toString() : "",
+        cityName: activeCity ? activeCity.city : "",
+        country: activeCity ? activeCity.country : "",
+        province: activeCity ? activeCity.province : "",
+        sector: activeCity ? activeCity.sector : "",
+        neighborhood: activeCity ? activeCity.neighborhood : "",
+        position: selectedPosition ? selectedPosition.toString() : "",
+        merchantTransactionId: merchantTxId,
+      },
+    });
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: "Datafast checkout session created successfully",
+      data: {
+        sessionId: checkoutResult.checkoutId,
+        checkoutId: checkoutResult.checkoutId,
+        paymentUrl,
+        url: paymentUrl,
+        widgetScriptUrl: checkoutResult.redirectUrl,
+        raw: checkoutResult.raw,
+      },
+    });
+  },
+);
 
 /**
  * Reusable payment fulfillment helper
@@ -322,7 +327,7 @@ export const fulfillDatafastPayment = async (params: IFulfillPaymentParams) => {
     throw new ApiError(
       StatusCodes.PAYMENT_REQUIRED,
       paymentData?.result?.description ||
-      "Payment was not successful or was declined",
+        "Payment was not successful or was declined",
     );
   }
 
@@ -371,7 +376,8 @@ export const fulfillDatafastPayment = async (params: IFulfillPaymentParams) => {
         invoiceUrl,
         metadata: {
           bookingType: "advertisement",
-          cityConfigId: params.cityConfigId || existingTx?.metadata?.cityConfigId,
+          cityConfigId:
+            params.cityConfigId || existingTx?.metadata?.cityConfigId,
           position: params.position || existingTx?.metadata?.position,
         },
       });
@@ -390,7 +396,8 @@ export const fulfillDatafastPayment = async (params: IFulfillPaymentParams) => {
 
     const generatedTxId = finalTx.transactionId;
     const safeInvoice = generatedTxId.replace(/[^a-zA-Z0-9_-]/g, "_");
-    const invoiceUrl = finalTx.invoiceUrl || `/uploads/invoices/${safeInvoice}.pdf`;
+    const invoiceUrl =
+      finalTx.invoiceUrl || `/uploads/invoices/${safeInvoice}.pdf`;
     const invoiceDownloadUrl = `/api/v1/invoices/download/${safeInvoice}`;
 
     // Pre-generate PDF in background
@@ -514,7 +521,8 @@ export const fulfillDatafastPayment = async (params: IFulfillPaymentParams) => {
 
   const generatedTxId = finalTx.transactionId;
   const safeInvoice = generatedTxId.replace(/[^a-zA-Z0-9_-]/g, "_");
-  const invoiceUrl = finalTx.invoiceUrl || `/uploads/invoices/${safeInvoice}.pdf`;
+  const invoiceUrl =
+    finalTx.invoiceUrl || `/uploads/invoices/${safeInvoice}.pdf`;
   const invoiceDownloadUrl = `/api/v1/invoices/download/${safeInvoice}`;
 
   if (subscriptionRecord) {
@@ -558,7 +566,8 @@ const verifyPayment = catchAsync(async (req: Request, res: Response) => {
     req.params.id || req.body.checkoutId || (req.query.checkoutId as string);
 
   const { packageId, cityConfigId, position } = req.body;
-  const userId = (req as any).user?.id || (req as any).user?._id || req.body.userId;
+  const userId =
+    (req as any).user?.id || (req as any).user?._id || req.body.userId;
 
   if (!checkoutId) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Checkout ID is required");
@@ -596,7 +605,8 @@ const renderCheckoutPage = catchAsync(async (req: Request, res: Response) => {
   const { checkoutId } = req.params;
   if (!checkoutId) {
     return res.render("fail", {
-      message: "Identificador de pago (checkoutId) inválido o no proporcionado.",
+      message:
+        "Identificador de pago (checkoutId) inválido o no proporcionado.",
     });
   }
 
@@ -643,38 +653,40 @@ const renderCheckoutPage = catchAsync(async (req: Request, res: Response) => {
 /**
  * Handle Datafast Payment Callback (Redirect from COPYandPAY form)
  */
-const handlePaymentCallback = catchAsync(async (req: Request, res: Response) => {
-  const checkoutId = (req.query.id ||
-    req.body.id ||
-    req.query.checkoutId ||
-    req.body.checkoutId) as string;
+const handlePaymentCallback = catchAsync(
+  async (req: Request, res: Response) => {
+    const checkoutId = (req.query.id ||
+      req.body.id ||
+      req.query.checkoutId ||
+      req.body.checkoutId) as string;
 
-  if (!checkoutId) {
-    return res.render("fail", {
-      message: "No se recibió un identificador de sesión de pago válido.",
-    });
-  }
+    if (!checkoutId) {
+      return res.render("fail", {
+        message: "No se recibió un identificador de sesión de pago válido.",
+      });
+    }
 
-  try {
-    const fulfillment = await fulfillDatafastPayment({
-      checkoutId,
-    });
+    try {
+      const fulfillment = await fulfillDatafastPayment({
+        checkoutId,
+      });
 
-    return res.render("success", {
-      message: "¡Tu pago ha sido procesado y confirmado con éxito!",
-      invoiceNumber: fulfillment.invoiceNumber,
-      amount: fulfillment.amountPaid,
-      returnUrl: "javascript:window.close();",
-    });
-  } catch (err: any) {
-    return res.render("fail", {
-      message:
-        err.message ||
-        "Ocurrió un error inesperado al procesar la confirmación del pago.",
-      retryUrl: `/api/v1/datafast/pay/${checkoutId}`,
-    });
-  }
-});
+      return res.render("success", {
+        message: "¡Tu pago ha sido procesado y confirmado con éxito!",
+        invoiceNumber: fulfillment.invoiceNumber,
+        amount: fulfillment.amountPaid,
+        returnUrl: "javascript:window.close();",
+      });
+    } catch (err: any) {
+      return res.render("fail", {
+        message:
+          err.message ||
+          "Ocurrió un error inesperado al procesar la confirmación del pago.",
+        retryUrl: `/api/v1/datafast/pay/${checkoutId}`,
+      });
+    }
+  },
+);
 
 /**
  * Get payment status query
@@ -726,4 +738,3 @@ export const DatafastControllers = {
   renderCheckoutPage,
   handlePaymentCallback,
 };
-

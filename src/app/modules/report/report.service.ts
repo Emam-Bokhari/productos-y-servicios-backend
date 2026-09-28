@@ -27,7 +27,10 @@ const createReportInDB = async (
     throw new ApiError(404, "Reporter user not found");
   }
   if (reporter.status === STATUS.INACTIVE) {
-    throw new ApiError(403, "Your account is inactive. You cannot submit reports.");
+    throw new ApiError(
+      403,
+      "Your account is inactive. You cannot submit reports.",
+    );
   }
 
   // 2. Validate target based on reportType
@@ -163,7 +166,8 @@ const getAllReportsFromDB = async (query: Record<string, unknown>) => {
     })
     .populate({
       path: "targetStore",
-      select: "displayName storeType logo coverImage status owner streetAddress city",
+      select:
+        "displayName storeType logo coverImage status owner streetAddress city",
     })
     .populate({
       path: "targetUser",
@@ -312,10 +316,7 @@ const updateReportStatusInDB = async (
 
   // Handle direct target moderation action if requested by admin from Dashboard
   if (payload.applyTargetAction && payload.applyTargetAction !== "none") {
-    if (
-      payload.applyTargetAction === "suspend_store" &&
-      report.targetStore
-    ) {
+    if (payload.applyTargetAction === "suspend_store" && report.targetStore) {
       await Store.findByIdAndUpdate(report.targetStore, {
         status: STORE_STATUS.SUSPENDED,
       });

@@ -4,7 +4,10 @@ async function testEntityComparison() {
   const token = "OGE4Mjk0MTg1MzNjZjMxZDAxNTMzZDA2ZmQwNDA3NDh8WHQ3RjIyUUVOWA==";
   const entities = [
     { name: "Doc 3 Entity (f2ee06fa)", id: "8a829418533cf31d01533d06f2ee06fa" },
-    { name: "Doc 2 / .env Entity (a10d8d)", id: "8a8294185a65bf5e015a6c8b89a10d8d" },
+    {
+      name: "Doc 2 / .env Entity (a10d8d)",
+      id: "8a8294185a65bf5e015a6c8b89a10d8d",
+    },
   ];
 
   for (const ent of entities) {
@@ -23,7 +26,7 @@ async function testEntityComparison() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/x-www-form-urlencoded",
           },
-        }
+        },
       );
 
       const checkoutId = createRes.data.id;
@@ -34,7 +37,7 @@ async function testEntityComparison() {
         `https://eu-test.oppwa.com/v1/checkouts/${checkoutId}/payment?entityId=${ent.id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
       console.log(`Initial Status:`, statusRes.data.result);
 
@@ -53,16 +56,19 @@ async function testEntityComparison() {
         }).toString(),
         {
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        }
+        },
       );
-      console.log("Pay response redirect:", payRes.data.redirect?.parameters || payRes.data.result);
+      console.log(
+        "Pay response redirect:",
+        payRes.data.redirect?.parameters || payRes.data.result,
+      );
 
       // Now query status AFTER payment!
       const statusAfterRes = await axios.get(
         `https://eu-test.oppwa.com/v1/checkouts/${checkoutId}/payment?entityId=${ent.id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
       console.log(`AFTER PAYMENT STATUS:`, statusAfterRes.data.result);
       console.log(`FULL DATA:`, {
@@ -73,7 +79,11 @@ async function testEntityComparison() {
         result: statusAfterRes.data.result,
       });
     } catch (err: any) {
-      console.error(`ERROR with ${ent.name}:`, err.response?.status, err.response?.data || err.message);
+      console.error(
+        `ERROR with ${ent.name}:`,
+        err.response?.status,
+        err.response?.data || err.message,
+      );
     }
   }
 }

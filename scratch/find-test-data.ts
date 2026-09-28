@@ -10,13 +10,17 @@ async function findData() {
   const packages = await SubscriptionPackage.find().limit(5);
   console.log("Packages count:", packages.length);
   packages.forEach((p) => {
-    console.log(`Package: ID=${p._id}, Name=${p.name}, Price=${p.price}, Type=${p.packageType}, Duration=${p.duration}`);
+    console.log(
+      `Package: ID=${p._id}, Name=${p.name}, Price=${p.price}, Type=${p.packageType}, Duration=${p.duration}`,
+    );
   });
 
   const users = await User.find().limit(5);
   console.log("Users count:", users.length);
   users.forEach((u) => {
-    console.log(`User: ID=${u._id}, Email=${u.email}, Name=${u.name}, Status=${u.subscriptionStatus}`);
+    console.log(
+      `User: ID=${u._id}, Email=${u.email}, Name=${u.name}, Status=${u.subscriptionStatus}`,
+    );
   });
 
   await mongoose.disconnect();

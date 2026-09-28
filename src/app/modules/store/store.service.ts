@@ -233,7 +233,7 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
     isVerified:
       payload.isVerified !== undefined
         ? payload.isVerified
-        : ownerUser?.isVerified ?? false,
+        : (ownerUser?.isVerified ?? false),
     status: STORE_STATUS.ACTIVE,
   });
 
@@ -796,10 +796,7 @@ const getAllStoresFromDB = async (
 
     // 3. Fallback for users/stores who do not have a timezone set (defaults to Asia/Dhaka)
     const usersWithoutTimezone = await User.find({
-      $or: [
-        { timezone: { $exists: false } },
-        { timezone: null },
-      ],
+      $or: [{ timezone: { $exists: false } }, { timezone: null }],
     }).select("_id");
     const ownerIdsWithoutTimezone = usersWithoutTimezone.map((u) => u._id);
 
@@ -1069,9 +1066,8 @@ const getAllStoresFromDB = async (
   }
 
   if (hasLocationFilter) {
-    const matchedConfigs = await CityAdConfiguration.find(locFilters).select(
-      "_id",
-    );
+    const matchedConfigs =
+      await CityAdConfiguration.find(locFilters).select("_id");
     const matchedConfigIds = matchedConfigs.map((c) => c._id);
     if (matchedConfigIds.length > 0) {
       filter.cityId = { $in: matchedConfigIds };
@@ -1329,9 +1325,7 @@ const getAllStoresFromDB = async (
     const ownerIdStr =
       store.owner?._id?.toString() || store.owner?.toString() || "";
     const activeSub = ownerIdStr ? subMap.get(ownerIdStr) : null;
-    const planName = activeSub
-      ? activeSub.packageId?.name || "Starter"
-      : "N/A";
+    const planName = activeSub ? activeSub.packageId?.name || "Starter" : "N/A";
 
     const listingsCount = listingsMap.get(store._id.toString()) || 0;
     const isFav = currentUserId

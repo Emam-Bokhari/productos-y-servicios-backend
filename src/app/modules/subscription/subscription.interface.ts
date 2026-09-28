@@ -23,6 +23,6 @@ export type TSubscription = {
   invoiceUrl?: string;
   createdAt?: Date;
   updatedAt?: Date;
-}; 
+};
 
 export type SubscriptionModel = ISoftDeleteModel<TSubscription>;

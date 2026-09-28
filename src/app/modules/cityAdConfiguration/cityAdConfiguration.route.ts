@@ -2,12 +2,9 @@ import express from "express";
 import validateRequest from "../../middlewares/validateRequest";
 import { CityAdConfigurationController } from "./cityAdConfiguration.controller";
 import { CityAdConfigurationValidation } from "./cityAdConfiguration.validation";
-import {
-  isAdmin,
-  isAuthenticated,
-} from "../../../helpers/authHelper";
+import { isAdmin, isAuthenticated } from "../../../helpers/authHelper";
 import fileUploadHandler from "../../middlewares/flieUploadHandler";
-import { parseFileData } from "../../middlewares/parseFileData"; 
+import { parseFileData } from "../../middlewares/parseFileData";
 
 const router = express.Router();
 

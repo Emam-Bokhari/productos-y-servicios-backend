@@ -5,8 +5,13 @@ async function run() {
   const entityId = "8a829418533cf31d01533d06f2ee06fa";
   const c = await axios.post(
     "https://eu-test.oppwa.com/v1/checkouts",
-    new URLSearchParams({ entityId, amount: "1.00", currency: "USD", paymentType: "DB" }),
-    { headers: { Authorization: "Bearer " + token } }
+    new URLSearchParams({
+      entityId,
+      amount: "1.00",
+      currency: "USD",
+      paymentType: "DB",
+    }),
+    { headers: { Authorization: "Bearer " + token } },
   );
   const cid = c.data.id;
   console.log("Checkout created:", cid);
@@ -21,11 +26,15 @@ async function run() {
         "card.expiryYear": "2028",
         "card.cvv": "123",
         shopperResultUrl: "http://localhost:5009/api/v1/datafast/callback",
-      })
+      }),
     );
     console.log("PAY FULL RES SUCCESS:", JSON.stringify(p.data, null, 2));
   } catch (err: any) {
-    console.log("PAY FULL RES ERROR:", err.response?.status, JSON.stringify(err.response?.data, null, 2));
+    console.log(
+      "PAY FULL RES ERROR:",
+      err.response?.status,
+      JSON.stringify(err.response?.data, null, 2),
+    );
   }
 }
 run();

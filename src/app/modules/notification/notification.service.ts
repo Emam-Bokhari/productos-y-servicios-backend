@@ -202,10 +202,7 @@ const deleteSingleNotificationFromDB = async (
   const filter: Record<string, any> = { _id: id };
 
   // If normal user/seller, restrict deletion to their own notifications
-  if (
-    user.role !== USER_ROLES.ADMIN &&
-    user.role !== USER_ROLES.SUPER_ADMIN
-  ) {
+  if (user.role !== USER_ROLES.ADMIN && user.role !== USER_ROLES.SUPER_ADMIN) {
     filter.receiver = user.id;
   }
 
@@ -223,10 +220,7 @@ const deleteSingleNotificationFromDB = async (
 };
 
 // delete multiple or all notifications for user (excluding message_new if deleting all)
-const deleteNotificationsFromDB = async (
-  user: JwtPayload,
-  ids?: string[],
-) => {
+const deleteNotificationsFromDB = async (user: JwtPayload, ids?: string[]) => {
   const filter: Record<string, any> = { receiver: user.id };
 
   if (ids && Array.isArray(ids) && ids.length > 0) {

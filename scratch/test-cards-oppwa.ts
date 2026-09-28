@@ -39,7 +39,7 @@ async function testCards() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/x-www-form-urlencoded",
           },
-        }
+        },
       );
       const cid = cr.data.id;
 
@@ -54,21 +54,28 @@ async function testCards() {
           "card.cvv": "123",
           shopperResultUrl: `http://localhost:5009/api/v1/datafast/callback?checkoutId=${cid}`,
         }).toString(),
-        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+        { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
       );
 
-      console.log("Payment submitted. Redirect shortUrl:", p.data.redirect?.shortUrl);
+      console.log(
+        "Payment submitted. Redirect shortUrl:",
+        p.data.redirect?.shortUrl,
+      );
 
       // Now query status
       const s = await axios.get(
         `https://eu-test.oppwa.com/v1/checkouts/${cid}/payment?entityId=${entityId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       console.log(`>>> SUCCESS for ${c.num}!! Result:`, s.data.result);
       console.log("Full data:", JSON.stringify(s.data, null, 2));
       return;
     } catch (err: any) {
-      console.log(`Failed for ${c.num}:`, err.response?.status, err.response?.data?.result || err.message);
+      console.log(
+        `Failed for ${c.num}:`,
+        err.response?.status,
+        err.response?.data?.result || err.message,
+      );
     }
   }
 }

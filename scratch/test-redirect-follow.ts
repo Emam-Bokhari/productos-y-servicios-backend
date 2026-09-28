@@ -27,7 +27,7 @@ async function testRedirectFlow() {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-    }
+    },
   );
   const checkoutId = createRes.data.id;
   console.log("Created Checkout ID:", checkoutId);
@@ -46,7 +46,7 @@ async function testRedirectFlow() {
     }).toString(),
     {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    }
+    },
   );
   console.log("Pay response:", payRes.data);
 
@@ -57,8 +57,14 @@ async function testRedirectFlow() {
         maxRedirects: 5,
       });
       console.log("Redirect Followed Status:", redRes.status);
-      console.log("Redirect Final URL:", redRes.request?.res?.responseUrl || redRes.config.url);
-      console.log("Redirect Data Preview:", String(redRes.data).substring(0, 300));
+      console.log(
+        "Redirect Final URL:",
+        redRes.request?.res?.responseUrl || redRes.config.url,
+      );
+      console.log(
+        "Redirect Data Preview:",
+        String(redRes.data).substring(0, 300),
+      );
     } catch (redErr: any) {
       console.log("Redirect error:", redErr.message);
     }
@@ -70,7 +76,7 @@ async function testRedirectFlow() {
       `https://test.oppwa.com/v1/checkouts/${checkoutId}/payment?entityId=${entityId}`,
       {
         headers: { Authorization: `Bearer ${token}` },
-      }
+      },
     );
     console.log("STATUS SUCCESS:", checkRes.data.result);
     console.log("FULL DATA:", checkRes.data);

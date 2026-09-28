@@ -1,8 +1,5 @@
 import { FilterQuery, Query, Types } from "mongoose";
-import {
-  buildFuzzySearchRegex,
-  escapeRegex,
-} from "../../helpers/searchHelper";
+import { buildFuzzySearchRegex, escapeRegex } from "../../helpers/searchHelper";
 
 class QueryBuilder<T> {
   public modelQuery: Query<T[], T>;

@@ -34,7 +34,10 @@ async function simulateWidgetPaymentSubmission() {
 
   // Metadata for subscription activation
   params.append("customParameters[SHOPPER_PKG_ID]", "6a7ff377c24d0046a564c737");
-  params.append("customParameters[SHOPPER_USER_ID]", "6a76edddda03657909bcbd43");
+  params.append(
+    "customParameters[SHOPPER_USER_ID]",
+    "6a76edddda03657909bcbd43",
+  );
 
   const checkoutRes = await axios.post(checkoutUrl, params.toString(), {
     headers: {
@@ -46,7 +49,9 @@ async function simulateWidgetPaymentSubmission() {
   const checkoutId = checkoutRes.data.id;
   console.log("Created Checkout ID:", checkoutId);
 
-  console.log("\n--- 2. Simulating COPYandPAY Form Submission directly to Oppwa Gateway ---");
+  console.log(
+    "\n--- 2. Simulating COPYandPAY Form Submission directly to Oppwa Gateway ---",
+  );
   const payUrl = `${config.datafast.baseUrl}/v1/checkouts/${checkoutId}/payment`;
   const cardData = new URLSearchParams();
   cardData.append("paymentBrand", "VISA");
@@ -55,7 +60,10 @@ async function simulateWidgetPaymentSubmission() {
   cardData.append("card.expiryMonth", "12");
   cardData.append("card.expiryYear", "2028");
   cardData.append("card.cvv", "123");
-  cardData.append("shopperResultUrl", `https://api.jaganaecuador.com/api/v1/datafast/callback?checkoutId=${checkoutId}`);
+  cardData.append(
+    "shopperResultUrl",
+    `https://api.jaganaecuador.com/api/v1/datafast/callback?checkoutId=${checkoutId}`,
+  );
 
   try {
     const payRes = await axios.post(payUrl, cardData.toString(), {
@@ -66,26 +74,51 @@ async function simulateWidgetPaymentSubmission() {
 
     console.log("Oppwa Payment Status HTTP:", payRes.status);
     console.log("Oppwa Payment Result Code:", payRes.data.result?.code);
-    console.log("Oppwa Payment Result Description:", payRes.data.result?.description);
-    console.log("Oppwa Registration Token (Tokenization):", payRes.data.registrationId);
+    console.log(
+      "Oppwa Payment Result Description:",
+      payRes.data.result?.description,
+    );
+    console.log(
+      "Oppwa Registration Token (Tokenization):",
+      payRes.data.registrationId,
+    );
     console.log("Oppwa Transaction ID:", payRes.data.id);
     console.log("Oppwa Redirect:", payRes.data.redirect);
 
-    console.log("\n--- 3. Calling our Backend Callback to Verify Fulfillment ---");
-    const callbackRes = await axios.get(`https://api.jaganaecuador.com/api/v1/datafast/callback?checkoutId=${checkoutId}`);
+    console.log(
+      "\n--- 3. Calling our Backend Callback to Verify Fulfillment ---",
+    );
+    const callbackRes = await axios.get(
+      `https://api.jaganaecuador.com/api/v1/datafast/callback?checkoutId=${checkoutId}`,
+    );
     console.log("Backend Callback Status:", callbackRes.status);
-    console.log("Backend Callback Returned HTML contains 'Payment Successful':", callbackRes.data.includes("Payment Successful") || callbackRes.data.includes("exitosamente"));
+    console.log(
+      "Backend Callback Returned HTML contains 'Payment Successful':",
+      callbackRes.data.includes("Payment Successful") ||
+        callbackRes.data.includes("exitosamente"),
+    );
 
     // Check if Subscription and Transaction were created in DB
-    console.log("\n--- 4. Checking Database for Subscription & Transaction ---");
+    console.log(
+      "\n--- 4. Checking Database for Subscription & Transaction ---",
+    );
     const mongoose = require("mongoose");
     await mongoose.connect(config.database_url);
-    const { Subscription } = require("../src/app/modules/subscription/subscription.model");
-    const { Transaction } = require("../src/app/modules/transaction/transaction.model");
+    const {
+      Subscription,
+    } = require("../src/app/modules/subscription/subscription.model");
+    const {
+      Transaction,
+    } = require("../src/app/modules/transaction/transaction.model");
     const { User } = require("../src/app/modules/user/user.model");
 
-    const sub = await Subscription.findOne({ userId: "6a76edddda03657909bcbd43", packageType: "store_creation" });
-    const tx = await Transaction.findOne({ stripeCheckoutSessionId: checkoutId });
+    const sub = await Subscription.findOne({
+      userId: "6a76edddda03657909bcbd43",
+      packageType: "store_creation",
+    });
+    const tx = await Transaction.findOne({
+      stripeCheckoutSessionId: checkoutId,
+    });
     const user = await User.findById("6a76edddda03657909bcbd43");
 
     console.log("Subscription in DB:", {
@@ -112,23 +145,34 @@ async function simulateWidgetPaymentSubmission() {
       subscriptionExpiresAt: user?.subscriptionExpiresAt,
     });
 
-    console.log("\n--- 5. Testing Automated Recurring Renewal (Cron simulation) ---");
+    console.log(
+      "\n--- 5. Testing Automated Recurring Renewal (Cron simulation) ---",
+    );
     console.log("Using token:", sub?.datafastRegistrationToken);
     if (sub?.datafastRegistrationToken) {
       const recurringRes = await datafastService.executeRecurringPayment(
         sub.datafastRegistrationToken,
         17.25,
-        sub._id.toString()
+        sub._id.toString(),
       );
       console.log("Recurring Payment Result Code:", recurringRes.result?.code);
-      console.log("Recurring Payment Description:", recurringRes.result?.description);
+      console.log(
+        "Recurring Payment Description:",
+        recurringRes.result?.description,
+      );
       console.log("Recurring Payment ID:", recurringRes.id);
-      console.log("Recurring Payment SUCCESS?:", datafastService.isSuccessCode(recurringRes.result?.code));
+      console.log(
+        "Recurring Payment SUCCESS?:",
+        datafastService.isSuccessCode(recurringRes.result?.code),
+      );
     }
 
     await mongoose.disconnect();
   } catch (err: any) {
-    console.error("Payment Submission Error Details:", JSON.stringify(err.response?.data, null, 2) || err.message);
+    console.error(
+      "Payment Submission Error Details:",
+      JSON.stringify(err.response?.data, null, 2) || err.message,
+    );
   }
 }
 

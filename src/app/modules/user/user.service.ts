@@ -62,9 +62,7 @@ const getAdminFromDB = async (query: any) => {
 const getSuperAdminFromDB = async () => {
   const result = await User.findOne({
     role: USER_ROLES.SUPER_ADMIN,
-  }).select(
-    "-password -authentication -deviceToken",
-  );
+  }).select("-password -authentication -deviceToken");
 
   if (!result) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Super admin not found");
@@ -163,7 +161,7 @@ const createUserToDB = async (payload: any) => {
   }
 
   const createUser = await User.create(userData);
-  
+
   if (!createUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Failed to create user");
   }
@@ -227,7 +225,7 @@ const createUserToDB = async (payload: any) => {
 
   return result;
 };
- 
+
 const getMyProfileFromDB = async (userId: string) => {
   const result = await User.findById(userId);
 
@@ -329,15 +327,20 @@ const getMyProfileFromDB = async (userId: string) => {
       (postSubscription.packageId as any)?._id || postSubscription.packageId;
   } else if (storeSubscription) {
     const isPastExpiry =
-      storeSubscription.expiresAt && new Date(storeSubscription.expiresAt) <= now;
-    synchronizedStatus = isPastExpiry ? "expired" : (storeSubscription.status as any);
+      storeSubscription.expiresAt &&
+      new Date(storeSubscription.expiresAt) <= now;
+    synchronizedStatus = isPastExpiry
+      ? "expired"
+      : (storeSubscription.status as any);
     synchronizedExpiresAt = storeSubscription.expiresAt;
     synchronizedPackageId =
       (storeSubscription.packageId as any)?._id || storeSubscription.packageId;
   } else if (postSubscription) {
     const isPastExpiry =
       postSubscription.expiresAt && new Date(postSubscription.expiresAt) <= now;
-    synchronizedStatus = isPastExpiry ? "expired" : (postSubscription.status as any);
+    synchronizedStatus = isPastExpiry
+      ? "expired"
+      : (postSubscription.status as any);
     synchronizedExpiresAt = postSubscription.expiresAt;
     synchronizedPackageId =
       (postSubscription.packageId as any)?._id || postSubscription.packageId;
@@ -514,6 +517,8 @@ const deleteUserByIdFromD = async (id: string) => {
   return result;
 };
 
+// console.log("delete profile");
+
 const deleteProfileFromDB = async (id: string, password: string) => {
   // user exists?
   const user = await User.findById(id).select("+password");
@@ -535,8 +540,6 @@ const deleteProfileFromDB = async (id: string, password: string) => {
 
   return result;
 };
-
-
 
 export const UserService = {
   createUserToDB,

@@ -9,7 +9,7 @@ async function check() {
   console.log("Using bearerToken:", config.datafast.bearerToken);
   try {
     const res = await axios.get(url, {
-      headers: { Authorization: `Bearer ${config.datafast.bearerToken}` }
+      headers: { Authorization: `Bearer ${config.datafast.bearerToken}` },
     });
     console.log("Payment Data:", JSON.stringify(res.data, null, 2));
   } catch (err: any) {

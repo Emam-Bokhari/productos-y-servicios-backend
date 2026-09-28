@@ -53,7 +53,10 @@ async function testDatafast() {
       });
       console.log("Status Res:", statusRes.data);
     } catch (err: any) {
-      console.log("Status Error (Expected before payment):", err.response?.data?.result || err.message);
+      console.log(
+        "Status Error (Expected before payment):",
+        err.response?.data?.result || err.message,
+      );
     }
   } catch (error: any) {
     console.error("Datafast Error:", error.response?.data || error.message);

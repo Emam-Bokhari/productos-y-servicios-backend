@@ -326,10 +326,7 @@ const getSubCategoriesByParentIdFromDB = async (parentId: string) => {
 
   const subCategoriesWithCount = await Promise.all(
     subCategories.map(async (sub) => {
-      const listingsCount = await getCategoryListingsCount(
-        sub._id,
-        sub.type,
-      );
+      const listingsCount = await getCategoryListingsCount(sub._id, sub.type);
       return {
         ...sub.toObject(),
         listingsCount,
@@ -376,7 +373,9 @@ const updateCategoryInDB = async (
 
   const targetName = payload.name || existingCategory.name;
   const targetParentId =
-    payload.parentId !== undefined ? payload.parentId : existingCategory.parentId;
+    payload.parentId !== undefined
+      ? payload.parentId
+      : existingCategory.parentId;
   const targetType = payload.type || existingCategory.type;
 
   if (payload.name || payload.parentId !== undefined || payload.type) {
@@ -435,4 +434,3 @@ export const StoreCategoryService = {
   updateCategoryInDB,
   deleteCategoryFromDB,
 };
-

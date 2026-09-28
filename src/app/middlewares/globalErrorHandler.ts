@@ -86,9 +86,7 @@ const globalErrorHandler: ErrorRequestHandler = (error, req, res, next) => {
     errorMessages = [
       {
         path: fieldName || "",
-        message: fieldName
-          ? `${error.message}: '${fieldName}'`
-          : error.message,
+        message: fieldName ? `${error.message}: '${fieldName}'` : error.message,
       },
     ];
   } else if (error instanceof Error) {

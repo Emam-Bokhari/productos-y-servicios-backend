@@ -132,7 +132,7 @@ const verifyEmailToDB = async (payload: IVerifyEmail) => {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
       "Please give the otp, check your email we send a code",
-    ); 
+    );
   }
 
   if (isExistUser.authentication?.oneTimeCode !== oneTimeCode) {

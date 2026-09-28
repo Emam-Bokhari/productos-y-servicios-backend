@@ -8,7 +8,14 @@ import { SubscriptionPackage } from "../src/app/modules/subscriptionPackage/subs
 async function reproduce() {
   await mongoose.connect(config.database_url as string);
   const pkg = await SubscriptionPackage.findById("6a86804e8ecf4b4417488532");
-  console.log("Package:", pkg?.name, "price:", pkg?.price, "type:", pkg?.packageType);
+  console.log(
+    "Package:",
+    pkg?.name,
+    "price:",
+    pkg?.price,
+    "type:",
+    pkg?.packageType,
+  );
 
   const res = await datafastService.prepareCheckoutSession({
     amount: pkg!.price,

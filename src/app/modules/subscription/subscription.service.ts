@@ -72,7 +72,9 @@ const getSingleSubscriptionFromDB = async (id: string, user: JwtPayload) => {
 
   const now = new Date();
   const subObj = result.toObject();
-  const isExpired = subObj.expiresAt ? new Date(subObj.expiresAt) <= now : false;
+  const isExpired = subObj.expiresAt
+    ? new Date(subObj.expiresAt) <= now
+    : false;
   const diffMs = subObj.expiresAt
     ? new Date(subObj.expiresAt).getTime() - now.getTime()
     : 0;

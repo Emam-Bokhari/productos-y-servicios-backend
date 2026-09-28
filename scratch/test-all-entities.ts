@@ -19,13 +19,17 @@ async function testAllEntities() {
     try {
       const res = await axios.get(
         `https://eu-test.oppwa.com/v1/checkouts/${checkoutId}/payment?entityId=${eid}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       console.log(`SUCCESS with ${eid}!`, res.data.result);
       console.log("Full data:", JSON.stringify(res.data, null, 2));
       return;
     } catch (err: any) {
-      console.log(`Failed with ${eid}:`, err.response?.status, err.response?.data?.result || err.message);
+      console.log(
+        `Failed with ${eid}:`,
+        err.response?.status,
+        err.response?.data?.result || err.message,
+      );
     }
   }
 }
