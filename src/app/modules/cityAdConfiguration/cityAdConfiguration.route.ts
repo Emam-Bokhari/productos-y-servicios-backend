@@ -5,11 +5,9 @@ import { CityAdConfigurationValidation } from "./cityAdConfiguration.validation"
 import {
   isAdmin,
   isAuthenticated,
-  isSeller,
 } from "../../../helpers/authHelper";
-
 import fileUploadHandler from "../../middlewares/flieUploadHandler";
-import { parseFileData } from "../../middlewares/parseFileData";
+import { parseFileData } from "../../middlewares/parseFileData"; 
 
 const router = express.Router();
 

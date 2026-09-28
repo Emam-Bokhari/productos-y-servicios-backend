@@ -8,12 +8,15 @@ import { IErrorMessage } from "../../types/errors.types";
 import { StatusCodes } from "http-status-codes";
 import { RESPONSE_MODE } from "../../constants/responseMode";
 import { responseMode } from "../../config/responseMode";
+import multer from "multer";
 
 const globalErrorHandler: ErrorRequestHandler = (error, req, res, next) => {
   try {
     const errorInfo = {
       name: error?.name,
       message: error?.message,
+      code: (error as any)?.code,
+      field: (error as any)?.field,
       stack: error?.stack,
     };
     config.node_env === "development"
@@ -73,6 +76,21 @@ const globalErrorHandler: ErrorRequestHandler = (error, req, res, next) => {
           },
         ]
       : [];
+  } else if (
+    error instanceof multer.MulterError ||
+    error.name === "MulterError"
+  ) {
+    statusCode = StatusCodes.BAD_REQUEST;
+    message = error.message;
+    const fieldName = (error as any).field;
+    errorMessages = [
+      {
+        path: fieldName || "",
+        message: fieldName
+          ? `${error.message}: '${fieldName}'`
+          : error.message,
+      },
+    ];
   } else if (error instanceof Error) {
     message = error.message;
     errorMessages = error.message
