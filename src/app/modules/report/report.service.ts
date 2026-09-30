@@ -7,7 +7,6 @@ import { STORE_STATUS } from "../store/store.constant";
 import { STATUS } from "../../../enums/user";
 import { Report } from "./report.model";
 import {
-  REPORT_ACTION_TAKEN,
   REPORT_SEARCHABLE_FIELDS,
   REPORT_STATUS,
   REPORT_TYPE,
@@ -107,7 +106,6 @@ const createReportInDB = async (
 
   payload.reporterId = new Types.ObjectId(reporterId);
   payload.status = REPORT_STATUS.PENDING;
-  payload.actionTaken = REPORT_ACTION_TAKEN.NONE;
 
   const result = await Report.create(payload);
 
@@ -280,9 +278,8 @@ const updateReportStatusInDB = async (
   adminId: string,
   id: string,
   payload: {
-    status: REPORT_STATUS;
+    status?: REPORT_STATUS;
     adminNotes?: string;
-    actionTaken?: string;
     applyTargetAction?:
       | "none"
       | "suspend_store"
@@ -296,22 +293,12 @@ const updateReportStatusInDB = async (
     throw new ApiError(404, "Report not found");
   }
 
-  report.status = payload.status;
+  if (payload.status) {
+    report.status = payload.status;
+  }
 
   if (payload.adminNotes !== undefined) {
     report.adminNotes = payload.adminNotes;
-  }
-
-  if (payload.actionTaken !== undefined) {
-    report.actionTaken = payload.actionTaken;
-  }
-
-  if (
-    payload.status === REPORT_STATUS.RESOLVED ||
-    payload.status === REPORT_STATUS.DISMISSED
-  ) {
-    report.resolvedBy = new Types.ObjectId(adminId);
-    report.resolvedAt = new Date();
   }
 
   // Handle direct target moderation action if requested by admin from Dashboard
@@ -320,8 +307,9 @@ const updateReportStatusInDB = async (
       await Store.findByIdAndUpdate(report.targetStore, {
         status: STORE_STATUS.SUSPENDED,
       });
-      if (!payload.actionTaken) {
-        report.actionTaken = REPORT_ACTION_TAKEN.STORE_SUSPENDED;
+      // Taking moderation action resolves the report automatically if status not explicitly given
+      if (!payload.status) {
+        report.status = REPORT_STATUS.RESOLVED;
       }
     } else if (
       payload.applyTargetAction === "activate_store" &&
@@ -337,8 +325,9 @@ const updateReportStatusInDB = async (
       await User.findByIdAndUpdate(report.targetUser, {
         status: STATUS.INACTIVE,
       });
-      if (!payload.actionTaken) {
-        report.actionTaken = REPORT_ACTION_TAKEN.USER_BLOCKED;
+      // Taking moderation action resolves the report automatically if status not explicitly given
+      if (!payload.status) {
+        report.status = REPORT_STATUS.RESOLVED;
       }
     } else if (
       payload.applyTargetAction === "unblock_user" &&
@@ -348,6 +337,20 @@ const updateReportStatusInDB = async (
         status: STATUS.ACTIVE,
       });
     }
+  }
+
+  if (
+    report.status === REPORT_STATUS.RESOLVED ||
+    report.status === REPORT_STATUS.DISMISSED
+  ) {
+    report.resolvedBy = new Types.ObjectId(adminId);
+    report.resolvedAt = new Date();
+  } else if (
+    report.status === REPORT_STATUS.PENDING ||
+    report.status === REPORT_STATUS.UNDER_REVIEW
+  ) {
+    report.resolvedBy = undefined;
+    report.resolvedAt = undefined;
   }
 
   await report.save();

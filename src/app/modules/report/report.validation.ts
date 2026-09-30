@@ -1,6 +1,5 @@
 import { z } from "zod";
 import {
-  REPORT_ACTION_TAKEN,
   REPORT_REASON,
   REPORT_STATUS,
   REPORT_TYPE,
@@ -63,22 +62,30 @@ const createReportSchema = z.object({
 });
 
 const updateReportStatusSchema = z.object({
-  body: z.object({
-    status: z.nativeEnum(REPORT_STATUS, {
-      required_error: "Status is required",
-    }),
-    adminNotes: z.string().optional(),
-    actionTaken: z.string().optional(),
-    applyTargetAction: z
-      .enum([
-        "none",
-        "suspend_store",
-        "activate_store",
-        "block_user",
-        "unblock_user",
-      ])
-      .optional(),
-  }),
+  body: z
+    .object({
+      status: z.nativeEnum(REPORT_STATUS).optional(),
+      adminNotes: z.string().optional(),
+      applyTargetAction: z
+        .enum([
+          "none",
+          "suspend_store",
+          "activate_store",
+          "block_user",
+          "unblock_user",
+        ])
+        .optional(),
+    })
+    .refine(
+      (data) =>
+        data.status !== undefined ||
+        data.adminNotes !== undefined ||
+        data.applyTargetAction !== undefined,
+      {
+        message:
+          "At least one field (status, adminNotes, or applyTargetAction) must be provided",
+      },
+    ),
 });
 
 export const ReportValidation = {

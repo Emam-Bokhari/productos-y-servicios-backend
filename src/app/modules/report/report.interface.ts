@@ -1,7 +1,6 @@
 import { Types } from "mongoose";
 import { ISoftDeleteModel } from "../../../types/softDelete";
 import {
-  REPORT_ACTION_TAKEN,
   REPORT_REASON,
   REPORT_STATUS,
   REPORT_TYPE,
@@ -17,7 +16,6 @@ export type IReport = {
   images?: string[];
   status: REPORT_STATUS;
   adminNotes?: string;
-  actionTaken?: REPORT_ACTION_TAKEN | string;
   resolvedBy?: Types.ObjectId;
   resolvedAt?: Date;
   isDeleted?: boolean;

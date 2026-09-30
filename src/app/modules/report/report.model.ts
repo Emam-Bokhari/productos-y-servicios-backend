@@ -1,7 +1,6 @@
 import { Schema, model } from "mongoose";
 import { IReport, ReportModel } from "./report.interface";
 import {
-  REPORT_ACTION_TAKEN,
   REPORT_REASON,
   REPORT_STATUS,
   REPORT_TYPE,
@@ -58,11 +57,6 @@ const reportSchema = new Schema<IReport, ReportModel>(
     adminNotes: {
       type: String,
       default: "",
-      trim: true,
-    },
-    actionTaken: {
-      type: String,
-      default: REPORT_ACTION_TAKEN.NONE,
       trim: true,
     },
     resolvedBy: {

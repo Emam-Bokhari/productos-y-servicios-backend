@@ -10,16 +10,6 @@ export enum REPORT_STATUS {
   DISMISSED = "dismissed",
 }
 
-export enum REPORT_ACTION_TAKEN {
-  NONE = "none",
-  WARNING_ISSUED = "warning_issued",
-  STORE_SUSPENDED = "store_suspended",
-  USER_BLOCKED = "user_blocked",
-  CONTENT_REMOVED = "content_removed",
-  DISMISSED_NO_VIOLATION = "dismissed_no_violation",
-  OTHER = "other",
-}
-
 export enum REPORT_REASON {
   INAPPROPRIATE_CONTENT = "inappropriate_content",
   FRAUDULENT_ACTIVITY = "fraudulent_activity",
@@ -37,5 +27,4 @@ export const REPORT_SEARCHABLE_FIELDS = [
   "reason",
   "description",
   "adminNotes",
-  "actionTaken",
 ];
