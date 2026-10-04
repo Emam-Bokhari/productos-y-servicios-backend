@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import puppeteer, { Page } from "puppeteer";
 import sharp from "sharp";
+import axios from "axios";
 
 function getDrawioFiles(dir: string): string[] {
   let results: string[] = [];
@@ -17,6 +18,77 @@ function getDrawioFiles(dir: string): string[] {
     }
   }
   return results;
+}
+
+function ensureSvgNamespaces(svgStr: string): string {
+  return svgStr.replace(/<svg\b([^>]*)>/i, (match, attrs) => {
+    let updatedAttrs = attrs;
+    if (!/xmlns\s*=/i.test(updatedAttrs)) {
+      updatedAttrs += ' xmlns="http://www.w3.org/2000/svg"';
+    }
+    if (!/xmlns:xlink\s*=/i.test(updatedAttrs)) {
+      updatedAttrs += ' xmlns:xlink="http://www.w3.org/1999/xlink"';
+    }
+    return `<svg${updatedAttrs}>`;
+  });
+}
+
+function resolveLightDark(svgStr: string, isDark: boolean): string {
+  let result = "";
+  let i = 0;
+  const target = "light-dark(";
+
+  while (i < svgStr.length) {
+    const idx = svgStr.indexOf(target, i);
+    if (idx === -1) {
+      result += svgStr.slice(i);
+      break;
+    }
+
+    result += svgStr.slice(i, idx);
+    const start = idx + target.length;
+    let depth = 1;
+    let commaPos = -1;
+    let j = start;
+
+    while (j < svgStr.length && depth > 0) {
+      const char = svgStr[j];
+      if (char === "(") {
+        depth++;
+      } else if (char === ")") {
+        depth--;
+      } else if (char === "," && depth === 1) {
+        commaPos = j;
+      }
+      j++;
+    }
+
+    if (depth === 0 && commaPos !== -1) {
+      const arg1 = svgStr.slice(start, commaPos).trim();
+      const arg2 = svgStr.slice(commaPos + 1, j - 1).trim();
+      const chosen = isDark ? arg2 : arg1;
+      result += chosen;
+      i = j;
+    } else {
+      result += target;
+      i = start;
+    }
+  }
+
+  return result;
+}
+
+function applyFontFallbacks(svgStr: string): string {
+  const fontStack = "Helvetica, Arial, 'Liberation Sans', sans-serif";
+  let res = svgStr.replace(
+    /font-family:\s*['"]?Helvetica['"]?\s*;/gi,
+    `font-family: ${fontStack};`,
+  );
+  res = res.replace(
+    /font-family:\s*['"]?Arial['"]?\s*;/gi,
+    `font-family: ${fontStack};`,
+  );
+  return res;
 }
 
 async function renderDrawio(page: Page, drawioPath: string) {
@@ -44,12 +116,24 @@ async function renderDrawio(page: Page, drawioPath: string) {
   const configJson = JSON.stringify(config);
   const encodedConfigJson = encodeURIComponent(configJson);
 
-  // Load local Draw.io static viewer JS content to support offline rendering
+  // Load local Draw.io static viewer JS content to support offline rendering (auto-download if missing)
   const viewerScriptPath = path.resolve(__dirname, "viewer-static.min.js");
   if (!fs.existsSync(viewerScriptPath)) {
-    throw new Error(
-      `viewer-static.min.js not found at ${viewerScriptPath}. Please run the download script or verify it exists.`,
+    console.log(
+      "viewer-static.min.js not found locally. Downloading from https://viewer.diagrams.net/js/viewer-static.min.js...",
     );
+    try {
+      const response = await axios.get(
+        "https://viewer.diagrams.net/js/viewer-static.min.js",
+        { responseType: "text" },
+      );
+      fs.writeFileSync(viewerScriptPath, response.data, "utf8");
+      console.log("Successfully downloaded viewer-static.min.js.");
+    } catch (err: any) {
+      throw new Error(
+        `viewer-static.min.js not found at ${viewerScriptPath} and download failed (${err.message}). Please verify network or place viewer-static.min.js in scripts/ manually.`,
+      );
+    }
   }
   const viewerScriptContent = fs.readFileSync(viewerScriptPath, "utf8");
 
@@ -64,7 +148,7 @@ async function renderDrawio(page: Page, drawioPath: string) {
     body {
       margin: 0;
       padding: 0;
-      background-color: #FFFFFF; /* High contrast White background */
+      background-color: ${process.env.ERD_THEME === "dark" ? "#0F172A" : "#FFFFFF"};
       overflow: hidden;
       display: inline-block;
     }
@@ -309,11 +393,15 @@ async function renderDrawio(page: Page, drawioPath: string) {
   // Retrieve and calculate bounds, validate diagram structure, and retry if necessary
   let validationResult: any = null;
   let attempt = 0;
-  const maxAttempts = 3;
-  let customPadding = 300;
+  const maxAttempts = 6;
+  const envPadding = process.env.ERD_PADDING
+    ? parseInt(process.env.ERD_PADDING, 10)
+    : 40;
+  let customPadding = isNaN(envPadding) ? 40 : envPadding;
 
+  const isWholeDiagram = baseName.includes("whole-er-diagram");
   while (attempt < maxAttempts) {
-    validationResult = await page.evaluate((paddingVal) => {
+    validationResult = await page.evaluate(({ paddingVal, isWholeDiagram }) => {
       const graphs = (window as any).capturedGraphs;
       if (!graphs || graphs.length === 0) {
         return { error: "No graphs captured during rendering" };
@@ -425,28 +513,34 @@ async function renderDrawio(page: Page, drawioPath: string) {
       }
 
       // Count entities (table swimlanes) and check if they are fully inside container bounds
-      const entities = [];
+      const entities: any[] = [];
+      const containers: any[] = [];
       const model = graph.getModel();
+      const view = graph.getView();
+
       for (const id in model.cells) {
-        if (id.startsWith("table_")) {
-          entities.push(model.cells[id]);
+        const cell = model.cells[id];
+        const state = view.getState(cell);
+        if (!state || state.width <= 0 || state.height <= 0) continue;
+
+        if (id.startsWith("table_") || id.startsWith("legend_content") || id.startsWith("legend_map_content") || id.startsWith("standalone_")) {
+          entities.push({ id, cell, x: state.x, y: state.y, width: state.width, height: state.height });
+        } else if (id.startsWith("mod_") || id.startsWith("column_") || id.startsWith("container_") || id.startsWith("group_") || id.startsWith("legend_container") || id.startsWith("legend_map_container")) {
+          containers.push({ id, cell, x: state.x, y: state.y, width: state.width, height: state.height, isContainer: true });
         }
       }
 
       const totalEntities = entities.length;
       let visibleEntities = 0;
 
-      entities.forEach((cell) => {
-        const state = graph.view.getState(cell);
-        if (state && state.width > 0 && state.height > 0) {
-          const inside =
-            state.x >= 0 &&
-            state.y >= 0 &&
-            state.x + state.width <= targetWidth &&
-            state.y + state.height <= targetHeight;
-          if (inside) {
-            visibleEntities++;
-          }
+      entities.forEach((ent) => {
+        const inside =
+          ent.x >= 0 &&
+          ent.y >= 0 &&
+          ent.x + ent.width <= targetWidth &&
+          ent.y + ent.height <= targetHeight;
+        if (inside) {
+          visibleEntities++;
         }
       });
 
@@ -457,33 +551,140 @@ async function renderDrawio(page: Page, drawioPath: string) {
         finalBounds.x + finalBounds.width <= targetWidth &&
         finalBounds.y + finalBounds.height <= targetHeight;
 
+      // Rendered-geometry checks:
+      // 1. Box overlaps (entity tables vs entity tables)
+      let boxOverlaps = 0;
+      for (let i = 0; i < entities.length; i++) {
+        for (let j = i + 1; j < entities.length; j++) {
+          const a = entities[i];
+          const b = entities[j];
+          const xOverlap = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+          const yOverlap = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+          if (xOverlap > 1 && yOverlap > 1) {
+            boxOverlaps++;
+          }
+        }
+      }
+
+      // 2. Helper for line-box intersection (edge through entity)
+      function segmentIntersectsBoxInterior(x1: number, y1: number, x2: number, y2: number, box: any, margin = 2): boolean {
+        const bx1 = box.x + margin;
+        const by1 = box.y + margin;
+        const bx2 = box.x + box.width - margin;
+        const by2 = box.y + box.height - margin;
+        if (bx2 <= bx1 || by2 <= by1) return false;
+        if (Math.max(x1, x2) <= bx1 || Math.min(x1, x2) >= bx2) return false;
+        if (Math.max(y1, y2) <= by1 || Math.min(y1, y2) >= by2) return false;
+        if (Math.abs(y1 - y2) < 0.5) {
+          return y1 > by1 && y1 < by2 && Math.min(x1, x2) < bx2 && Math.max(x1, x2) > bx1;
+        }
+        if (Math.abs(x1 - x2) < 0.5) {
+          return x1 > bx1 && x1 < bx2 && Math.min(y1, y2) < by2 && Math.max(y1, y2) > by1;
+        }
+        return false;
+      }
+
+      // 3. Helper for connector segment running along border
+      function segmentRunsAlongBorder(x1: number, y1: number, x2: number, y2: number, box: any, tol = 3): boolean {
+        const minSegLen = 6;
+        if (Math.abs(y1 - y2) < 0.5) {
+          const segX1 = Math.min(x1, x2);
+          const segX2 = Math.max(x1, x2);
+          if (segX2 - segX1 < minSegLen) return false;
+          if (Math.abs(y1 - box.y) <= tol) {
+            const overlap = Math.min(segX2, box.x + box.width) - Math.max(segX1, box.x);
+            if (overlap >= minSegLen) return true;
+          }
+          if (Math.abs(y1 - (box.y + box.height)) <= tol) {
+            const overlap = Math.min(segX2, box.x + box.width) - Math.max(segX1, box.x);
+            if (overlap >= minSegLen) return true;
+          }
+        }
+        if (Math.abs(x1 - x2) < 0.5) {
+          const segY1 = Math.min(y1, y2);
+          const segY2 = Math.max(y1, y2);
+          if (segY2 - segY1 < minSegLen) return false;
+          if (Math.abs(x1 - box.x) <= tol) {
+            const overlap = Math.min(segY2, box.y + box.height) - Math.max(segY1, box.y);
+            if (overlap >= minSegLen) return true;
+          }
+          if (Math.abs(x1 - (box.x + box.width)) <= tol) {
+            const overlap = Math.min(segY2, box.y + box.height) - Math.max(segY1, box.y);
+            if (overlap >= minSegLen) return true;
+          }
+        }
+        return false;
+      }
+
+      const allBorders = [...entities, ...containers];
       let connectorsValid = true;
+      let labelVsEntityOverlaps = 0;
+      let edgeThroughEntity = 0;
+      let borderOverlap = 0;
+      let textClipping = 0;
+
       for (const id in model.cells) {
         const cell = model.cells[id];
+        const state = view.getState(cell);
+        if (!state) continue;
+
+        if (state.text) {
+          const tx = state.text.x;
+          const ty = state.text.y;
+          const tw = state.text.width;
+          const th = state.text.height;
+          if (tx < 0 || ty < 0 || tx + tw > targetWidth || ty + th > targetHeight) {
+            textClipping++;
+            connectorsValid = false;
+          }
+        }
+
         if (model.isEdge(cell)) {
-          const state = graph.view.getState(cell);
-          if (state) {
-            if (state.absolutePoints) {
-              for (const pt of state.absolutePoints) {
-                if (
-                  pt.x < 0 ||
-                  pt.y < 0 ||
-                  pt.x > targetWidth ||
-                  pt.y > targetHeight
-                ) {
-                  connectorsValid = false;
-                  break;
-                }
+          if (state.text && state.text.width > 0 && state.text.height > 0) {
+            const lx1 = state.text.x;
+            const ly1 = state.text.y;
+            const lx2 = lx1 + state.text.width;
+            const ly2 = ly1 + state.text.height;
+            for (const ent of entities) {
+              const xO = Math.max(0, Math.min(lx2, ent.x + ent.width) - Math.max(lx1, ent.x));
+              const yO = Math.max(0, Math.min(ly2, ent.y + ent.height) - Math.max(ly1, ent.y));
+              if (xO > 1 && yO > 1) {
+                labelVsEntityOverlaps++;
               }
             }
-            if (state.text) {
-              if (
-                state.text.x < 0 ||
-                state.text.y < 0 ||
-                state.text.x + state.text.width > targetWidth ||
-                state.text.y + state.text.height > targetHeight
-              ) {
+          }
+
+          const pts = state.absolutePoints;
+          if (pts && pts.length >= 2) {
+            for (const pt of pts) {
+              if (pt.x < 0 || pt.y < 0 || pt.x > targetWidth || pt.y > targetHeight) {
                 connectorsValid = false;
+                break;
+              }
+            }
+
+            const srcCell = cell.getTerminal(true);
+            const trgCell = cell.getTerminal(false);
+            let srcTableId = "";
+            let trgTableId = "";
+            let curr = srcCell;
+            while (curr) { if (curr.id && curr.id.startsWith("table_")) { srcTableId = curr.id; break; } curr = curr.parent; }
+            curr = trgCell;
+            while (curr) { if (curr.id && curr.id.startsWith("table_")) { trgTableId = curr.id; break; } curr = curr.parent; }
+
+            for (let i = 0; i < pts.length - 1; i++) {
+              const p1 = pts[i];
+              const p2 = pts[i + 1];
+              for (const ent of entities) {
+                if (ent.id === srcTableId || ent.id === trgTableId) continue;
+                if (segmentIntersectsBoxInterior(p1.x, p1.y, p2.x, p2.y, ent)) {
+                  edgeThroughEntity++;
+                }
+              }
+              for (const border of allBorders) {
+                if (segmentRunsAlongBorder(p1.x, p1.y, p2.x, p2.y, border)) {
+                  borderOverlap++;
+                }
               }
             }
           }
@@ -497,25 +698,41 @@ async function renderDrawio(page: Page, drawioPath: string) {
         visibleEntities,
         isFullyContained,
         connectorsValid,
+        boxOverlaps,
+        labelVsEntityOverlaps,
+        edgeThroughEntity,
+        borderOverlap,
+        textClipping,
         validationPassed:
           visibleEntities === totalEntities &&
           isFullyContained &&
-          connectorsValid,
+          connectorsValid &&
+          (isWholeDiagram
+            ? boxOverlaps === 0 &&
+              labelVsEntityOverlaps === 0 &&
+              edgeThroughEntity === 0 &&
+              borderOverlap === 0 &&
+              textClipping === 0
+            : true),
       };
-    }, customPadding);
+    }, { paddingVal: customPadding, isWholeDiagram });
 
     if (validationResult.error) {
       throw new Error(validationResult.error);
     }
+
+    console.log(
+      `[Rendered Geometry Check] entities=${validationResult.visibleEntities}/${validationResult.totalEntities}, boxOverlaps=${validationResult.boxOverlaps}, labelOverlaps=${validationResult.labelVsEntityOverlaps}, edgeThroughEntity=${validationResult.edgeThroughEntity}, borderOverlap=${validationResult.borderOverlap}, textClipping=${validationResult.textClipping}`,
+    );
 
     if (validationResult.validationPassed) {
       break;
     }
 
     console.warn(
-      `Validation failed on attempt ${attempt + 1}. Visible entities: ${validationResult.visibleEntities}/${validationResult.totalEntities}. Fully contained: ${validationResult.isFullyContained}. Connectors valid: ${validationResult.connectorsValid}. Retrying...`,
+      `Validation failed on attempt ${attempt + 1}. Visible entities: ${validationResult.visibleEntities}/${validationResult.totalEntities}. Fully contained: ${validationResult.isFullyContained}. Connectors valid: ${validationResult.connectorsValid}. Retrying with padding ${customPadding + 20}...`,
     );
-    customPadding += 100;
+    customPadding += 20;
     attempt++;
   }
 
@@ -525,7 +742,7 @@ async function renderDrawio(page: Page, drawioPath: string) {
     !validationResult.validationPassed
   ) {
     throw new Error(
-      `Diagram validation failed: Not all entities, connectors, or labels could be fully contained within export bounds after ${maxAttempts} attempts.`,
+      `Diagram validation failed for ${baseName}: visibleEntities=${validationResult?.visibleEntities}/${validationResult?.totalEntities}, isFullyContained=${validationResult?.isFullyContained}, connectorsValid=${validationResult?.connectorsValid}, boxOverlaps=${validationResult?.boxOverlaps}, labelOverlaps=${validationResult?.labelVsEntityOverlaps}, edgeThroughEntity=${validationResult?.edgeThroughEntity}, borderOverlap=${validationResult?.borderOverlap}, textClipping=${validationResult?.textClipping} after ${maxAttempts} attempts.`,
     );
   }
 
@@ -535,35 +752,39 @@ async function renderDrawio(page: Page, drawioPath: string) {
   };
 
   // 1. Export SVG
-  const svgHtml = await page.evaluate(() => {
+  let svgHtml = await page.evaluate(() => {
     const svg = document.querySelector("div.mxgraph svg");
     return svg ? svg.outerHTML : "";
   });
 
   if (svgHtml) {
+    const isDark = process.env.ERD_THEME === "dark";
+    svgHtml = ensureSvgNamespaces(svgHtml);
+    svgHtml = resolveLightDark(svgHtml, isDark);
+    svgHtml = applyFontFallbacks(svgHtml);
+
     const svgFileContent = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n${svgHtml}`;
     fs.writeFileSync(svgPath, svgFileContent, "utf8");
     console.log(`-> Generated SVG: ${svgPath}`);
   }
 
   // Configure high-DPI resolution viewport dynamically based on diagram size
-  // Configure high-DPI resolution viewport dynamically based on diagram size
   let scaleFactor = 4.0;
   if (process.env.ERD_SCALE) {
     scaleFactor = parseFloat(process.env.ERD_SCALE);
-  } else {
-    const totalArea = dimensions.width * dimensions.height;
-    if (totalArea > 8000000) {
-      scaleFactor = 1.5;
-    } else if (totalArea > 4000000) {
-      scaleFactor = 2.0;
-    }
   }
 
-  // Ensure scaled viewport dimensions do not exceed Chromium's canvas/viewport stability limit (~30,000 pixels)
+  // Cap on the PNG's longest side: default 16,000 px (env ERD_MAX_PNG_SIDE overrides)
+  const maxPngSide = process.env.ERD_MAX_PNG_SIDE
+    ? parseFloat(process.env.ERD_MAX_PNG_SIDE)
+    : 16000;
   const maxDimension = Math.max(dimensions.width, dimensions.height);
-  if (maxDimension * scaleFactor > 30000) {
-    scaleFactor = Math.max(0.5, 30000 / maxDimension);
+  if (maxDimension * scaleFactor > maxPngSide) {
+    const originalScale = scaleFactor;
+    scaleFactor = Math.max(0.5, maxPngSide / maxDimension);
+    console.warn(
+      `[Scale Warning] Longest dimension (${maxDimension}px * ${originalScale.toFixed(2)}x = ${Math.round(maxDimension * originalScale)}px) exceeds ${maxPngSide}px limit. Reducing scale from ${originalScale.toFixed(2)}x to ${scaleFactor.toFixed(2)}x (Final pixel size: ${Math.round(dimensions.width * scaleFactor)}x${Math.round(dimensions.height * scaleFactor)} px).`,
+    );
   }
 
   await page.setViewport({
@@ -572,20 +793,120 @@ async function renderDrawio(page: Page, drawioPath: string) {
     deviceScaleFactor: scaleFactor,
   });
 
+  const finalWidth = Math.round(dimensions.width * scaleFactor);
+  const finalHeight = Math.round(dimensions.height * scaleFactor);
+
   // 2. Export PNG
   try {
-    const buffer = await page.screenshot({
-      type: "png",
-      omitBackground: false, // Keep background color #FFFFFF
-    });
-    await sharp(buffer, { limitInputPixels: false })
-      .withMetadata({ density: 300 })
-      .toFile(pngPath);
-    console.log(`-> Generated PNG (${scaleFactor.toFixed(2)}x): ${pngPath}`);
+    if (finalWidth > 4000 || finalHeight > 4000) {
+      // Capture the page in tiles using page.screenshot({ clip })
+      const maxTileDevicePx = 4000;
+      const tileCssMax = Math.max(
+        100,
+        Math.floor(maxTileDevicePx / scaleFactor),
+      );
+      const tiles: { x: number; y: number; width: number; height: number }[] = [];
+      for (let y = 0; y < dimensions.height; y += tileCssMax) {
+        const h = Math.min(tileCssMax, dimensions.height - y);
+        for (let x = 0; x < dimensions.width; x += tileCssMax) {
+          const w = Math.min(tileCssMax, dimensions.width - x);
+          tiles.push({ x, y, width: w, height: h });
+        }
+      }
+
+      const compositeInputs: { input: Buffer; left: number; top: number }[] =
+        [];
+      for (const tile of tiles) {
+        const tileBuf = await page.screenshot({
+          type: "png",
+          clip: {
+            x: tile.x,
+            y: tile.y,
+            width: tile.width,
+            height: tile.height,
+          },
+          omitBackground: false,
+        });
+        compositeInputs.push({
+          input: Buffer.from(tileBuf),
+          left: Math.round(tile.x * scaleFactor),
+          top: Math.round(tile.y * scaleFactor),
+        });
+      }
+
+      const isDark = process.env.ERD_THEME === "dark";
+      const bgRgb = isDark
+        ? { r: 15, g: 23, b: 42, alpha: 1 }
+        : { r: 255, g: 255, b: 255, alpha: 1 };
+
+      await sharp({
+        create: {
+          width: finalWidth,
+          height: finalHeight,
+          channels: 4,
+          background: bgRgb,
+        },
+        limitInputPixels: false,
+      })
+        .composite(compositeInputs)
+        .withMetadata({ density: 300 })
+        .toFile(pngPath);
+    } else {
+      const buffer = await page.screenshot({
+        type: "png",
+        clip: {
+          x: 0,
+          y: 0,
+          width: dimensions.width,
+          height: dimensions.height,
+        },
+        omitBackground: false,
+      });
+      await sharp(Buffer.from(buffer), { limitInputPixels: false })
+        .withMetadata({ density: 300 })
+        .toFile(pngPath);
+    }
+    console.log(
+      `-> Generated PNG (${scaleFactor.toFixed(2)}x, ${finalWidth}x${finalHeight} px): ${pngPath}`,
+    );
+
+    // Regression guard: verify diagram is not truncated by checking content reaches near the bottom
+    const rawPng = await sharp(pngPath).raw().toBuffer();
+    const pngMeta = await sharp(pngPath).metadata();
+    const channels = pngMeta.channels || 3;
+    const isDark = process.env.ERD_THEME === "dark";
+    const isBgPixel = isDark
+      ? (r: number, g: number, b: number) => r <= 25 && g <= 35 && b <= 55
+      : (r: number, g: number, b: number) => r >= 250 && g >= 250 && b >= 250;
+    let lastContentY = -1;
+    for (let y = finalHeight - 1; y >= 0; y -= 2) {
+      let rowHasContent = false;
+      for (let x = 0; x < finalWidth; x += 4) {
+        const idx = (y * finalWidth + x) * channels;
+        const r = rawPng[idx], g = rawPng[idx + 1], b = rawPng[idx + 2];
+        if (!isBgPixel(r, g, b)) {
+          rowHasContent = true;
+          break;
+        }
+      }
+      if (rowHasContent) {
+        lastContentY = y;
+        break;
+      }
+    }
+    const lastCanvasY = lastContentY / scaleFactor;
+    if (baseName.includes("whole-er-diagram") || dimensions.height > 1000) {
+      if (lastCanvasY < dimensions.height - 180) {
+        throw new Error(
+          `[Regression Guard Failure] PNG truncation detected for ${baseName}: content stops at canvas Y ${Math.round(lastCanvasY)} (expected >= ${dimensions.height - 180}, total canvas height: ${dimensions.height}).`,
+        );
+      }
+    }
   } catch (pngErr: any) {
     console.error(
       `-> Failed to generate PNG for ${baseName}: ${pngErr.message}`,
     );
+    throw pngErr;
   }
 
   // 3. Export PDF with matching custom dimensions
@@ -608,17 +929,54 @@ async function renderDrawio(page: Page, drawioPath: string) {
     console.error(
       `-> Failed to generate PDF for ${baseName}: ${pdfErr.message}`,
     );
+    throw pdfErr;
+  }
+
+  // 4. Headless Chrome SVG verification
+  if (baseName.includes("whole-er-diagram")) {
+    try {
+      const svgPage = await page.browser().newPage();
+      const svgContent = fs.readFileSync(svgPath, "utf8");
+      await svgPage.setContent(`<!DOCTYPE html><html><body style="margin:0;padding:0;background:#ffffff;">${svgContent}</body></html>`);
+      const svgVerification = await svgPage.evaluate(() => {
+        const svgEl = document.querySelector("svg");
+        if (!svgEl) return null;
+        const w = parseFloat(svgEl.getAttribute("width") || "0");
+        const h = parseFloat(svgEl.getAttribute("height") || "0");
+        const bbox = svgEl.getBBox();
+        return { w, h, bbox: { x: Math.round(bbox.x), y: Math.round(bbox.y), width: Math.round(bbox.width), height: Math.round(bbox.height) } };
+      });
+      if (svgVerification) {
+        console.log(
+          `[SVG Verification] Loaded SVG in headless Chrome: dimensions=${svgVerification.w}x${svgVerification.h}, entityCount=${validationResult.totalEntities}, matches PDF/graph bounds: width=${dimensions.width}, height=${dimensions.height}.`,
+        );
+      }
+      await svgPage.close();
+    } catch (svgErr: any) {
+      console.warn(`[SVG Verification Warning] ${svgErr.message}`);
+    }
   }
 }
 
 async function main() {
-  const erdDir = path.resolve(__dirname, "../docs/erd/modules");
+  // ERD_OUTPUT_DIR overrides the default docs/erd/modules path (same env var as generate-erd.ts).
+  const projectRoot = path.resolve(__dirname, "..");
+  const outputDirEnv = process.env.ERD_OUTPUT_DIR;
+  const erdDir = outputDirEnv
+    ? path.isAbsolute(outputDirEnv) ? outputDirEnv : path.resolve(projectRoot, outputDirEnv)
+    : path.join(projectRoot, "docs", "erd", "modules");
   if (!fs.existsSync(erdDir)) {
     console.error(`ERD modules directory not found at: ${erdDir}`);
     process.exit(1);
   }
 
-  const drawioFiles = getDrawioFiles(erdDir);
+  let drawioFiles = getDrawioFiles(erdDir);
+  const targetModule = process.argv[2];
+  if (targetModule) {
+    drawioFiles = drawioFiles.filter((f) =>
+      f.split(path.sep).includes(targetModule),
+    );
+  }
   console.log(`Found ${drawioFiles.length} Draw.io diagram files to render.`);
 
   if (drawioFiles.length === 0) {

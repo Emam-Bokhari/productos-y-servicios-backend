@@ -3,7 +3,13 @@ import * as path from "path";
 import * as os from "os";
 
 function main() {
-  const erdDir = path.resolve(__dirname, "../docs/erd/modules");
+  // ERD_OUTPUT_DIR overrides the default docs/erd/modules path.
+  const projectRootDir = path.resolve(__dirname, "..");
+  const outputDirEnv = process.env.ERD_OUTPUT_DIR;
+  const erdDir = outputDirEnv
+    ? path.isAbsolute(outputDirEnv) ? outputDirEnv : path.resolve(projectRootDir, outputDirEnv)
+    : path.join(projectRootDir, "docs", "erd", "modules");
+
   if (!fs.existsSync(erdDir)) {
     console.error(`ERD modules directory not found at: ${erdDir}`);
     console.error(
@@ -13,15 +19,13 @@ function main() {
   }
 
   // Resolve the project root directory and dynamically determine its folder name
-  const projectRootDir = path.resolve(__dirname, "..");
   const projectName = path.basename(projectRootDir);
 
-  // Resolve the user's local PC's Downloads directory dynamically based on the project name
-  const downloadsDir = path.join(
-    os.homedir(),
-    "Downloads",
-    `${projectName}-erd-diagrams`,
-  );
+  // ERD_EXPORT_DIR overrides the destination. Default: ~/Downloads/<projectName>-erd-diagrams
+  const exportDirEnv = process.env.ERD_EXPORT_DIR;
+  const downloadsDir = exportDirEnv
+    ? path.isAbsolute(exportDirEnv) ? exportDirEnv : path.resolve(projectRootDir, exportDirEnv)
+    : path.join(os.homedir(), "Downloads", `${projectName}-erd-diagrams`);
 
   if (!fs.existsSync(downloadsDir)) {
     fs.mkdirSync(downloadsDir, { recursive: true });
