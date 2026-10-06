@@ -6,11 +6,25 @@ async function check() {
   await mongoose.connect(config.database_url as string);
   const db = mongoose.connection.db!;
 
-  const user = await db.collection("users").findOne({ email: "adrianrivego@hotmail.com" });
+  const user = await db
+    .collection("users")
+    .findOne({ email: "adrianrivego@hotmail.com" });
   console.log("Found user exactly by email:", user);
 
-  const regexUsers = await db.collection("users").find({ email: { $regex: "adrian", $options: "i" } }).toArray();
-  console.log("Regex adrian:", regexUsers.map(u => ({ id: u._id, email: u.email, name: u.name, status: u.status, verified: u.verified })));
+  const regexUsers = await db
+    .collection("users")
+    .find({ email: { $regex: "adrian", $options: "i" } })
+    .toArray();
+  console.log(
+    "Regex adrian:",
+    regexUsers.map((u) => ({
+      id: u._id,
+      email: u.email,
+      name: u.name,
+      status: u.status,
+      verified: u.verified,
+    })),
+  );
 
   // Try calling login directly
   console.log("\nAttempting AuthService.loginUserFromDB:");
@@ -25,9 +39,13 @@ async function check() {
   }
 
   // Also check all users in database
-  const allUsers = await db.collection("users").find({}).project({ email: 1, name: 1, role: 1, activeRole: 1 }).toArray();
+  const allUsers = await db
+    .collection("users")
+    .find({})
+    .project({ email: 1, name: 1, role: 1, activeRole: 1 })
+    .toArray();
   console.log("\nAll user emails count:", allUsers.length);
-  console.log(allUsers.map(u => u.email));
+  console.log(allUsers.map((u) => u.email));
 
   await mongoose.disconnect();
 }

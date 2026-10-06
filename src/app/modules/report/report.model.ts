@@ -1,10 +1,6 @@
 import { Schema, model } from "mongoose";
 import { IReport, ReportModel } from "./report.interface";
-import {
-  REPORT_REASON,
-  REPORT_STATUS,
-  REPORT_TYPE,
-} from "./report.constant";
+import { REPORT_REASON, REPORT_STATUS, REPORT_TYPE } from "./report.constant";
 import { softDeletePlugin } from "../../../DB/plugins/softDeletePlugin";
 
 const reportSchema = new Schema<IReport, ReportModel>(

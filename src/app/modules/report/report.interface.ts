@@ -1,10 +1,6 @@
 import { Types } from "mongoose";
 import { ISoftDeleteModel } from "../../../types/softDelete";
-import {
-  REPORT_REASON,
-  REPORT_STATUS,
-  REPORT_TYPE,
-} from "./report.constant";
+import { REPORT_REASON, REPORT_STATUS, REPORT_TYPE } from "./report.constant";
 
 export type IReport = {
   reporterId: Types.ObjectId;

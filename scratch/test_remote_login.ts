@@ -16,7 +16,10 @@ async function testVariations() {
       await axios.post(url, { email: v, password: "12345678" });
       console.log(`Variation "${v}": SUCCESS`);
     } catch (err: any) {
-      console.log(`Variation "${v}": FAILED ->`, err.response?.data?.message || err.message);
+      console.log(
+        `Variation "${v}": FAILED ->`,
+        err.response?.data?.message || err.message,
+      );
     }
   }
 }

@@ -742,7 +742,7 @@ const getAllStoresFromDB = async (
     const distinctTimezones = await User.distinct("timezone");
     const timezones = distinctTimezones.filter(Boolean);
     const usersByTimezone: Record<string, any[]> = {};
-    
+
     const activeUsers = await User.find({
       timezone: { $in: timezones },
     }).select("_id timezone");

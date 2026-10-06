@@ -43,7 +43,6 @@ function getOutputDir(): string {
   return path.join(projectRoot, "docs", "erd", "modules");
 }
 
-
 interface ExtractedField {
   name: string;
   type: string;
@@ -472,7 +471,6 @@ export function analyzeFile(
       const firstArg = args[0];
       const secondArg = args[1];
 
-      
       let fields: ExtractedField[] = [];
       if (Node.isObjectLiteralExpression(firstArg)) {
         fields = parseSchemaObject(firstArg, sourceFile);
@@ -864,7 +862,9 @@ function estimateRowHeight(labelHtml: string, colWidth: number): number {
 
   // Extract badges to measure their width accurately
   let badgeExtraWidth = 0;
-  const badgeMatches = labelHtml.match(/<span style="background-color:[^>]+>([^<]+)<\/span>/g);
+  const badgeMatches = labelHtml.match(
+    /<span style="background-color:[^>]+>([^<]+)<\/span>/g,
+  );
   if (badgeMatches) {
     badgeExtraWidth = badgeMatches.length * 15;
   }
@@ -957,9 +957,7 @@ function getFieldLabels(
       // Foreign Keys: Italic type
       const rawType = cleanType(field.type);
       const brokenType = insertBreakOpportunities(rawType);
-      const typeText = field.ref
-        ? `<i>${brokenType}</i>`
-        : brokenType;
+      const typeText = field.ref ? `<i>${brokenType}</i>` : brokenType;
 
       const isFk = !!(field.ref || field.refPath);
 
@@ -979,12 +977,16 @@ function getFieldLabels(
 
       const comments: string[] = [];
       if (field.default !== undefined) {
-        comments.push(`def: ${insertBreakOpportunities(field.default.replace(/"/g, "'"))}`);
+        comments.push(
+          `def: ${insertBreakOpportunities(field.default.replace(/"/g, "'"))}`,
+        );
       }
       if (field.enum && field.enum.length > 0) {
         const cleanEnums = field.enum.map((ev) => ev.replace(/"/g, "'"));
         // Insert break opportunities after pipe characters so long enum strings wrap.
-        const enumStr = insertBreakOpportunities(`enum: ${cleanEnums.join("|")}`);        
+        const enumStr = insertBreakOpportunities(
+          `enum: ${cleanEnums.join("|")}`,
+        );
         comments.push(enumStr);
       }
 
@@ -1634,7 +1636,8 @@ function buildDrawioDiagram(
     for (const parentName of leftTables) {
       const targetYs: number[] = [];
       for (const rel of relationships) {
-        if (rel.source !== parentName || !centerTablesSet.has(rel.target)) continue;
+        if (rel.source !== parentName || !centerTablesSet.has(rel.target))
+          continue;
         const cOffset = centerEntityOffsets.get(rel.target) ?? paddingTop;
         const cleanTF = rel.label.replace(/[^a-zA-Z0-9_]/g, "_");
         const targetCellId = `field_${rel.target}_${cleanTF}`;
@@ -1666,7 +1669,10 @@ function buildDrawioDiagram(
         parentPrimaryTargetY.set(parentName, 999999);
       }
     }
-    leftTables.sort((a, b) => (parentPrimaryTargetY.get(a) ?? 0) - (parentPrimaryTargetY.get(b) ?? 0));
+    leftTables.sort(
+      (a, b) =>
+        (parentPrimaryTargetY.get(a) ?? 0) - (parentPrimaryTargetY.get(b) ?? 0),
+    );
 
     // ── DEPENDENT / SUB-SCHEMA VERTICAL ORDERING ───────────────────────────
     // Order dependent entities strictly by the vertical position of their source row in center
@@ -1715,7 +1721,10 @@ function buildDrawioDiagram(
         depPrimaryCenterY.set(depName, 999999);
       }
     }
-    rightTables.sort((a, b) => (depPrimaryCenterY.get(a) ?? 0) - (depPrimaryCenterY.get(b) ?? 0));
+    rightTables.sort(
+      (a, b) =>
+        (depPrimaryCenterY.get(a) ?? 0) - (depPrimaryCenterY.get(b) ?? 0),
+    );
 
     columns[0] = leftTables;
     columns[1] = centerTables;
@@ -1760,15 +1769,19 @@ function buildDrawioDiagram(
     const tables = columns[colIdx];
     let currentRelY = paddingTop;
 
-    const isParentCol = is3ColPerModule && tables.length > 0 && leftTablesSet.has(tables[0]);
-    const isDepCol = is3ColPerModule && tables.length > 0 && rightTablesSet.has(tables[0]);
+    const isParentCol =
+      is3ColPerModule && tables.length > 0 && leftTablesSet.has(tables[0]);
+    const isDepCol =
+      is3ColPerModule && tables.length > 0 && rightTablesSet.has(tables[0]);
 
     if (isParentCol || isDepCol) {
       // Place each parent/dependent near its connecting rows so edges are short and horizontal
       for (let i = 0; i < tables.length; i++) {
         const tName = tables[i];
         const tHeight = schemaInfos.get(tName)!.totalHeight;
-        const targetY = isParentCol ? parentPrimaryTargetY.get(tName) : depPrimaryCenterY.get(tName);
+        const targetY = isParentCol
+          ? parentPrimaryTargetY.get(tName)
+          : depPrimaryCenterY.get(tName);
         let relY = currentRelY;
         if (targetY !== undefined && targetY < 900000) {
           const idealY = Math.max(paddingTop, Math.round(targetY - 52));
@@ -1791,8 +1804,10 @@ function buildDrawioDiagram(
   // Calculate layout coordinates
   const columnHeights = columns.map((col, colIdx) => {
     if (col.length === 0) return 0;
-    const isParentCol = is3ColPerModule && col.length > 0 && leftTablesSet.has(col[0]);
-    const isDepCol = is3ColPerModule && col.length > 0 && rightTablesSet.has(col[0]);
+    const isParentCol =
+      is3ColPerModule && col.length > 0 && leftTablesSet.has(col[0]);
+    const isDepCol =
+      is3ColPerModule && col.length > 0 && rightTablesSet.has(col[0]);
 
     if (isParentCol || isDepCol) {
       let lastBottom = paddingTop;
@@ -1884,10 +1899,7 @@ function buildDrawioDiagram(
       title.includes("Shared")
     ) {
       groupTheme = theme.groups.lookup;
-    } else if (
-      title.includes("Dependent") ||
-      title.includes("Sub-Schemas")
-    ) {
+    } else if (title.includes("Dependent") || title.includes("Sub-Schemas")) {
       groupTheme = theme.groups.dependent;
     }
 
@@ -2035,15 +2047,23 @@ function buildDrawioDiagram(
     const r = Math.floor(colIdx / colsPerRow);
     const c = colIdx % colsPerRow;
     const is3Col = !isWhole && !isOverview;
-    const containerX = Math.round(leftMargin + c * (columnContainerWidth + horizontalSpacing));
+    const containerX = Math.round(
+      leftMargin + c * (columnContainerWidth + horizontalSpacing),
+    );
     const containerY = is3Col
       ? rowYPositions[r]
-      : Math.round(rowYPositions[r] + (rowHeights[r] - (columnHeights[colIdx] || 100)) / 2);
+      : Math.round(
+          rowYPositions[r] +
+            (rowHeights[r] - (columnHeights[colIdx] || 100)) / 2,
+        );
     return { x: containerX + rpos.rx, y: containerY + rpos.ry };
   }
 
   // For a given entity and field ID, return the absolute Y center of that row.
-  function getFieldRowAbsoluteY(entName: string, fieldCellId: string): number | null {
+  function getFieldRowAbsoluteY(
+    entName: string,
+    fieldCellId: string,
+  ): number | null {
     const exy = getEntityPageXY(entName);
     if (!exy) return null;
     const info = schemaInfos.get(entName);
@@ -2058,7 +2078,7 @@ function buildDrawioDiagram(
       y += h;
     }
     // Fallback: center of entity
-    return exy.y + (info.totalHeight / 2);
+    return exy.y + info.totalHeight / 2;
   }
 
   const LANE_WIDTH = 14; // px between adjacent vertical lanes in the gutter
@@ -2198,12 +2218,14 @@ function buildDrawioDiagram(
 
     // Cross-column structured routing for 3-column per-module diagrams
     const isParentToCenterEdge =
-      !isWhole && !isOverview &&
+      !isWhole &&
+      !isOverview &&
       leftTablesSet.has(rel.source) &&
       (nativeNames.has(rel.target) || centerTablesSet.has(rel.target));
 
     const isCenterToRightEdge =
-      !isWhole && !isOverview &&
+      !isWhole &&
+      !isOverview &&
       (nativeNames.has(rel.source) || centerTablesSet.has(rel.source)) &&
       rightTablesSet.has(rel.target);
 
@@ -2231,9 +2253,8 @@ function buildDrawioDiagram(
               : rightTablesSet.has(r.target)),
         ).length;
         const baseSrcY =
-          getFieldRowAbsoluteY(rel.source, sourceCellId) ?? (srcXY.y + 52);
-        const fanoutOffset =
-          (srcEdgeIdx - (parentEdgesCount - 1) / 2) * 8;
+          getFieldRowAbsoluteY(rel.source, sourceCellId) ?? srcXY.y + 52;
+        const fanoutOffset = (srcEdgeIdx - (parentEdgesCount - 1) / 2) * 8;
         const srcRowY = baseSrcY + fanoutOffset;
 
         // rounded=0 suppresses overlapping corner arc artifacts.
@@ -2368,7 +2389,9 @@ export function extractRelationshipsFromCode(
     if (!fileNorm.includes(schemaRootNorm)) continue;
 
     // Extract the module name as the first path segment under schemaRoot.
-    const relPart = fileNorm.slice(fileNorm.indexOf(schemaRootNorm) + schemaRootNorm.length).replace(/^\//, "");
+    const relPart = fileNorm
+      .slice(fileNorm.indexOf(schemaRootNorm) + schemaRootNorm.length)
+      .replace(/^\//, "");
     const moduleName = relPart.split("/")[0];
     if (!moduleName) continue;
 
@@ -2586,13 +2609,17 @@ function safeWriteDrawioFile(filePath: string, xmlContent: string) {
 // WHOLE ER DIAGRAM CONFIGURATION & LAYOUT ENGINE
 // ----------------------------------------------------
 export interface CanonicalRelationship {
-  source: string;  // referenced entity (or parent)
-  target: string;  // referencing entity (or child)
+  source: string; // referenced entity (or parent)
+  target: string; // referencing entity (or child)
   fkEnt: string;
   refEnt: string;
   fieldPath: string;
   type: "one-to-one" | "one-to-many";
-  kind: "single ref" | "array of refs" | "embedded path (dotted field)" | "one-to-one (unique)";
+  kind:
+    | "single ref"
+    | "array of refs"
+    | "embedded path (dotted field)"
+    | "one-to-one (unique)";
   isParentChild?: boolean;
 }
 
@@ -2610,17 +2637,17 @@ export const WHOLE_ERD_CONFIG = {
   // These config values are generic layout constants, not project-specific data.
   // Target aspect ratio for the connected grid (width/height goal: 1.3 to 2.0 landscape)
   aspectRatioTarget: 1.6,
-  gutterX: 65,               // Horizontal corridor between module columns
-  gutterY: 55,               // Vertical corridor between module rows
-  margin: 50,                // Canvas margin around the entire grid
+  gutterX: 65, // Horizontal corridor between module columns
+  gutterY: 55, // Vertical corridor between module rows
+  margin: 50, // Canvas margin around the entire grid
 
   // Entity sizing & styling inside module blocks
   entityWidth: 260,
   // Multi-column thresholds: use 3 sub-columns when entity count >= highThreshold, 2 when >= midThreshold
-  multiColHighThreshold: 8,  // entCols = 3
-  multiColMidThreshold: 4,   // entCols = 2
+  multiColHighThreshold: 8, // entCols = 3
+  multiColMidThreshold: 4, // entCols = 2
   subColumnGap: 24,
-  entityVerticalGap: 24,     // Guaranteed vertical clearance between stacked entities
+  entityVerticalGap: 24, // Guaranteed vertical clearance between stacked entities
   containerPaddingX: 20,
   containerPaddingTop: 44,
   containerPaddingBottom: 36,
@@ -2656,8 +2683,8 @@ export function computeHubThreshold(
   const manualOverride = WHOLE_ERD_CONFIG.hubMinReferences;
   if (manualOverride > 0) return manualOverride;
 
-  const minFloor = 4;  // entities with in-degree < this are never hubs
-  const minGap = 3;    // a gap of at least this size triggers the hub boundary
+  const minFloor = 4; // entities with in-degree < this are never hubs
+  const minGap = 3; // a gap of at least this size triggers the hub boundary
 
   const counts = Array.from(incomingReferencingEntities.values())
     .map((s) => s.size)
@@ -2756,7 +2783,8 @@ export function buildWholeDiagram(
   const theme = getActiveTheme();
 
   // Disambiguate duplicate schema names across different modules (e.g. local sub-schemas like "auditLogSchema")
-  const moduleSchemaKey = (moduleName: string, name: string) => `${moduleName}::${name}`;
+  const moduleSchemaKey = (moduleName: string, name: string) =>
+    `${moduleName}::${name}`;
   const nameOccurrences = new Map<string, string[]>();
   for (const s of nativeSchemas) {
     if (!nameOccurrences.has(s.name)) nameOccurrences.set(s.name, []);
@@ -2776,7 +2804,10 @@ export function buildWholeDiagram(
 
   for (const schema of nativeSchemas) {
     const renderName = getEntityRenderName(schema);
-    entityNameMap.set(moduleSchemaKey(schema.moduleName, schema.name), renderName);
+    entityNameMap.set(
+      moduleSchemaKey(schema.moduleName, schema.name),
+      renderName,
+    );
     schemasToRender.set(renderName, {
       ...schema,
       name: renderName,
@@ -2814,10 +2845,10 @@ export function buildWholeDiagram(
             const kind: CanonicalRelationship["kind"] = isUnique
               ? "one-to-one (unique)"
               : isArray
-              ? "array of refs"
-              : isDotted
-              ? "embedded path (dotted field)"
-              : "single ref";
+                ? "array of refs"
+                : isDotted
+                  ? "embedded path (dotted field)"
+                  : "single ref";
 
             canonicalRels.push({
               source: targetRenderName,
@@ -2828,7 +2859,9 @@ export function buildWholeDiagram(
               type: isUnique ? "one-to-one" : "one-to-many",
               kind,
             });
-            schemaFieldKeys.add(`${parentEntity}|${targetRenderName}|${fieldPath}`);
+            schemaFieldKeys.add(
+              `${parentEntity}|${targetRenderName}|${fieldPath}`,
+            );
           }
         }
 
@@ -2850,9 +2883,13 @@ export function buildWholeDiagram(
                   refEnt: targetRenderName,
                   fieldPath,
                   type: "one-to-many",
-                  kind: isDotted ? "embedded path (dotted field)" : "single ref",
+                  kind: isDotted
+                    ? "embedded path (dotted field)"
+                    : "single ref",
                 });
-                schemaFieldKeys.add(`${parentEntity}|${targetRenderName}|${fieldPath}`);
+                schemaFieldKeys.add(
+                  `${parentEntity}|${targetRenderName}|${fieldPath}`,
+                );
               }
             }
           }
@@ -2860,14 +2897,16 @@ export function buildWholeDiagram(
 
         const cleanTypeVal = field.type.replace(/\[\]$/, "");
         const localTarget = nativeSchemas.find(
-          (s) => s.name === cleanTypeVal && s.moduleName === nativeSchema.moduleName,
+          (s) =>
+            s.name === cleanTypeVal && s.moduleName === nativeSchema.moduleName,
         );
         const globalTarget = allSchemasMap.get(cleanTypeVal);
         const targetSchema = localTarget || globalTarget;
 
         if (targetSchema && cleanTypeVal !== parentEntity) {
           const isArray = field.type.endsWith("[]");
-          const isLocalChild = targetSchema.moduleName === nativeSchema.moduleName;
+          const isLocalChild =
+            targetSchema.moduleName === nativeSchema.moduleName;
           const targetRenderName =
             entityNameMap.get(
               moduleSchemaKey(targetSchema.moduleName, targetSchema.name),
@@ -2883,7 +2922,9 @@ export function buildWholeDiagram(
             kind: isArray ? "array of refs" : "single ref",
             isParentChild: isLocalChild,
           });
-          schemaFieldKeys.add(`${parentEntity}|${targetRenderName}|${fieldPath}`);
+          schemaFieldKeys.add(
+            `${parentEntity}|${targetRenderName}|${fieldPath}`,
+          );
         }
 
         if (field.isNested && field.nestedFields) {
@@ -2957,9 +2998,8 @@ export function buildWholeDiagram(
     if (!fkSchema || !refSchema) continue;
 
     const fkRenderName =
-      entityNameMap.get(
-        moduleSchemaKey(fkSchema.moduleName, fkSchema.name),
-      ) || fkSchema.name;
+      entityNameMap.get(moduleSchemaKey(fkSchema.moduleName, fkSchema.name)) ||
+      fkSchema.name;
     const refRenderName =
       entityNameMap.get(
         moduleSchemaKey(refSchema.moduleName, refSchema.name),
@@ -3019,12 +3059,11 @@ export function buildWholeDiagram(
     }
   }
 
-  const hubRuleDesc = WHOLE_ERD_CONFIG.hubMinReferences > 0
-    ? `ERD_HUB_MIN_REFS=${WHOLE_ERD_CONFIG.hubMinReferences}`
-    : `adaptive (largest-gap >= 3 above floor=4, or mean+1.5σ; threshold=${hubThreshold})`;
-  console.log(
-    `\n[Whole ERD] Hub detection rule: ${hubRuleDesc}`,
-  );
+  const hubRuleDesc =
+    WHOLE_ERD_CONFIG.hubMinReferences > 0
+      ? `ERD_HUB_MIN_REFS=${WHOLE_ERD_CONFIG.hubMinReferences}`
+      : `adaptive (largest-gap >= 3 above floor=4, or mean+1.5σ; threshold=${hubThreshold})`;
+  console.log(`\n[Whole ERD] Hub detection rule: ${hubRuleDesc}`);
   console.log(
     `[Whole ERD] Discovered ${hubEntities.size} Hub Entities (in-degree >= ${hubThreshold}):`,
   );
@@ -3073,7 +3112,10 @@ export function buildWholeDiagram(
     if (rel.isParentChild) {
       embeddedFkFieldMap.set(`${rel.refEnt}|${cleanField}`, rel.fkEnt);
       if (dotParts.length > 1) {
-        embeddedFkFieldMap.set(`${rel.refEnt}|${dotParts.join("_")}`, rel.fkEnt);
+        embeddedFkFieldMap.set(
+          `${rel.refEnt}|${dotParts.join("_")}`,
+          rel.fkEnt,
+        );
       }
       childParentMap.set(rel.fkEnt, rel.refEnt);
       continue;
@@ -3154,7 +3196,9 @@ export function buildWholeDiagram(
             .replace(/Information$/, "Info");
           return noSuffix.length > 12 ? noSuffix.slice(0, 10) + "…" : noSuffix;
         }
-        const displayTarget = isCompact ? abbreviateEntityName(targetToDisplay) : targetToDisplay;
+        const displayTarget = isCompact
+          ? abbreviateEntityName(targetToDisplay)
+          : targetToDisplay;
         const inlineArrow = ` <span style="color:${theme.relationships.foreignKey}; font-weight:600; font-size:10px;">&rarr; ${displayTarget}</span>`;
 
         let newHtml = l.labelHtml;
@@ -3388,8 +3432,7 @@ export function buildWholeDiagram(
       }
       const ex =
         WHOLE_ERD_CONFIG.containerPaddingX +
-        minCol *
-          (WHOLE_ERD_CONFIG.entityWidth + WHOLE_ERD_CONFIG.subColumnGap);
+        minCol * (WHOLE_ERD_CONFIG.entityWidth + WHOLE_ERD_CONFIG.subColumnGap);
       const ey = WHOLE_ERD_CONFIG.containerPaddingTop + colHeights[minCol];
       entityPositions.set(e, { rx: ex, ry: ey });
       colHeights[minCol] += h + WHOLE_ERD_CONFIG.entityVerticalGap;
@@ -3400,10 +3443,8 @@ export function buildWholeDiagram(
       (entCols - 1) * WHOLE_ERD_CONFIG.subColumnGap;
     const maxEntHeight = Math.max(...colHeights);
 
-    const baseWidth =
-      WHOLE_ERD_CONFIG.containerPaddingX * 2 + entityAreaWidth;
-    const baseHeight =
-      maxEntHeight + WHOLE_ERD_CONFIG.containerPaddingBottom;
+    const baseWidth = WHOLE_ERD_CONFIG.containerPaddingX * 2 + entityAreaWidth;
+    const baseHeight = maxEntHeight + WHOLE_ERD_CONFIG.containerPaddingBottom;
 
     moduleLayouts.set(modName, {
       modName,
@@ -3461,7 +3502,9 @@ export function buildWholeDiagram(
     const occupancy = CONNECTED_CELLS_NEEDED / cells;
 
     const estWidth =
-      c * avgConnW + (c - 1) * WHOLE_ERD_CONFIG.gutterX + 2 * WHOLE_ERD_CONFIG.margin;
+      c * avgConnW +
+      (c - 1) * WHOLE_ERD_CONFIG.gutterX +
+      2 * WHOLE_ERD_CONFIG.margin;
     const standCols = c;
     const standRows =
       standaloneCount > 0 ? Math.ceil(standaloneCount / standCols) : 0;
@@ -3516,7 +3559,10 @@ export function buildWholeDiagram(
   const STANDALONE_ROWS = bestGrid.standRows;
   const STANDALONE_CELLS = STANDALONE_ROWS * STANDALONE_COLS;
 
-  const prevCols = Math.max(1, Math.round(Math.sqrt(CONNECTED_CELLS_NEEDED * 1.6)));
+  const prevCols = Math.max(
+    1,
+    Math.round(Math.sqrt(CONNECTED_CELLS_NEEDED * 1.6)),
+  );
   const prevRows = Math.ceil(CONNECTED_CELLS_NEEDED / prevCols);
   const prevOccupancy = CONNECTED_CELLS_NEEDED / (prevCols * prevRows);
 
@@ -3869,7 +3915,8 @@ export function buildWholeDiagram(
         rightStubsByEnt.set(stub.fkEnt, rightIdx + 1);
 
         const rowYOffset = eInfo.rowYOffsets.get(stub.fkRowId) ?? 38;
-        targetY = ePos.ry + rowYOffset + rightIdx * (WHOLE_ERD_CONFIG.stubHeight + 6);
+        targetY =
+          ePos.ry + rowYOffset + rightIdx * (WHOLE_ERD_CONFIG.stubHeight + 6);
         stubX =
           WHOLE_ERD_CONFIG.containerPaddingX +
           entityAreaWidth +
@@ -3880,8 +3927,7 @@ export function buildWholeDiagram(
         belowStubsByEnt.set(stub.fkEnt, belowIdx + 1);
 
         stubX =
-          ePos.rx +
-          Math.round((WHOLE_ERD_CONFIG.entityWidth - stubWidth) / 2);
+          ePos.rx + Math.round((WHOLE_ERD_CONFIG.entityWidth - stubWidth) / 2);
         targetY =
           ePos.ry +
           eInfo.totalHeight +
@@ -3895,10 +3941,7 @@ export function buildWholeDiagram(
         w: stubWidth,
         h: WHOLE_ERD_CONFIG.stubHeight,
       });
-      maxStubY = Math.max(
-        maxStubY,
-        targetY + WHOLE_ERD_CONFIG.stubHeight + 14,
-      );
+      maxStubY = Math.max(maxStubY, targetY + WHOLE_ERD_CONFIG.stubHeight + 14);
     }
 
     const stubAreaWidth = hasStubs
@@ -4124,9 +4167,7 @@ export function buildWholeDiagram(
       const title = `${capitalize(mod)} (${ents.length})`;
 
       const isHubMod = hubMods.includes(mod);
-      const groupTheme = isHubMod
-        ? theme.groups.core
-        : theme.groups.dependent;
+      const groupTheme = isHubMod ? theme.groups.core : theme.groups.dependent;
 
       const containerStyle = `rounded=1;whiteSpace=wrap;html=1;fillColor=${groupTheme.fill};strokeColor=${groupTheme.stroke};strokeWidth=1.5;dashed=1;arcSize=6;align=left;verticalAlign=top;spacingLeft=15;spacingTop=12;fontColor=${groupTheme.title};fontSize=14;fontStyle=1;container=1;collapsible=0;recursiveResize=0;`;
 
@@ -4347,11 +4388,13 @@ export function buildWholeDiagram(
     const mbounds = moduleContainerBounds.get(mod);
     if (!layout || !mbounds) continue;
 
-    const sourceCellId = definedCellIds.has(`field_${rel.target}_${rel.fieldPath.replace(/[^a-zA-Z0-9_]/g, "_")}`)
+    const sourceCellId = definedCellIds.has(
+      `field_${rel.target}_${rel.fieldPath.replace(/[^a-zA-Z0-9_]/g, "_")}`,
+    )
       ? `field_${rel.target}_${rel.fieldPath.replace(/[^a-zA-Z0-9_]/g, "_")}`
       : definedCellIds.has(`field_${rel.target}__id`)
-      ? `field_${rel.target}__id`
-      : `table_${rel.target}`;
+        ? `field_${rel.target}__id`
+        : `table_${rel.target}`;
 
     const targetCellId = definedCellIds.has(`field_${rel.source}__id`)
       ? `field_${rel.source}__id`
@@ -4451,20 +4494,31 @@ export function buildWholeDiagram(
         mbounds.x +
           WHOLE_ERD_CONFIG.containerPaddingX +
           (sCol < tCol
-            ? sCol * (WHOLE_ERD_CONFIG.entityWidth + WHOLE_ERD_CONFIG.subColumnGap) + WHOLE_ERD_CONFIG.entityWidth + WHOLE_ERD_CONFIG.subColumnGap / 2
-            : sCol * (WHOLE_ERD_CONFIG.entityWidth + WHOLE_ERD_CONFIG.subColumnGap) - WHOLE_ERD_CONFIG.subColumnGap / 2) +
+            ? sCol *
+                (WHOLE_ERD_CONFIG.entityWidth + WHOLE_ERD_CONFIG.subColumnGap) +
+              WHOLE_ERD_CONFIG.entityWidth +
+              WHOLE_ERD_CONFIG.subColumnGap / 2
+            : sCol *
+                (WHOLE_ERD_CONFIG.entityWidth + WHOLE_ERD_CONFIG.subColumnGap) -
+              WHOLE_ERD_CONFIG.subColumnGap / 2) +
           laneOffset,
       );
       const c2X = Math.round(
         mbounds.x +
           WHOLE_ERD_CONFIG.containerPaddingX +
           (sCol < tCol
-            ? tCol * (WHOLE_ERD_CONFIG.entityWidth + WHOLE_ERD_CONFIG.subColumnGap) - WHOLE_ERD_CONFIG.subColumnGap / 2
-            : tCol * (WHOLE_ERD_CONFIG.entityWidth + WHOLE_ERD_CONFIG.subColumnGap) + WHOLE_ERD_CONFIG.entityWidth + WHOLE_ERD_CONFIG.subColumnGap / 2) +
+            ? tCol *
+                (WHOLE_ERD_CONFIG.entityWidth + WHOLE_ERD_CONFIG.subColumnGap) -
+              WHOLE_ERD_CONFIG.subColumnGap / 2
+            : tCol *
+                (WHOLE_ERD_CONFIG.entityWidth + WHOLE_ERD_CONFIG.subColumnGap) +
+              WHOLE_ERD_CONFIG.entityWidth +
+              WHOLE_ERD_CONFIG.subColumnGap / 2) +
           laneOffset,
       );
       exitParams = sCol < tCol ? "exitX=1;exitY=0.5;" : "exitX=0;exitY=0.5;";
-      entryParams = sCol < tCol ? "entryX=0;entryY=0.5;" : "entryX=1;entryY=0.5;";
+      entryParams =
+        sCol < tCol ? "entryX=0;entryY=0.5;" : "entryX=1;entryY=0.5;";
       waypoints.push({ x: c1X, y: sAbsY });
       waypoints.push({ x: c1X, y: bottomY });
       waypoints.push({ x: c2X, y: bottomY });
@@ -4612,16 +4666,24 @@ export function buildWholeDiagram(
   xml += `</mxfile>\n`;
 
   // ─── Stub Source Audit ────────────────────────────────────────────────────────
-  console.log(`\n========================================================================================`);
+  console.log(
+    `\n========================================================================================`,
+  );
   console.log(`STUB SOURCE AUDIT TABLE`);
-  console.log(`========================================================================================`);
-  console.log(`| Stub ID | Stub Label | Source Entity | Source Field | Target Entity | Valid Row? | Target Schema Match? |`);
+  console.log(
+    `========================================================================================`,
+  );
+  console.log(
+    `| Stub ID | Stub Label | Source Entity | Source Field | Target Entity | Valid Row? | Target Schema Match? |`,
+  );
   console.log(`| :--- | :--- | :--- | :--- | :--- | :---: | :---: |`);
 
   let stubMismatches = 0;
   for (const [entName, stubs] of entityMergedStubs.entries()) {
     for (const s of stubs) {
-      const isVisibleRow = s.fkRowId.startsWith(`field_${s.fkEnt}_`) && definedCellIds.has(s.fkRowId);
+      const isVisibleRow =
+        s.fkRowId.startsWith(`field_${s.fkEnt}_`) &&
+        definedCellIds.has(s.fkRowId);
       const isTargetValid = schemasToRender.has(s.refEnt);
       const cleanField = s.fkRowId.startsWith(`field_${s.fkEnt}_`)
         ? s.fkRowId.slice(`field_${s.fkEnt}_`.length)
@@ -4636,9 +4698,13 @@ export function buildWholeDiagram(
       );
     }
   }
-  console.log(`========================================================================================`);
+  console.log(
+    `========================================================================================`,
+  );
   if (stubMismatches > 0) {
-    throw new Error(`[Stub Audit Failed] Found ${stubMismatches} stub(s) with invalid source rows or invalid targets!`);
+    throw new Error(
+      `[Stub Audit Failed] Found ${stubMismatches} stub(s) with invalid source rows or invalid targets!`,
+    );
   }
 
   // ─── Relationship Visibility Audit ───────────────────────────────────────────
@@ -4665,7 +4731,11 @@ export function buildWholeDiagram(
     if (matchingRowId) {
       const eInfo = schemaInfos.get(rel.fkEnt);
       const rowLabel = eInfo?.labels.find((l) => l.id === matchingRowId);
-      if (rowLabel && (rowLabel.labelHtml.includes("&rarr;") || rowLabel.labelHtml.includes("→"))) {
+      if (
+        rowLabel &&
+        (rowLabel.labelHtml.includes("&rarr;") ||
+          rowLabel.labelHtml.includes("→"))
+      ) {
         if (rel.fkEnt === rel.refEnt) {
           visInlineSelf++;
           isRowInline = true;
@@ -4689,14 +4759,20 @@ export function buildWholeDiagram(
     // 3. Check if represented via drawn edge in xml
     const edgePattern1 = `source="field_${rel.refEnt}__id" target="${matchingRowId || `field_${rel.fkEnt}_`}`;
     const edgePattern2 = `source="${matchingRowId || `field_${rel.fkEnt}_`}" target="field_${rel.refEnt}__id"`;
-    if (xml.includes(edgePattern1) || xml.includes(edgePattern2) || xml.includes(`source="table_${rel.refEnt}" target="table_${rel.fkEnt}"`)) {
+    if (
+      xml.includes(edgePattern1) ||
+      xml.includes(edgePattern2) ||
+      xml.includes(`source="table_${rel.refEnt}" target="table_${rel.fkEnt}"`)
+    ) {
       visDrawnLines++;
       continue;
     }
 
     // 4. Check if represented via stub pill
     const hasStub = Array.from(entityMergedStubs.get(rel.fkEnt) || []).some(
-      (s) => s.refEnt === rel.refEnt && (s.fkRowId === matchingRowId || !matchingRowId),
+      (s) =>
+        s.refEnt === rel.refEnt &&
+        (s.fkRowId === matchingRowId || !matchingRowId),
     );
     if (hasStub) {
       visStubPills++;
@@ -4725,11 +4801,17 @@ export function buildWholeDiagram(
   console.log(`============================================================\n`);
 
   if (invisibleRels.length > 0) {
-    console.error(`[Visibility Audit Failed] The following ${invisibleRels.length} relationship(s) are invisible:`);
+    console.error(
+      `[Visibility Audit Failed] The following ${invisibleRels.length} relationship(s) are invisible:`,
+    );
     for (const inv of invisibleRels) {
-      console.error(`  - ${inv.fkEnt}.${inv.fieldPath} -> ${inv.refEnt} (${inv.kind})`);
+      console.error(
+        `  - ${inv.fkEnt}.${inv.fieldPath} -> ${inv.refEnt} (${inv.kind})`,
+      );
     }
-    throw new Error(`[Relationship Visibility Audit Failed] ${invisibleRels.length} relationship(s) have no visible representation in the whole ER diagram!`);
+    throw new Error(
+      `[Relationship Visibility Audit Failed] ${invisibleRels.length} relationship(s) have no visible representation in the whole ER diagram!`,
+    );
   }
 
   return xml;
@@ -4826,7 +4908,10 @@ export function buildModuleMapDiagram(
   }
 
   // Module-to-module non-hub edge counts
-  const modPairCounts = new Map<string, { count: number; m1: string; m2: string }>();
+  const modPairCounts = new Map<
+    string,
+    { count: number; m1: string; m2: string }
+  >();
 
   for (const rel of uniqueRelationships) {
     const sMod = allSchemasMap.get(rel.source)?.moduleName;
@@ -4900,16 +4985,18 @@ export function buildModuleMapDiagram(
   // Data-driven grid placement via local search (same algorithm as whole-diagram).
   // COLS chosen to approach a landscape aspect ratio; no module names hardcoded.
   const connectedCount = connectedMods.length;
-  const MAP_COLS = connectedCount > 0
-    ? Math.max(3, Math.round(Math.sqrt(connectedCount * 2.0)))
-    : 3;
+  const MAP_COLS =
+    connectedCount > 0
+      ? Math.max(3, Math.round(Math.sqrt(connectedCount * 2.0)))
+      : 3;
   const MAP_ROWS = Math.ceil(connectedCount / MAP_COLS);
   const MAP_CELLS = MAP_ROWS * MAP_COLS;
 
   // Build cross-weight map for placement optimisation
   const mapCrossWeights = new Map<string, number>();
   for (const item of modPairCounts.values()) {
-    const pair = item.m1 < item.m2 ? `${item.m1}|${item.m2}` : `${item.m2}|${item.m1}`;
+    const pair =
+      item.m1 < item.m2 ? `${item.m1}|${item.m2}` : `${item.m2}|${item.m1}`;
     mapCrossWeights.set(pair, (mapCrossWeights.get(pair) || 0) + item.count);
   }
 
@@ -4930,30 +5017,42 @@ export function buildModuleMapDiagram(
     let c = 0;
     for (const [pair, w] of mapCrossWeights.entries()) {
       const [a, b] = pair.split("|");
-      const pa = mapCoords.get(a); const pb = mapCoords.get(b);
+      const pa = mapCoords.get(a);
+      const pb = mapCoords.get(b);
       if (pa && pb) c += w * (Math.abs(pa.r - pb.r) + Math.abs(pa.c - pb.c));
     }
     return c;
   };
   let mapSeed = WHOLE_ERD_CONFIG.prngSeed;
-  const mapLcg = () => { mapSeed = (mapSeed * 1664525 + 1013904223) % 4294967296; return mapSeed / 4294967296; };
+  const mapLcg = () => {
+    mapSeed = (mapSeed * 1664525 + 1013904223) % 4294967296;
+    return mapSeed / 4294967296;
+  };
   let mapBest = mapCost();
   const MAP_ITERS = Math.min(20000, WHOLE_ERD_CONFIG.localSearchIterations);
   for (let iter = 0; iter < MAP_ITERS; iter++) {
     const i1 = Math.floor(mapLcg() * MAP_CELLS);
     const i2 = Math.floor(mapLcg() * MAP_CELLS);
     if (i1 === i2) continue;
-    const m1n = mapAssignment[i1]; const m2n = mapAssignment[i2];
+    const m1n = mapAssignment[i1];
+    const m2n = mapAssignment[i2];
     if (!m1n && !m2n) continue;
-    mapAssignment[i1] = m2n; mapAssignment[i2] = m1n;
-    if (m1n) mapCoords.set(m1n, { r: Math.floor(i2 / MAP_COLS), c: i2 % MAP_COLS });
-    if (m2n) mapCoords.set(m2n, { r: Math.floor(i1 / MAP_COLS), c: i1 % MAP_COLS });
+    mapAssignment[i1] = m2n;
+    mapAssignment[i2] = m1n;
+    if (m1n)
+      mapCoords.set(m1n, { r: Math.floor(i2 / MAP_COLS), c: i2 % MAP_COLS });
+    if (m2n)
+      mapCoords.set(m2n, { r: Math.floor(i1 / MAP_COLS), c: i1 % MAP_COLS });
     const nc = mapCost();
-    if (nc < mapBest) { mapBest = nc; }
-    else {
-      mapAssignment[i1] = m1n; mapAssignment[i2] = m2n;
-      if (m1n) mapCoords.set(m1n, { r: Math.floor(i1 / MAP_COLS), c: i1 % MAP_COLS });
-      if (m2n) mapCoords.set(m2n, { r: Math.floor(i2 / MAP_COLS), c: i2 % MAP_COLS });
+    if (nc < mapBest) {
+      mapBest = nc;
+    } else {
+      mapAssignment[i1] = m1n;
+      mapAssignment[i2] = m2n;
+      if (m1n)
+        mapCoords.set(m1n, { r: Math.floor(i1 / MAP_COLS), c: i1 % MAP_COLS });
+      if (m2n)
+        mapCoords.set(m2n, { r: Math.floor(i2 / MAP_COLS), c: i2 % MAP_COLS });
     }
   }
 
@@ -4969,7 +5068,8 @@ export function buildModuleMapDiagram(
   }
 
   // Legend: compute dynamic content, dimensions, and collision-free placement
-  const hubNameList = hubs.size > 0 ? Array.from(hubs).sort().join(", ") : "None";
+  const hubNameList =
+    hubs.size > 0 ? Array.from(hubs).sort().join(", ") : "None";
   const firstHub = Array.from(hubs)[0] || "Hub";
 
   const legW = 500;
@@ -4977,7 +5077,8 @@ export function buildModuleMapDiagram(
   const usableLegTextWidth = legW - innerPadX * 2;
   const charsPerLine = Math.max(30, Math.floor(usableLegTextWidth / 5.8));
 
-  const p1 = "Module Roles: ■ Core / Hub (Center Nodes)   ■ Lookup / Config / Reference   ■ Dependent / Activity";
+  const p1 =
+    "Module Roles: ■ Core / Hub (Center Nodes)   ■ Lookup / Config / Reference   ■ Dependent / Activity";
   const p2 = `Hub Dependencies: [${firstHub}] Chips indicate references to hub entities (${hubNameList})`;
   const p3 = "Connectors: -- Direct non-hub dependency with relationship count";
 
@@ -5055,14 +5156,16 @@ export function buildModuleMapDiagram(
     margin + MAP_ROWS * (nodeHeight + cellGapY),
     legY + legH + 20,
   );
-  const standaloneStartY = standaloneMods.length > 0 ? connectedBottomY + 40 : connectedBottomY;
+  const standaloneStartY =
+    standaloneMods.length > 0 ? connectedBottomY + 40 : connectedBottomY;
   const sNodeWidth = 160;
   const sNodeHeight = 65;
   const sGapX = 40;
   const sGapY = 25;
-  const STANDALONE_COLS = standaloneMods.length > 0
-    ? Math.max(4, Math.round(Math.sqrt(standaloneMods.length * 3)))
-    : 4;
+  const STANDALONE_COLS =
+    standaloneMods.length > 0
+      ? Math.max(4, Math.round(Math.sqrt(standaloneMods.length * 3)))
+      : 4;
 
   for (let i = 0; i < standaloneMods.length; i++) {
     const m = standaloneMods[i];
@@ -5089,9 +5192,12 @@ export function buildModuleMapDiagram(
   // Role classification derived from relationship structure (no module/entity names used).
   // Core: hub module. Lookup: primarily referenced by others (more in-edges than out-edges as FK target).
   // Dependent: primarily references others. Else: core.
-  const modOutDegree = new Map<string, number>();  // module references other modules
-  const modInDegree  = new Map<string, number>();  // other modules reference this module
-  for (const m of allActiveMods) { modOutDegree.set(m, 0); modInDegree.set(m, 0); }
+  const modOutDegree = new Map<string, number>(); // module references other modules
+  const modInDegree = new Map<string, number>(); // other modules reference this module
+  for (const m of allActiveMods) {
+    modOutDegree.set(m, 0);
+    modInDegree.set(m, 0);
+  }
   for (const item of modPairCounts.values()) {
     modOutDegree.set(item.m1, (modOutDegree.get(item.m1) || 0) + item.count);
     modInDegree.set(item.m2, (modInDegree.get(item.m2) || 0) + item.count);
@@ -5101,8 +5207,8 @@ export function buildModuleMapDiagram(
   const getModuleRole = (modName: string): "core" | "lookup" | "dependent" => {
     if (hubList.includes(modName)) return "core";
     const out = modOutDegree.get(modName) || 0;
-    const inp = modInDegree.get(modName)  || 0;
-    if (inp > out * 1.5) return "lookup";    // mainly referenced (lookup/config)
+    const inp = modInDegree.get(modName) || 0;
+    if (inp > out * 1.5) return "lookup"; // mainly referenced (lookup/config)
     if (out > inp * 1.5) return "dependent"; // mainly references others
     return "core";
   };
@@ -5316,7 +5422,9 @@ function main() {
   }
 
   let filesWritten = 0;
-  const activeModuleNames = new Set(subdirs.filter((m) => allSchemas.some((s) => s.moduleName === m)));
+  const activeModuleNames = new Set(
+    subdirs.filter((m) => allSchemas.some((s) => s.moduleName === m)),
+  );
 
   for (const moduleName of subdirs) {
     const nativeSchemas = allSchemas.filter((s) => s.moduleName === moduleName);
@@ -5494,7 +5602,9 @@ function main() {
     });
     const staleDirs = outDirs.filter((d) => !activeModuleNames.has(d));
     if (staleDirs.length > 0) {
-      console.warn(`\n[Stale Output] The following ${staleDirs.length} module folder(s) in ${outputDir} no longer match a source module:`);
+      console.warn(
+        `\n[Stale Output] The following ${staleDirs.length} module folder(s) in ${outputDir} no longer match a source module:`,
+      );
       for (const d of staleDirs) {
         console.warn(`  - ${path.join(outputDir, d)}`);
       }
@@ -5506,7 +5616,9 @@ function main() {
           console.warn(`  Deleted: ${dp}`);
         }
       } else {
-        console.warn("[Stale Output] Set ERD_PRUNE=1 to delete them automatically.");
+        console.warn(
+          "[Stale Output] Set ERD_PRUNE=1 to delete them automatically.",
+        );
       }
       staleCount = staleDirs.length;
     } else {
@@ -5517,23 +5629,40 @@ function main() {
   // ─── Final summary line ─────────────────────────────────────────────────────
   // Compute hub count and threshold from canonical rels (already logged above; re-read from env/config).
   const manualHubOverride = WHOLE_ERD_CONFIG.hubMinReferences;
-  const hubRule = manualHubOverride > 0
-    ? `ERD_HUB_MIN_REFS=${manualHubOverride}`
-    : "adaptive (largest-gap >= 3 above floor=4, or mean+1.5σ)";
+  const hubRule =
+    manualHubOverride > 0
+      ? `ERD_HUB_MIN_REFS=${manualHubOverride}`
+      : "adaptive (largest-gap >= 3 above floor=4, or mean+1.5σ)";
   const totalEntities = allSchemas.length;
   // Count canonical relationships from the whole-diagram pass (not re-computed here; approximate from schema scan)
   const totalSchemaRels = allSchemas.reduce((acc, s) => {
-    return acc + s.fields.filter((f) => f.ref || f.refPath).length + s.virtuals.filter((v) => v.ref).length;
+    return (
+      acc +
+      s.fields.filter((f) => f.ref || f.refPath).length +
+      s.virtuals.filter((v) => v.ref).length
+    );
   }, 0);
   const standaloneMods = subdirs.filter((m) => {
-    return activeModuleNames.has(m) &&
-      !allSchemas.some((s) => s.moduleName === m &&
-        allSchemas.some((t) => t.moduleName !== m && (t.fields.some((f) => f.ref === s.name) || s.fields.some((f) => f.ref === t.name))));
+    return (
+      activeModuleNames.has(m) &&
+      !allSchemas.some(
+        (s) =>
+          s.moduleName === m &&
+          allSchemas.some(
+            (t) =>
+              t.moduleName !== m &&
+              (t.fields.some((f) => f.ref === s.name) ||
+                s.fields.some((f) => f.ref === t.name)),
+          ),
+      )
+    );
   });
 
-  console.log(`\n${'='.repeat(60)}`);
-  console.log(`SUMMARY: modules=${activeModuleNames.size}, entities=${totalEntities}, schema-relationships=${totalSchemaRels}, hub-rule=[${hubRule}], standalone-modules≈${standaloneMods.length}, files-written=${filesWritten}, stale-folders=${staleCount}`);
-  console.log(`${'='.repeat(60)}\n`);
+  console.log(`\n${"=".repeat(60)}`);
+  console.log(
+    `SUMMARY: modules=${activeModuleNames.size}, entities=${totalEntities}, schema-relationships=${totalSchemaRels}, hub-rule=[${hubRule}], standalone-modules≈${standaloneMods.length}, files-written=${filesWritten}, stale-folders=${staleCount}`,
+  );
+  console.log(`${"=".repeat(60)}\n`);
 
   console.log(
     "AST schema parsing and Draw.io XML diagram generation completed successfully.",

@@ -1,9 +1,5 @@
 import { z } from "zod";
-import {
-  REPORT_REASON,
-  REPORT_STATUS,
-  REPORT_TYPE,
-} from "./report.constant";
+import { REPORT_REASON, REPORT_STATUS, REPORT_TYPE } from "./report.constant";
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 

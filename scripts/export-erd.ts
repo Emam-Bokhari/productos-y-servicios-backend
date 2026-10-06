@@ -7,7 +7,9 @@ function main() {
   const projectRootDir = path.resolve(__dirname, "..");
   const outputDirEnv = process.env.ERD_OUTPUT_DIR;
   const erdDir = outputDirEnv
-    ? path.isAbsolute(outputDirEnv) ? outputDirEnv : path.resolve(projectRootDir, outputDirEnv)
+    ? path.isAbsolute(outputDirEnv)
+      ? outputDirEnv
+      : path.resolve(projectRootDir, outputDirEnv)
     : path.join(projectRootDir, "docs", "erd", "modules");
 
   if (!fs.existsSync(erdDir)) {
@@ -24,7 +26,9 @@ function main() {
   // ERD_EXPORT_DIR overrides the destination. Default: ~/Downloads/<projectName>-erd-diagrams
   const exportDirEnv = process.env.ERD_EXPORT_DIR;
   const downloadsDir = exportDirEnv
-    ? path.isAbsolute(exportDirEnv) ? exportDirEnv : path.resolve(projectRootDir, exportDirEnv)
+    ? path.isAbsolute(exportDirEnv)
+      ? exportDirEnv
+      : path.resolve(projectRootDir, exportDirEnv)
     : path.join(os.homedir(), "Downloads", `${projectName}-erd-diagrams`);
 
   if (!fs.existsSync(downloadsDir)) {

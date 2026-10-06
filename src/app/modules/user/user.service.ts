@@ -489,7 +489,7 @@ const updateUserStatusByIdToDB = async (
   if (!user) {
     throw new ApiError(404, "No user is found by this user ID");
   }
-  
+
   const result = await User.findByIdAndUpdate(id, { status }, { new: true });
   if (!result) {
     throw new ApiError(400, "Failed to change status by this user ID");

@@ -19,12 +19,16 @@ async function updateUsersMatching() {
     packageType: "store_creation",
     status: "active",
   });
-  const packageId = activePackage?._id || new mongoose.Types.ObjectId("6a7ff377c24d0046a564c737");
+  const packageId =
+    activePackage?._id ||
+    new mongoose.Types.ObjectId("6a7ff377c24d0046a564c737");
   const oneYearFromNow = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
 
   // 2. Fetch all stores to match store owners
   const stores = await db.collection("stores").find({}).toArray();
-  console.log(`\n🏪 Found ${stores.length} active stores. Updating Store Owners...`);
+  console.log(
+    `\n🏪 Found ${stores.length} active stores. Updating Store Owners...`,
+  );
 
   const ownerObjectIds = stores.map((s) => s.owner as mongoose.Types.ObjectId);
 
@@ -65,8 +69,10 @@ async function updateUsersMatching() {
         address: store.streetAddress || `${store.city}, Ecuador`,
         documentType: store.documentType || "nid",
         documentNumber: store.documentNumber || "1712345678",
-        documentFront: store.documentFront || "/uploads/documentFront/sample-front.jpg",
-        documentBack: store.documentBack || "/uploads/documentBack/sample-back.jpg",
+        documentFront:
+          store.documentFront || "/uploads/documentFront/sample-front.jpg",
+        documentBack:
+          store.documentBack || "/uploads/documentBack/sample-back.jpg",
         location: storeLocation,
         averageRating: store.averageRating || 5.0,
         totalRatings: store.ratingCount || 10,
@@ -77,14 +83,19 @@ async function updateUsersMatching() {
 
     await db.collection("users").updateOne({ _id: ownerId }, updateDoc);
     const ownerDoc = await db.collection("users").findOne({ _id: ownerId });
-    console.log(`   ✔ Updated Store Owner: ${ownerDoc?.name} (${ownerDoc?.email}) -> Store: "${store.displayName}"`);
+    console.log(
+      `   ✔ Updated Store Owner: ${ownerDoc?.name} (${ownerDoc?.email}) -> Store: "${store.displayName}"`,
+    );
   }
 
   // 3. Update all non-store owner users (Customers & Admins)
   console.log("\n👤 Updating Customer & Buyer accounts (Non-Store Owners)...");
-  const regularUsers = await db.collection("users").find({
-    _id: { $nin: ownerObjectIds },
-  }).toArray();
+  const regularUsers = await db
+    .collection("users")
+    .find({
+      _id: { $nin: ownerObjectIds },
+    })
+    .toArray();
 
   for (const user of regularUsers) {
     const isSuperOrAdmin = ["super_admin", "admin"].includes(user.role);
@@ -140,8 +151,12 @@ async function updateUsersMatching() {
       updateCustomerDoc.$set.role = "user";
     }
 
-    await db.collection("users").updateOne({ _id: user._id }, updateCustomerDoc);
-    console.log(`   ✔ Updated User: ${user.name} (${user.email}) [Role: ${user.role}, ActiveRole: user]`);
+    await db
+      .collection("users")
+      .updateOne({ _id: user._id }, updateCustomerDoc);
+    console.log(
+      `   ✔ Updated User: ${user.name} (${user.email}) [Role: ${user.role}, ActiveRole: user]`,
+    );
   }
 
   console.log("\n=================================================");

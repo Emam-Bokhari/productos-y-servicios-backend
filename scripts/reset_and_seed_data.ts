@@ -16,11 +16,22 @@ import { Review } from "../src/app/modules/review/review.model";
 import { Favorite } from "../src/app/modules/favorite/favorite.model";
 import { StoreTraffic } from "../src/app/modules/storeTraffic/storeTraffic.model";
 import { DAYS } from "../src/constants/days";
-import { STORE_STATUS, STORE_TYPE, DOCUMENT_TYPE } from "../src/app/modules/store/store.constant";
+import {
+  STORE_STATUS,
+  STORE_TYPE,
+  DOCUMENT_TYPE,
+} from "../src/app/modules/store/store.constant";
 import { PRODUCT_STATUS } from "../src/app/modules/product/product.constant";
 import { SERVICE_STATUS } from "../src/app/modules/service/service.constant";
-import { ADVERTISEMENT_STATUS, ADVERTISEMENT_TYPE } from "../src/app/modules/advertisement/advertisement.constant";
-import { PAYMENT_METHOD, PAYMENT_STATUS, TRANSACTION_TYPE } from "../src/app/modules/transaction/transaction.constant";
+import {
+  ADVERTISEMENT_STATUS,
+  ADVERTISEMENT_TYPE,
+} from "../src/app/modules/advertisement/advertisement.constant";
+import {
+  PAYMENT_METHOD,
+  PAYMENT_STATUS,
+  TRANSACTION_TYPE,
+} from "../src/app/modules/transaction/transaction.constant";
 import { FAVORITE_TYPE } from "../src/enums/favorite";
 
 async function runResetAndSeed() {
@@ -70,13 +81,18 @@ async function runResetAndSeed() {
     "notificationpreferences",
   ];
 
-  console.log("\n🗑️ Step 1: Deleting existing data from target collections (Keeping 'users')...");
+  console.log(
+    "\n🗑️ Step 1: Deleting existing data from target collections (Keeping 'users')...",
+  );
   for (const colName of collectionsToClear) {
     try {
-      const colExists = (await db.listCollections({ name: colName }).toArray()).length > 0;
+      const colExists =
+        (await db.listCollections({ name: colName }).toArray()).length > 0;
       if (colExists) {
         const result = await db.collection(colName).deleteMany({});
-        console.log(`   - Deleted ${result.deletedCount} documents from '${colName}'`);
+        console.log(
+          `   - Deleted ${result.deletedCount} documents from '${colName}'`,
+        );
       }
     } catch (err: any) {
       console.warn(`   - Warning clearing '${colName}':`, err.message);
@@ -84,7 +100,9 @@ async function runResetAndSeed() {
   }
 
   // 2. Reset user subscription and store fields for all users
-  console.log("\n🔄 Step 2: Resetting subscription & seller fields on 'users' collection...");
+  console.log(
+    "\n🔄 Step 2: Resetting subscription & seller fields on 'users' collection...",
+  );
   await db.collection("users").updateMany(
     {},
     {
@@ -100,31 +118,60 @@ async function runResetAndSeed() {
         subscriptionExpiresAt: "",
         datafastRegistrationToken: "",
       },
-    }
+    },
   );
   console.log("   ✔ User store & subscription fields reset.");
 
   // 3. Load active master data
   console.log("\n🔍 Step 3: Fetching active master configurations...");
   const activePackages = await SubscriptionPackage.find({});
-  const storePackage = activePackages.find(p => p.packageType === "store_creation") || activePackages[0];
-  const postAddPackage = activePackages.find(p => p.packageType === "post_add") || activePackages[1];
+  const storePackage =
+    activePackages.find((p) => p.packageType === "store_creation") ||
+    activePackages[0];
+  const postAddPackage =
+    activePackages.find((p) => p.packageType === "post_add") ||
+    activePackages[1];
 
-  console.log(`   - Store creation package: "${storePackage?.name}" ($${storePackage?.price})`);
-  console.log(`   - Post add package: "${postAddPackage?.name}" ($${postAddPackage?.price})`);
+  console.log(
+    `   - Store creation package: "${storePackage?.name}" ($${storePackage?.price})`,
+  );
+  console.log(
+    `   - Post add package: "${postAddPackage?.name}" ($${postAddPackage?.price})`,
+  );
 
   const activeCities = await CityAdConfiguration.find({ status: "active" });
-  console.log(`   - Found ${activeCities.length} active city ad configurations.`);
+  console.log(
+    `   - Found ${activeCities.length} active city ad configurations.`,
+  );
 
-  const quitoCity = activeCities.find(c => c.city.toLowerCase().includes("quito")) || activeCities[0];
-  const guayaquilCity = activeCities.find(c => c.city.toLowerCase().includes("guayaquil")) || activeCities[1] || activeCities[0];
-  const esmeraldasCity = activeCities.find(c => c.city.toLowerCase().includes("esmeraldas")) || activeCities[2] || activeCities[0];
-  const santaElenaCity = activeCities.find(c => c.city.toLowerCase().includes("santa elena")) || activeCities[3] || activeCities[0];
+  const quitoCity =
+    activeCities.find((c) => c.city.toLowerCase().includes("quito")) ||
+    activeCities[0];
+  const guayaquilCity =
+    activeCities.find((c) => c.city.toLowerCase().includes("guayaquil")) ||
+    activeCities[1] ||
+    activeCities[0];
+  const esmeraldasCity =
+    activeCities.find((c) => c.city.toLowerCase().includes("esmeraldas")) ||
+    activeCities[2] ||
+    activeCities[0];
+  const santaElenaCity =
+    activeCities.find((c) => c.city.toLowerCase().includes("santa elena")) ||
+    activeCities[3] ||
+    activeCities[0];
 
-  const prodCategories = await StoreCategory.find({ type: "product", parentId: null });
-  const servCategories = await StoreCategory.find({ type: "service", parentId: null });
+  const prodCategories = await StoreCategory.find({
+    type: "product",
+    parentId: null,
+  });
+  const servCategories = await StoreCategory.find({
+    type: "service",
+    parentId: null,
+  });
 
-  console.log(`   - Found ${prodCategories.length} product categories & ${servCategories.length} service categories.`);
+  console.log(
+    `   - Found ${prodCategories.length} product categories & ${servCategories.length} service categories.`,
+  );
 
   // 4. Select users to act as sellers / store owners
   const allUsers = await User.find({});
@@ -146,8 +193,8 @@ async function runResetAndSeed() {
 
   const sellerUsers: any[] = [];
   for (const email of candidateEmails) {
-    const u = allUsers.find(user => user.email === email);
-    if (u && !sellerUsers.some(s => s._id.toString() === u._id.toString())) {
+    const u = allUsers.find((user) => user.email === email);
+    if (u && !sellerUsers.some((s) => s._id.toString() === u._id.toString())) {
       sellerUsers.push(u);
     }
   }
@@ -155,19 +202,30 @@ async function runResetAndSeed() {
   // If we need more users, pick other users
   for (const u of allUsers) {
     if (sellerUsers.length >= 10) break;
-    if (u.role === "user" && !sellerUsers.some(s => s._id.toString() === u._id.toString())) {
+    if (
+      u.role === "user" &&
+      !sellerUsers.some((s) => s._id.toString() === u._id.toString())
+    ) {
       sellerUsers.push(u);
     }
   }
 
-  console.log(`\n👥 Step 4: Selected ${sellerUsers.length} users to become Store Owners & Sellers:`);
-  sellerUsers.forEach((u, i) => console.log(`   ${i + 1}. ${u.name} (${u.email})`));
+  console.log(
+    `\n👥 Step 4: Selected ${sellerUsers.length} users to become Store Owners & Sellers:`,
+  );
+  sellerUsers.forEach((u, i) =>
+    console.log(`   ${i + 1}. ${u.name} (${u.email})`),
+  );
 
   // Regular users who will write reviews and favorites
-  const regularUsers = allUsers.filter(u => !sellerUsers.some(s => s._id.toString() === u._id.toString()));
+  const regularUsers = allUsers.filter(
+    (u) => !sellerUsers.some((s) => s._id.toString() === u._id.toString()),
+  );
 
   // 5. Create Stores, Sellers, Subscriptions, and Transactions
-  console.log("\n🏪 Step 5: Creating Stores, Sellers, Subscriptions, and Transactions...");
+  console.log(
+    "\n🏪 Step 5: Creating Stores, Sellers, Subscriptions, and Transactions...",
+  );
 
   const storeConfigs = [
     // 5 Product Stores
@@ -175,10 +233,13 @@ async function runResetAndSeed() {
       type: STORE_TYPE.PRODUCT_STORE,
       name: "ElectroTech Ecuador Pro",
       desc: "Tu tienda líder en tecnología de última generación, smartphones, laptops y accesorios premium con garantía oficial.",
-      category: prodCategories.find(c => c.name.toLowerCase().includes("technol")) || prodCategories[0],
+      category:
+        prodCategories.find((c) => c.name.toLowerCase().includes("technol")) ||
+        prodCategories[0],
       city: quitoCity,
       logo: "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=400&q=80",
-      cover: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80",
+      cover:
+        "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80",
       phone: "+593984123456",
       whatsapp: "+593984123456",
       address: "Av. Amazonas y Naciones Unidas",
@@ -187,10 +248,13 @@ async function runResetAndSeed() {
       type: STORE_TYPE.PRODUCT_STORE,
       name: "SuperMercado Express Del Valle",
       desc: "Productos frescos, alimentos orgánicos, abarrotes y bebidas con los mejores precios del mercado y entrega a domicilio.",
-      category: prodCategories.find(c => c.name.toLowerCase().includes("food")) || prodCategories[1],
+      category:
+        prodCategories.find((c) => c.name.toLowerCase().includes("food")) ||
+        prodCategories[1],
       city: guayaquilCity,
       logo: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=400&q=80",
-      cover: "https://images.unsplash.com/photo-1506617420156-8e4536971650?auto=format&fit=crop&w=1200&q=80",
+      cover:
+        "https://images.unsplash.com/photo-1506617420156-8e4536971650?auto=format&fit=crop&w=1200&q=80",
       phone: "+593992345678",
       whatsapp: "+593992345678",
       address: "Av. 9 de Octubre y Boyacá",
@@ -199,10 +263,13 @@ async function runResetAndSeed() {
       type: STORE_TYPE.PRODUCT_STORE,
       name: "Moda Urbana & Boutique Elegance",
       desc: "Ropa moderna, calzado deportivo y accesorios de alta calidad para damas, caballeros y jóvenes con las últimas tendencias.",
-      category: prodCategories.find(c => c.name.toLowerCase().includes("fashion")) || prodCategories[2],
+      category:
+        prodCategories.find((c) => c.name.toLowerCase().includes("fashion")) ||
+        prodCategories[2],
       city: quitoCity,
       logo: "https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=400&q=80",
-      cover: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80",
+      cover:
+        "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80",
       phone: "+593973456789",
       whatsapp: "+593973456789",
       address: "Centro Comercial Iñaquito, Local 42",
@@ -211,10 +278,13 @@ async function runResetAndSeed() {
       type: STORE_TYPE.PRODUCT_STORE,
       name: "AutoRepuestos del Pacífico",
       desc: "Repuestos originales y alternativos para vehículos japoneses, americanos y europeos con asesoría técnica especializada.",
-      category: prodCategories.find(c => c.name.toLowerCase().includes("vehicle")) || prodCategories[3],
+      category:
+        prodCategories.find((c) => c.name.toLowerCase().includes("vehicle")) ||
+        prodCategories[3],
       city: guayaquilCity,
       logo: "https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80",
-      cover: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
+      cover:
+        "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
       phone: "+593964567890",
       whatsapp: "+593964567890",
       address: "Av. de las Américas y Plaza Dañín",
@@ -223,10 +293,13 @@ async function runResetAndSeed() {
       type: STORE_TYPE.PRODUCT_STORE,
       name: "Mueblería & Confort Hogar",
       desc: "Muebles modernos, juegos de sala, comedores y colchones ortopédicos diseñados para transformar tu espacio familiar.",
-      category: prodCategories.find(c => c.name.toLowerCase().includes("home")) || prodCategories[4],
+      category:
+        prodCategories.find((c) => c.name.toLowerCase().includes("home")) ||
+        prodCategories[4],
       city: esmeraldasCity,
       logo: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=400&q=80",
-      cover: "https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=1200&q=80",
+      cover:
+        "https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=1200&q=80",
       phone: "+593955678901",
       whatsapp: "+593955678901",
       address: "Calle Bolívar y Rocafuerte",
@@ -237,10 +310,16 @@ async function runResetAndSeed() {
       type: STORE_TYPE.SERVICE_STORE,
       name: "ServiPro - Limpieza & Mantenimiento Integral",
       desc: "Empresa profesional de limpieza profunda para casas, oficinas y locales comerciales con equipos industriales y personal calificado.",
-      category: servCategories.find(c => c.name.toLowerCase().includes("limpieza") || c.name.toLowerCase().includes("albañil")) || servCategories[0],
+      category:
+        servCategories.find(
+          (c) =>
+            c.name.toLowerCase().includes("limpieza") ||
+            c.name.toLowerCase().includes("albañil"),
+        ) || servCategories[0],
       city: quitoCity,
       logo: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=80",
-      cover: "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=1200&q=80",
+      cover:
+        "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=1200&q=80",
       phone: "+593946789012",
       whatsapp: "+593946789012",
       address: "Av. República del Salvador 345",
@@ -249,10 +328,13 @@ async function runResetAndSeed() {
       type: STORE_TYPE.SERVICE_STORE,
       name: "González & Asociados - Asesoría Legal y Tributaria",
       desc: "Firma de abogados y consultores tributarios con más de 15 años de experiencia en derecho laboral, societario y litigios.",
-      category: servCategories.find(c => c.name.toLowerCase().includes("abogado")) || servCategories[1],
+      category:
+        servCategories.find((c) => c.name.toLowerCase().includes("abogado")) ||
+        servCategories[1],
       city: guayaquilCity,
       logo: "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=400&q=80",
-      cover: "https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=1200&q=80",
+      cover:
+        "https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=1200&q=80",
       phone: "+593937890123",
       whatsapp: "+593937890123",
       address: "Edificio Las Cámaras, Piso 8",
@@ -261,10 +343,14 @@ async function runResetAndSeed() {
       type: STORE_TYPE.SERVICE_STORE,
       name: "Estudio de Arquitectura e Ingeniería Constructora",
       desc: "Diseño de planos, visualización 3D, remodelaciones integrales y construcción de obras residenciales y comerciales.",
-      category: servCategories.find(c => c.name.toLowerCase().includes("arquitecto")) || servCategories[2],
+      category:
+        servCategories.find((c) =>
+          c.name.toLowerCase().includes("arquitecto"),
+        ) || servCategories[2],
       city: quitoCity,
       logo: "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=400&q=80",
-      cover: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80",
+      cover:
+        "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80",
       phone: "+593928901234",
       whatsapp: "+593928901234",
       address: "Av. Eloy Alfaro y Portugal",
@@ -273,10 +359,13 @@ async function runResetAndSeed() {
       type: STORE_TYPE.SERVICE_STORE,
       name: "Clínica Odontológica y Médica San Rafael",
       desc: "Atención médica integral, odontología avanzada, ortodoncia e implantes dentales con tecnología de punta y máxima bioseguridad.",
-      category: servCategories.find(c => c.name.toLowerCase().includes("médico")) || servCategories[3],
+      category:
+        servCategories.find((c) => c.name.toLowerCase().includes("médico")) ||
+        servCategories[3],
       city: santaElenaCity,
       logo: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=400&q=80",
-      cover: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1200&q=80",
+      cover:
+        "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1200&q=80",
       phone: "+593919012345",
       whatsapp: "+593919012345",
       address: "Av. Principal y Calle 10, Salinas",
@@ -285,10 +374,16 @@ async function runResetAndSeed() {
       type: STORE_TYPE.SERVICE_STORE,
       name: "Salón de Belleza & Spa Elegance VIP",
       desc: "Estilistas expertos en colorimetría, cortes de cabello, manicura, pedicura spa y masajes relajantes para una experiencia única.",
-      category: servCategories.find(c => c.name.toLowerCase().includes("psicólogo") || c.name.toLowerCase().includes("médico")) || servCategories[4],
+      category:
+        servCategories.find(
+          (c) =>
+            c.name.toLowerCase().includes("psicólogo") ||
+            c.name.toLowerCase().includes("médico"),
+        ) || servCategories[4],
       city: guayaquilCity,
       logo: "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=400&q=80",
-      cover: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1200&q=80",
+      cover:
+        "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1200&q=80",
       phone: "+593901123456",
       whatsapp: "+593901123456",
       address: "Samborondón Plaza, Local 18",
@@ -429,18 +524,22 @@ async function runResetAndSeed() {
           address: store.streetAddress || `${store.city}, Ecuador`,
           documentType: store.documentType || "nid",
           documentNumber: store.documentNumber || "1712345678",
-          documentFront: store.documentFront || "/uploads/documentFront/sample-front.jpg",
-          documentBack: store.documentBack || "/uploads/documentBack/sample-back.jpg",
+          documentFront:
+            store.documentFront || "/uploads/documentFront/sample-front.jpg",
+          documentBack:
+            store.documentBack || "/uploads/documentBack/sample-back.jpg",
           location: storeLocation,
           averageRating: store.averageRating || 5.0,
           totalRatings: store.ratingCount || 10,
           totalReviews: store.ratingCount || 10,
           timezone: "America/Guayaquil",
         },
-      }
+      },
     );
 
-    console.log(`   ✔ [Store ${i + 1}] "${store.displayName}" (${cfg.type}) created for ${user.name}`);
+    console.log(
+      `   ✔ [Store ${i + 1}] "${store.displayName}" (${cfg.type}) created for ${user.name}`,
+    );
   }
 
   // 6. Create Products for Product Stores
@@ -452,8 +551,10 @@ async function runResetAndSeed() {
       title: "Apple iPhone 15 Pro Max 256GB Titanio Natural",
       activePrice: 1299,
       originalPrice: 1450,
-      description: "Diseño de titanio aeroespacial resistente y ligero, Chip A17 Pro potente, cámara principal de 48 MP con zoom óptico 5x y puerto USB-C de alta velocidad.",
-      additionalInfo: "Incluye garantía oficial de 1 año, cable USB-C y adaptador de carga rápida.",
+      description:
+        "Diseño de titanio aeroespacial resistente y ligero, Chip A17 Pro potente, cámara principal de 48 MP con zoom óptico 5x y puerto USB-C de alta velocidad.",
+      additionalInfo:
+        "Incluye garantía oficial de 1 año, cable USB-C y adaptador de carga rápida.",
       images: [
         "https://images.unsplash.com/photo-1511707171634-5f897ff02560?auto=format&fit=crop&w=800&q=80",
         "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?auto=format&fit=crop&w=800&q=80",
@@ -463,8 +564,10 @@ async function runResetAndSeed() {
       title: "MacBook Pro 14 M3 Pro 18GB RAM 512GB SSD Negro Espacial",
       activePrice: 2199,
       originalPrice: 2399,
-      description: "Pantalla Liquid Retina XDR espectacular con más de 1000 nits, rendimiento extremo para desarrolladores y creadores con autonomía de hasta 18 horas.",
-      additionalInfo: "Teclado retroiluminado en español, cargador MagSafe 3 de 70W.",
+      description:
+        "Pantalla Liquid Retina XDR espectacular con más de 1000 nits, rendimiento extremo para desarrolladores y creadores con autonomía de hasta 18 horas.",
+      additionalInfo:
+        "Teclado retroiluminado en español, cargador MagSafe 3 de 70W.",
       images: [
         "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80",
         "https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?auto=format&fit=crop&w=800&q=80",
@@ -474,8 +577,10 @@ async function runResetAndSeed() {
       title: "Auriculares Sony WH-1000XM5 con Cancelación de Ruido Activa",
       activePrice: 389,
       originalPrice: 449,
-      description: "Líderes en cancelación de ruido con procesador V1, llamadas ultra nítidas con 4 micrófonos beamforming y hasta 30 horas de reproducción continua.",
-      additionalInfo: "Estuche de transporte premium y cable de carga rápida incluidos.",
+      description:
+        "Líderes en cancelación de ruido con procesador V1, llamadas ultra nítidas con 4 micrófonos beamforming y hasta 30 horas de reproducción continua.",
+      additionalInfo:
+        "Estuche de transporte premium y cable de carga rápida incluidos.",
       images: [
         "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80",
         "https://images.unsplash.com/photo-1484704849700-f032a568e944?auto=format&fit=crop&w=800&q=80",
@@ -485,8 +590,10 @@ async function runResetAndSeed() {
       title: "Smart TV Samsung 65 Pulgadas QLED 4K UHD Smart Hub",
       activePrice: 899,
       originalPrice: 1099,
-      description: "Colores 100% reales con Quantum Dot, procesador Quantum 4K Lite con escalador inteligente, sonido envolvente Object Tracking Sound Lite y diseño AirSlim.",
-      additionalInfo: "3 puertos HDMI 2.1, 2 puertos USB, control remoto solar ecológico.",
+      description:
+        "Colores 100% reales con Quantum Dot, procesador Quantum 4K Lite con escalador inteligente, sonido envolvente Object Tracking Sound Lite y diseño AirSlim.",
+      additionalInfo:
+        "3 puertos HDMI 2.1, 2 puertos USB, control remoto solar ecológico.",
       images: [
         "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=800&q=80",
       ],
@@ -495,8 +602,10 @@ async function runResetAndSeed() {
       title: "Café Gourmet Ecuatoriano de Altura Loja 1000g Grano Selecto",
       activePrice: 18.5,
       originalPrice: 22.0,
-      description: "Café 100% arábica cultivado a más de 1900 msnm en los valles de Loja. Tueste medio con notas a chocolate, caramelo y cítricos suaves.",
-      additionalInfo: "Empaque con válvula desgasificadora para máxima frescura.",
+      description:
+        "Café 100% arábica cultivado a más de 1900 msnm en los valles de Loja. Tueste medio con notas a chocolate, caramelo y cítricos suaves.",
+      additionalInfo:
+        "Empaque con válvula desgasificadora para máxima frescura.",
       images: [
         "https://images.unsplash.com/photo-1587734195503-904fca47e0e9?auto=format&fit=crop&w=800&q=80",
         "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=800&q=80",
@@ -506,8 +615,10 @@ async function runResetAndSeed() {
       title: "Canasta Familiar Completa de Abarrotes y Productos Frescos",
       activePrice: 45.0,
       originalPrice: 55.0,
-      description: "Incluye arroz premium, aceite vegetal, azúcar morena, leche entera, atún en trozos, fideos, granos andinos y avena fortificada.",
-      additionalInfo: "Seleccionado con los más altos estándares de higiene y frescura.",
+      description:
+        "Incluye arroz premium, aceite vegetal, azúcar morena, leche entera, atún en trozos, fideos, granos andinos y avena fortificada.",
+      additionalInfo:
+        "Seleccionado con los más altos estándares de higiene y frescura.",
       images: [
         "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80",
       ],
@@ -516,8 +627,10 @@ async function runResetAndSeed() {
       title: "Casaca de Cuero Sintético Premium para Caballero Estilo Rider",
       activePrice: 79.99,
       originalPrice: 99.99,
-      description: "Confección de alta durabilidad con forro térmico interno, cremalleras metálicas reforzadas YKK y corte slim moderno y elegante.",
-      additionalInfo: "Disponible en tallas S, M, L y XL. Color negro azabache.",
+      description:
+        "Confección de alta durabilidad con forro térmico interno, cremalleras metálicas reforzadas YKK y corte slim moderno y elegante.",
+      additionalInfo:
+        "Disponible en tallas S, M, L y XL. Color negro azabache.",
       images: [
         "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=800&q=80",
         "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=800&q=80",
@@ -527,8 +640,10 @@ async function runResetAndSeed() {
       title: "Zapatillas Deportivas Running Ultra Confort Transpirables",
       activePrice: 65.0,
       originalPrice: 85.0,
-      description: "Suela con amortiguación de impacto de alto rendimiento, malla textil transpirable anti-sudor y plantilla ergonómica con soporte de arco.",
-      additionalInfo: "Ideal para correr, entrenamiento en gimnasio y uso diario urbano.",
+      description:
+        "Suela con amortiguación de impacto de alto rendimiento, malla textil transpirable anti-sudor y plantilla ergonómica con soporte de arco.",
+      additionalInfo:
+        "Ideal para correr, entrenamiento en gimnasio y uso diario urbano.",
       images: [
         "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80",
       ],
@@ -537,8 +652,10 @@ async function runResetAndSeed() {
       title: "Batería Automotriz Bosch S4 12V 70Ah Libre de Mantenimiento",
       activePrice: 115.0,
       originalPrice: 135.0,
-      description: "Tecnología PowerFrame para máxima potencia de arranque en frío, resistencia superior a la corrosión y vida útil prolongada.",
-      additionalInfo: "Garantía de 18 meses con instalación y revisión eléctrica gratuita.",
+      description:
+        "Tecnología PowerFrame para máxima potencia de arranque en frío, resistencia superior a la corrosión y vida útil prolongada.",
+      additionalInfo:
+        "Garantía de 18 meses con instalación y revisión eléctrica gratuita.",
       images: [
         "https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=800&q=80",
       ],
@@ -547,8 +664,10 @@ async function runResetAndSeed() {
       title: "Juego de Sala Modular Esquinero Contemporáneo 5 Puestos",
       activePrice: 650.0,
       originalPrice: 780.0,
-      description: "Estructura de madera sólida de roble tratada contra humedad y plagas, tapizado en tela antifluidos lavable y espuma de alta densidad.",
-      additionalInfo: "Incluye 4 cojines decorativos de obsequio y mesa de centro de madera.",
+      description:
+        "Estructura de madera sólida de roble tratada contra humedad y plagas, tapizado en tela antifluidos lavable y espuma de alta densidad.",
+      additionalInfo:
+        "Incluye 4 cojines decorativos de obsequio y mesa de centro de madera.",
       images: [
         "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80",
         "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=800&q=80",
@@ -556,11 +675,13 @@ async function runResetAndSeed() {
     },
   ];
 
-  const productStores = createdStores.filter(s => s.storeType === STORE_TYPE.PRODUCT_STORE);
+  const productStores = createdStores.filter(
+    (s) => s.storeType === STORE_TYPE.PRODUCT_STORE,
+  );
   for (let sIdx = 0; sIdx < productStores.length; sIdx++) {
     const store = productStores[sIdx];
     // Assign 3-4 products per store
-    const storeProducts = productTemplates.slice(sIdx * 2, (sIdx * 2) + 4);
+    const storeProducts = productTemplates.slice(sIdx * 2, sIdx * 2 + 4);
     for (const prod of storeProducts) {
       const p = await Product.create({
         sellerId: store.owner,
@@ -574,7 +695,9 @@ async function runResetAndSeed() {
         status: PRODUCT_STATUS.ACTIVE,
       });
       createdProducts.push(p);
-      console.log(`   ✔ Product created: "${p.title}" ($${p.activePrice}) for "${store.displayName}"`);
+      console.log(
+        `   ✔ Product created: "${p.title}" ($${p.activePrice}) for "${store.displayName}"`,
+      );
     }
   }
 
@@ -584,10 +707,12 @@ async function runResetAndSeed() {
 
   const serviceTemplates = [
     {
-      title: "Limpieza Profunda y Sanitización Integral de Casas y Departamentos",
+      title:
+        "Limpieza Profunda y Sanitización Integral de Casas y Departamentos",
       activePrice: 45.0,
       originalPrice: 60.0,
-      description: "Servicio completo de limpieza profesional y desinfección total de interiores realizado por personal capacitado con maquinaria industrial y productos biodegradables.",
+      description:
+        "Servicio completo de limpieza profesional y desinfección total de interiores realizado por personal capacitado con maquinaria industrial y productos biodegradables.",
       whatsIncluded: [
         "Limpieza a fondo de cocina, desengrasado de campana y hornos",
         "Desinfección profunda de azulejos, grifería e inodoros en baños",
@@ -603,7 +728,8 @@ async function runResetAndSeed() {
       title: "Lavado y Desinfección Profunda de Muebles, Alfombras y Colchones",
       activePrice: 35.0,
       originalPrice: 45.0,
-      description: "Eliminación de manchas difíciles, ácaros, bacterias y malos olores mediante sistema de inyección y extracción de vapor a alta presión.",
+      description:
+        "Eliminación de manchas difíciles, ácaros, bacterias y malos olores mediante sistema de inyección y extracción de vapor a alta presión.",
       whatsIncluded: [
         "Aspirado industrial previo para remover polvo y partículas",
         "Aplicación de shampoo anti-ácaros hipoalergénico",
@@ -618,7 +744,8 @@ async function runResetAndSeed() {
       title: "Constitución y Registro Legal de Compañías y Empresas (SAS)",
       activePrice: 180.0,
       originalPrice: 220.0,
-      description: "Asesoría jurídica integral para crear tu empresa de forma rápida y 100% legal ante la Superintendencia de Compañías y SRI.",
+      description:
+        "Asesoría jurídica integral para crear tu empresa de forma rápida y 100% legal ante la Superintendencia de Compañías y SRI.",
       whatsIncluded: [
         "Elaboración de estatutos sociales personalizados",
         "Reserva de denominación y firma electrónica",
@@ -634,7 +761,8 @@ async function runResetAndSeed() {
       title: "Asesoría Jurídica y Defensa en Derecho Laboral y Contratos",
       activePrice: 60.0,
       originalPrice: 80.0,
-      description: "Revisión y elaboración de contratos de trabajo, mediación de finiquitos y liquidaciones, y representación legal en audiencias del Ministerio de Trabajo.",
+      description:
+        "Revisión y elaboración de contratos de trabajo, mediación de finiquitos y liquidaciones, y representación legal en audiencias del Ministerio de Trabajo.",
       whatsIncluded: [
         "Consulta legal presencial o virtual de 60 minutos",
         "Dictamen jurídico por escrito",
@@ -648,7 +776,8 @@ async function runResetAndSeed() {
       title: "Diseño de Planos Arquitectónicos y Renders 3D Fotorrealistas",
       activePrice: 250.0,
       originalPrice: 320.0,
-      description: "Planificación integral de proyectos arquitectónicos residenciales y comerciales con recorridos virtuales 3D de alta definición.",
+      description:
+        "Planificación integral de proyectos arquitectónicos residenciales y comerciales con recorridos virtuales 3D de alta definición.",
       whatsIncluded: [
         "Levantamiento topográfico y estudio de necesidades",
         "Plantas arquitectónicas acotadas y cortes técnicos",
@@ -664,7 +793,8 @@ async function runResetAndSeed() {
       title: "Limpieza Dental Ultrasonido Pro con Blanqueamiento LED",
       activePrice: 40.0,
       originalPrice: 65.0,
-      description: "Tratamiento odontológico preventivo y estético con raspado ultrasónico de sarro, pulido con pasta profiláctica y sesión de blanqueamiento con luz LED.",
+      description:
+        "Tratamiento odontológico preventivo y estético con raspado ultrasónico de sarro, pulido con pasta profiláctica y sesión de blanqueamiento con luz LED.",
       whatsIncluded: [
         "Valoración odontológica con cámara intraoral",
         "Eliminación de placa bacteriana y sarro con ultrasonido",
@@ -679,7 +809,8 @@ async function runResetAndSeed() {
       title: "Paquete Spa Relax VIP: Masaje con Piedras Calientes y Facial",
       activePrice: 50.0,
       originalPrice: 75.0,
-      description: "Experiencia de relajación total de 90 minutos con masajes descontracturantes, aromaterapia relajante y limpieza facial profunda con mascarilla de oro.",
+      description:
+        "Experiencia de relajación total de 90 minutos con masajes descontracturantes, aromaterapia relajante y limpieza facial profunda con mascarilla de oro.",
       whatsIncluded: [
         "Masaje corporal completo de 60 minutos con piedras volcánicas",
         "Aromaterapia con aceites esenciales de lavanda y eucalipto",
@@ -693,7 +824,9 @@ async function runResetAndSeed() {
     },
   ];
 
-  const serviceStores = createdStores.filter(s => s.storeType === STORE_TYPE.SERVICE_STORE);
+  const serviceStores = createdStores.filter(
+    (s) => s.storeType === STORE_TYPE.SERVICE_STORE,
+  );
   for (let sIdx = 0; sIdx < serviceStores.length; sIdx++) {
     const store = serviceStores[sIdx];
     // Assign 3 distinct services per store using modulo indexing
@@ -712,12 +845,16 @@ async function runResetAndSeed() {
         status: SERVICE_STATUS.ACTIVE,
       });
       createdServices.push(s);
-      console.log(`   ✔ Service created: "${s.title}" ($${s.activePrice}) for "${store.displayName}"`);
+      console.log(
+        `   ✔ Service created: "${s.title}" ($${s.activePrice}) for "${store.displayName}"`,
+      );
     }
   }
 
   // 8. Create Featured Advertisements (User Ads)
-  console.log("\n📢 Step 8: Creating Featured Advertisements (User Ads) with Subscriptions & Transactions...");
+  console.log(
+    "\n📢 Step 8: Creating Featured Advertisements (User Ads) with Subscriptions & Transactions...",
+  );
   const createdAds: any[] = [];
 
   const adCampaigns = [
@@ -726,7 +863,8 @@ async function runResetAndSeed() {
       store: createdStores[0],
       city: quitoCity,
       position: 1,
-      image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80",
+      image:
+        "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80",
       price: 25,
     },
     {
@@ -734,7 +872,8 @@ async function runResetAndSeed() {
       store: createdStores[1],
       city: guayaquilCity,
       position: 1,
-      image: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80",
+      image:
+        "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80",
       price: 25,
     },
     {
@@ -742,15 +881,18 @@ async function runResetAndSeed() {
       store: createdStores[2],
       city: quitoCity,
       position: 2,
-      image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80",
+      image:
+        "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80",
       price: 20,
     },
     {
-      title: "Servicios de Limpieza Profunda con 20% OFF para Hogares y Negocios",
+      title:
+        "Servicios de Limpieza Profunda con 20% OFF para Hogares y Negocios",
       store: createdStores[5],
       city: quitoCity,
       position: 3,
-      image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80",
+      image:
+        "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80",
       price: 20,
     },
     {
@@ -758,23 +900,28 @@ async function runResetAndSeed() {
       store: createdStores[6],
       city: guayaquilCity,
       position: 2,
-      image: "https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=1200&q=80",
+      image:
+        "https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=1200&q=80",
       price: 20,
     },
     {
-      title: "Diseño y Construcción de Casas Modernas - Proyectos Llave en Mano",
+      title:
+        "Diseño y Construcción de Casas Modernas - Proyectos Llave en Mano",
       store: createdStores[7],
       city: quitoCity,
       position: 4,
-      image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80",
+      image:
+        "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80",
       price: 50,
     },
     {
-      title: "Sonríe con Confianza: Blanqueamiento Dental y Salud Oral en Salinas",
+      title:
+        "Sonríe con Confianza: Blanqueamiento Dental y Salud Oral en Salinas",
       store: createdStores[8],
       city: santaElenaCity,
       position: 1,
-      image: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80",
+      image:
+        "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80",
       price: 25,
     },
     {
@@ -782,7 +929,8 @@ async function runResetAndSeed() {
       store: createdStores[4],
       city: esmeraldasCity,
       position: 1,
-      image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80",
+      image:
+        "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80",
       price: 25,
     },
   ];
@@ -850,11 +998,15 @@ async function runResetAndSeed() {
     });
     createdAds.push(ad);
 
-    console.log(`   ✔ Featured Ad created: "${ad.campaignName}" (City: ${camp.city.city}, Slot: #${camp.position})`);
+    console.log(
+      `   ✔ Featured Ad created: "${ad.campaignName}" (City: ${camp.city.city}, Slot: #${camp.position})`,
+    );
   }
 
   // 9. Add Realistic Reviews, Favorites and Store Traffic
-  console.log("\n⭐ Step 9: Creating Reviews, Favorites, and Visitor Traffic...");
+  console.log(
+    "\n⭐ Step 9: Creating Reviews, Favorites, and Visitor Traffic...",
+  );
   const sampleComments = [
     "¡Excelente atención al cliente y productos de primera calidad! Muy recomendado.",
     "El servicio superó todas mis expectativas. Puntuales, profesionales y muy amables.",
@@ -874,7 +1026,8 @@ async function runResetAndSeed() {
         rating: 5,
         comment: sampleComments[i % sampleComments.length],
         ownerReply: {
-          comment: "¡Muchas gracias por tu reseña y confianza! Estamos para servirte siempre.",
+          comment:
+            "¡Muchas gracias por tu reseña y confianza! Estamos para servirte siempre.",
           createdAt: new Date(),
         },
       });
@@ -884,7 +1037,10 @@ async function runResetAndSeed() {
       await Favorite.create({
         userId: reviewer._id,
         targetId: store._id,
-        targetType: store.storeType === STORE_TYPE.PRODUCT_STORE ? FAVORITE_TYPE.PRODUCT_STORE : FAVORITE_TYPE.SERVICE_STORE,
+        targetType:
+          store.storeType === STORE_TYPE.PRODUCT_STORE
+            ? FAVORITE_TYPE.PRODUCT_STORE
+            : FAVORITE_TYPE.SERVICE_STORE,
       });
 
       // Also record Store Traffic
@@ -897,14 +1053,19 @@ async function runResetAndSeed() {
       });
     }
   }
-  console.log(`   ✔ Created ${reviewCount} 5-star customer reviews, favorites and store traffic logs.`);
+  console.log(
+    `   ✔ Created ${reviewCount} 5-star customer reviews, favorites and store traffic logs.`,
+  );
 
   // 10. Update all non-store-owner users (Customers & Admins)
   console.log("\n👤 Step 10: Synchronizing Customer & Buyer accounts...");
   const ownerObjectIds = createdStores.map((s) => s.owner);
-  const remainingUsers = await db.collection("users").find({
-    _id: { $nin: ownerObjectIds },
-  }).toArray();
+  const remainingUsers = await db
+    .collection("users")
+    .find({
+      _id: { $nin: ownerObjectIds },
+    })
+    .toArray();
 
   for (const rUser of remainingUsers) {
     const isSuperOrAdmin = ["super_admin", "admin"].includes(rUser.role);
@@ -960,16 +1121,22 @@ async function runResetAndSeed() {
       updateCustomerDoc.$set.role = "user";
     }
 
-    await db.collection("users").updateOne({ _id: rUser._id }, updateCustomerDoc);
+    await db
+      .collection("users")
+      .updateOne({ _id: rUser._id }, updateCustomerDoc);
   }
-  console.log(`   ✔ Synchronized ${remainingUsers.length} customer and admin user accounts.`);
+  console.log(
+    `   ✔ Synchronized ${remainingUsers.length} customer and admin user accounts.`,
+  );
 
   console.log("\n=================================================");
   console.log("🎉 DATABASE RESET AND SEEDING COMPLETED!");
   console.log("=================================================");
   console.log(`📊 SUMMARY OF CREATED DATA:`);
   console.log(`   - Users Preserved: ${allUsers.length}`);
-  console.log(`   - Stores Created: ${createdStores.length} (5 Products, 5 Services)`);
+  console.log(
+    `   - Stores Created: ${createdStores.length} (5 Products, 5 Services)`,
+  );
   console.log(`   - Sellers Registered: ${createdSellers.length}`);
   console.log(`   - Products Created: ${createdProducts.length}`);
   console.log(`   - Services Created: ${createdServices.length}`);

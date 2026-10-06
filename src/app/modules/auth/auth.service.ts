@@ -128,7 +128,10 @@ const forgetPasswordToDB = async (email: string) => {
     oneTimeCode: otp,
     expireAt: new Date(Date.now() + 3 * 60000),
   };
-  await User.findOneAndUpdate({ _id: isExistUser._id }, { $set: { authentication } });
+  await User.findOneAndUpdate(
+    { _id: isExistUser._id },
+    { $set: { authentication } },
+  );
 };
 
 // =======================afriksms verify phone otp=============

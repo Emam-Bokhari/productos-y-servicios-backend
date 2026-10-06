@@ -11,7 +11,9 @@ async function checkStoresAndUsers() {
     const owner = await db.collection("users").findOne({ _id: s.owner });
     console.log(`- Store: "${s.displayName}" (${s.storeType})`);
     console.log(`  City: ${s.city}, Lat: ${s.latitude}, Lng: ${s.longitude}`);
-    console.log(`  Owner: ${owner?.name} (${owner?.email}), ActiveRole: ${owner?.activeRole}, SubStatus: ${owner?.subscriptionStatus}`);
+    console.log(
+      `  Owner: ${owner?.name} (${owner?.email}), ActiveRole: ${owner?.activeRole}, SubStatus: ${owner?.subscriptionStatus}`,
+    );
   }
 
   await mongoose.disconnect();

@@ -23,8 +23,4 @@ export enum REPORT_REASON {
 
 export const REPORT_REASONS = Object.values(REPORT_REASON);
 
-export const REPORT_SEARCHABLE_FIELDS = [
-  "reason",
-  "description",
-  "adminNotes",
-];
+export const REPORT_SEARCHABLE_FIELDS = ["reason", "description", "adminNotes"];

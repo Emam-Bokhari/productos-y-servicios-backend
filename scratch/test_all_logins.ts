@@ -19,8 +19,13 @@ async function testAll() {
 
   for (const email of testEmails) {
     try {
-      const res = await AuthService.loginUserFromDB({ email, password: "12345678" });
-      console.log(`✔ [LOCAL] ${email}: SUCCESS (Role: ${res.user.activeRole}, HasSeller: ${res.hasSellerAccount})`);
+      const res = await AuthService.loginUserFromDB({
+        email,
+        password: "12345678",
+      });
+      console.log(
+        `✔ [LOCAL] ${email}: SUCCESS (Role: ${res.user.activeRole}, HasSeller: ${res.hasSellerAccount})`,
+      );
     } catch (err: any) {
       console.log(`❌ [LOCAL] ${email}: FAILED -> ${err.message}`);
     }
@@ -31,9 +36,13 @@ async function testAll() {
   for (const email of testEmails) {
     try {
       const res = await axios.post(remoteUrl, { email, password: "12345678" });
-      console.log(`✔ [REMOTE] ${email}: SUCCESS (HasSeller: ${res.data?.data?.hasSellerAccount})`);
+      console.log(
+        `✔ [REMOTE] ${email}: SUCCESS (HasSeller: ${res.data?.data?.hasSellerAccount})`,
+      );
     } catch (err: any) {
-      console.log(`❌ [REMOTE] ${email}: FAILED -> ${err.response?.data?.message || err.message}`);
+      console.log(
+        `❌ [REMOTE] ${email}: FAILED -> ${err.response?.data?.message || err.message}`,
+      );
     }
   }
 
