@@ -8,6 +8,7 @@
     "build": "tsc",
     "permission:seed": "ts-node src/app/modules/permission/permission.seed.ts",
     "seed:categories": "ts-node scripts/seed_categories.ts",
+    "db:reset-seed": "ts-node scripts/reset_and_seed_data.ts",
     "docs:generate": "ts-node scripts/generate-docs.ts",
     "generate:erd": "ts-node scripts/generate-erd.ts",
     "render:erd": "ts-node scripts/render-erd.ts",

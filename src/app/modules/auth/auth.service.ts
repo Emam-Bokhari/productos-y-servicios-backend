@@ -24,8 +24,16 @@ import { FcmTokenService } from "../fcmToken/fcmService";
 
 const loginUserFromDB = async (payload: ILoginData) => {
   const { email, password, fcmToken, deviceId, deviceType } = payload;
+  const cleanInput = email ? email.trim() : "";
+  const normalizedEmail = cleanInput.toLowerCase();
 
-  const isExistUser = await User.findOne({ email }).select("+password");
+  const isExistUser = await User.findOne({
+    $or: [
+      { email: normalizedEmail },
+      { userName: cleanInput },
+      { userName: normalizedEmail },
+    ],
+  }).select("+password");
   if (!isExistUser) {
     throw new ApiError(400, "User doesn't exist!");
   }
@@ -97,7 +105,10 @@ const loginUserFromDB = async (payload: ILoginData) => {
 
 // ========================== forget password ===========================
 const forgetPasswordToDB = async (email: string) => {
-  const isExistUser = await User.isExistUserByEmail(email);
+  const normalizedEmail = email?.trim().toLowerCase();
+  const isExistUser = await User.findOne({
+    $or: [{ email: normalizedEmail }, { userName: email?.trim() }],
+  });
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
@@ -117,13 +128,16 @@ const forgetPasswordToDB = async (email: string) => {
     oneTimeCode: otp,
     expireAt: new Date(Date.now() + 3 * 60000),
   };
-  await User.findOneAndUpdate({ email }, { $set: { authentication } });
+  await User.findOneAndUpdate({ _id: isExistUser._id }, { $set: { authentication } });
 };
 
 // =======================afriksms verify phone otp=============
 const verifyEmailToDB = async (payload: IVerifyEmail) => {
   const { email, oneTimeCode } = payload;
-  const isExistUser = await User.findOne({ email }).select("+authentication");
+  const normalizedEmail = email?.trim().toLowerCase();
+  const isExistUser = await User.findOne({
+    $or: [{ email: normalizedEmail }, { userName: email?.trim() }],
+  }).select("+authentication");
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
@@ -320,8 +334,11 @@ const newAccessTokenToUser = async (token: string) => {
 
 // ==================resend otp phone afriksms=======================
 const resendVerificationEmailToDB = async (email: string) => {
+  const normalizedEmail = email?.trim().toLowerCase();
   // Find the user by ID
-  const existingUser: any = await User.findOne({ email: email }).lean();
+  const existingUser: any = await User.findOne({
+    $or: [{ email: normalizedEmail }, { userName: email?.trim() }],
+  }).lean();
 
   if (!existingUser) {
     throw new ApiError(
