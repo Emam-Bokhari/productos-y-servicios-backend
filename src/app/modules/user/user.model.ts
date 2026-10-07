@@ -21,6 +21,10 @@ const userSchema = new Schema<IUser, IUserModel>(
       enum: ["user", "seller"],
       default: "user",
     },
+    hasSellerAccount: {
+      type: Boolean,
+      default: false,
+    },
     email: {
       type: String,
       required: true,

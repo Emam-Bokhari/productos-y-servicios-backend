@@ -94,10 +94,16 @@ const loginUserFromDB = async (payload: ILoginData) => {
     status: STATUS.ACTIVE,
   });
 
+  const hasSellerAccount = !!seller;
+  if (isExistUser.hasSellerAccount !== hasSellerAccount) {
+    await User.findByIdAndUpdate(isExistUser._id, { hasSellerAccount });
+    isExistUser.hasSellerAccount = hasSellerAccount;
+  }
+
   const result = {
     token: createToken,
     user: isExistUser,
-    hasSellerAccount: !!seller,
+    hasSellerAccount,
   };
 
   return result;
@@ -518,9 +524,22 @@ const googleLoginService = async (payload: {
     config.jwt.jwt_expire_in as string,
   );
 
+  // Check if seller profile exists and is active
+  const seller = await Seller.findOne({
+    user: user._id,
+    status: STATUS.ACTIVE,
+  });
+
+  const hasSellerAccount = !!seller;
+  if (user.hasSellerAccount !== hasSellerAccount) {
+    await User.findByIdAndUpdate(user._id, { hasSellerAccount });
+    user.hasSellerAccount = hasSellerAccount;
+  }
+
   return {
     token: createToken,
     user,
+    hasSellerAccount,
   };
 };
 

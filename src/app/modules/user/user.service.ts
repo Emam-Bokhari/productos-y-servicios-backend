@@ -16,6 +16,7 @@ import { sendNotifications } from "../../../helpers/notificationsHelper";
 import { NOTIFICATION_TYPE } from "../notification/notification.constant";
 import { Subscription } from "../subscription/subscription.model";
 import { Store } from "../store/store.model";
+import { Seller } from "../seller/seller.model";
 
 // --- ADMIN SERVICES ---
 const createAdminToDB = async (payload: any): Promise<IUser> => {
@@ -250,23 +251,6 @@ const getMyProfileFromDB = async (userId: string) => {
       .populate("packageId");
   }
 
-  // Find active post subscription, otherwise latest
-  let postSubscription = await Subscription.findOne({
-    userId,
-    packageType: "post_add",
-    status: { $in: ["active", "trialing"] },
-    expiresAt: { $gt: new Date() },
-  }).populate("packageId");
-
-  if (!postSubscription) {
-    postSubscription = await Subscription.findOne({
-      userId,
-      packageType: "post_add",
-    })
-      .sort({ createdAt: -1 })
-      .populate("packageId");
-  }
-
   const store = await Store.findOne({ owner: userId });
   const isStoreCreated = !!store;
 
@@ -277,12 +261,7 @@ const getMyProfileFromDB = async (userId: string) => {
       new Date(storeSubscription.expiresAt) > now
     : false;
 
-  const isPostSubscribed = postSubscription
-    ? ["active", "trialing"].includes(postSubscription.status) &&
-      new Date(postSubscription.expiresAt) > now
-    : false;
-
-  const isSubscribed = isStoreSubscribed || isPostSubscribed;
+  const isSubscribed = isStoreSubscribed;
 
   const calculateRemainingDays = (
     expiresAt: Date | null | undefined,
@@ -296,11 +275,6 @@ const getMyProfileFromDB = async (userId: string) => {
   const storeRemainingDays = calculateRemainingDays(
     storeSubscription?.expiresAt,
     isStoreSubscribed,
-  );
-
-  const postRemainingDays = calculateRemainingDays(
-    postSubscription?.expiresAt,
-    isPostSubscribed,
   );
 
   // Synchronized user-level subscription status & expiration (Single Source of Truth)
@@ -320,11 +294,6 @@ const getMyProfileFromDB = async (userId: string) => {
     synchronizedExpiresAt = storeSubscription.expiresAt;
     synchronizedPackageId =
       (storeSubscription.packageId as any)?._id || storeSubscription.packageId;
-  } else if (isPostSubscribed && postSubscription) {
-    synchronizedStatus = postSubscription.status as any;
-    synchronizedExpiresAt = postSubscription.expiresAt;
-    synchronizedPackageId =
-      (postSubscription.packageId as any)?._id || postSubscription.packageId;
   } else if (storeSubscription) {
     const isPastExpiry =
       storeSubscription.expiresAt &&
@@ -335,15 +304,6 @@ const getMyProfileFromDB = async (userId: string) => {
     synchronizedExpiresAt = storeSubscription.expiresAt;
     synchronizedPackageId =
       (storeSubscription.packageId as any)?._id || storeSubscription.packageId;
-  } else if (postSubscription) {
-    const isPastExpiry =
-      postSubscription.expiresAt && new Date(postSubscription.expiresAt) <= now;
-    synchronizedStatus = isPastExpiry
-      ? "expired"
-      : (postSubscription.status as any);
-    synchronizedExpiresAt = postSubscription.expiresAt;
-    synchronizedPackageId =
-      (postSubscription.packageId as any)?._id || postSubscription.packageId;
   }
 
   // Self-heal: update User document in DB if cached subscription fields are out-of-sync
@@ -364,8 +324,19 @@ const getMyProfileFromDB = async (userId: string) => {
     }).catch(() => {});
   }
 
+  const seller = await Seller.findOne({
+    user: userId,
+    status: STATUS.ACTIVE,
+  });
+  const hasSellerAccount = !!seller;
+
+  if (result.hasSellerAccount !== hasSellerAccount) {
+    User.findByIdAndUpdate(userId, { hasSellerAccount }).catch(() => {});
+  }
+
   return {
     ...result.toObject(),
+    hasSellerAccount,
     subscriptionStatus: synchronizedStatus,
     subscriptionExpiresAt: synchronizedExpiresAt,
     ...(synchronizedPackageId
@@ -385,14 +356,10 @@ const getMyProfileFromDB = async (userId: string) => {
       remainingDays: storeRemainingDays,
     },
     postSubscription: {
-      isPurchased: isPostSubscribed,
-      status: postSubscription
-        ? isPostSubscribed
-          ? postSubscription.status
-          : "expired"
-        : "none",
-      expiresAt: postSubscription ? postSubscription.expiresAt : null,
-      remainingDays: postRemainingDays,
+      isPurchased: false,
+      status: "none",
+      expiresAt: null,
+      remainingDays: 0,
     },
   };
 };

@@ -66,6 +66,12 @@ const cityAdConfigurationSchema = new Schema<ICityAdConfiguration>(
       required: true,
       default: true,
     },
+    featuredDurationDays: {
+      type: Number,
+      required: true,
+      min: 1,
+      default: 7,
+    },
     featuredPositionPricing: [
       {
         position: {
@@ -77,6 +83,10 @@ const cityAdConfigurationSchema = new Schema<ICityAdConfiguration>(
           type: Number,
           required: true,
           min: 0,
+        },
+        durationDays: {
+          type: Number,
+          min: 1,
         },
         _id: false,
       },

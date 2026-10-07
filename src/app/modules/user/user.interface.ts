@@ -42,6 +42,7 @@ export type IUser = {
   totalRatings?: number;
   totalReviews?: number;
   activeRole?: "user" | "seller";
+  hasSellerAccount?: boolean;
   subscriptionStatus?:
     | "active"
     | "inactive"

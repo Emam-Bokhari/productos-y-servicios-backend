@@ -113,6 +113,9 @@ const createCheckoutSession = catchAsync(
       }
 
       chargedAmount = pricingObj.price;
+      const durationDays =
+        pricingObj.durationDays || activeCity.featuredDurationDays || 7;
+      (req as any)._resolvedDurationDays = durationDays;
     } else if (packageId) {
       // ----------------------------------------------------------------------
       // STORE CREATION SUBSCRIPTION (Recurring Vendor Membership)
@@ -125,6 +128,13 @@ const createCheckoutSession = catchAsync(
         );
       }
 
+      if (pkg.packageType !== "store_creation") {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          "Subscriptions are only supported for store creation. Post ads require one-time slot booking.",
+        );
+      }
+
       bookingType = "store_creation";
       isSubscription = true;
       chargedAmount = pkg.price;
@@ -134,6 +144,8 @@ const createCheckoutSession = catchAsync(
         "Either packageId (for store subscription) or cityConfigId with position (for advertisement booking) is required",
       );
     }
+
+    const durationDays = (req as any)._resolvedDurationDays;
 
     const userProfile = await User.findById(userId);
     if (!userProfile) {
@@ -165,6 +177,7 @@ const createCheckoutSession = catchAsync(
         sector: activeCity ? activeCity.sector : "",
         neighborhood: activeCity ? activeCity.neighborhood : "",
         position: selectedPosition ? selectedPosition.toString() : "",
+        durationDays: durationDays ? durationDays.toString() : "",
       },
     });
 
@@ -196,6 +209,7 @@ const createCheckoutSession = catchAsync(
         sector: activeCity ? activeCity.sector : "",
         neighborhood: activeCity ? activeCity.neighborhood : "",
         position: selectedPosition ? selectedPosition.toString() : "",
+        durationDays: durationDays ? durationDays.toString() : "",
         merchantTransactionId: merchantTxId,
       },
     });
@@ -379,6 +393,7 @@ export const fulfillDatafastPayment = async (params: IFulfillPaymentParams) => {
           cityConfigId:
             params.cityConfigId || existingTx?.metadata?.cityConfigId,
           position: params.position || existingTx?.metadata?.position,
+          durationDays: existingTx?.metadata?.durationDays || "",
         },
       });
     } else {

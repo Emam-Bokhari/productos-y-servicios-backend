@@ -196,15 +196,6 @@ export const runSubscriptionRenewalCheck = async (): Promise<{
     { $set: { status: "expired" } },
   );
 
-  // Expire past-due post_add subscriptions (legacy)
-  await Subscription.updateMany(
-    {
-      packageType: "post_add",
-      status: "active",
-      expiresAt: { $lte: today },
-    },
-    { $set: { status: "expired" } },
-  );
 
   // Expire past-due active advertisements
   await Advertisement.updateMany(

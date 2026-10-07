@@ -29,15 +29,10 @@ const createSubscriptionPackageSchema = z.object({
         required_error: "Duration is required",
       },
     ),
-    packageType: z.enum(
-      [
-        SUBSCRIPTION_PACKAGE_TYPE.STORE_CREATION,
-        SUBSCRIPTION_PACKAGE_TYPE.POST_ADD,
-      ],
-      {
-        required_error: "Package type is required",
-      },
-    ),
+    packageType: z
+      .enum([SUBSCRIPTION_PACKAGE_TYPE.STORE_CREATION])
+      .optional()
+      .default(SUBSCRIPTION_PACKAGE_TYPE.STORE_CREATION),
     listingLimit: z.number().nonnegative().optional(),
     isUnlimitedListings: z.boolean().optional(),
     trialEnabled: z.boolean().optional(),
@@ -60,10 +55,7 @@ const updateSubscriptionPackageSchema = z.object({
       ])
       .optional(),
     packageType: z
-      .enum([
-        SUBSCRIPTION_PACKAGE_TYPE.STORE_CREATION,
-        SUBSCRIPTION_PACKAGE_TYPE.POST_ADD,
-      ])
+      .enum([SUBSCRIPTION_PACKAGE_TYPE.STORE_CREATION])
       .optional(),
     listingLimit: z.number().nonnegative().optional(),
     isUnlimitedListings: z.boolean().optional(),

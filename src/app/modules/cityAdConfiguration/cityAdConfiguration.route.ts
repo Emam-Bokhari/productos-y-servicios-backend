@@ -37,6 +37,10 @@ const parseCityAdBody = (
   if (typeof req.body.featuredEnabled === "string") {
     req.body.featuredEnabled = req.body.featuredEnabled === "true";
   }
+  if (typeof req.body.featuredDurationDays === "string") {
+    const num = Number(req.body.featuredDurationDays);
+    if (!isNaN(num)) req.body.featuredDurationDays = num;
+  }
   next();
 };
 

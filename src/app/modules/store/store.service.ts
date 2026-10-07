@@ -253,6 +253,12 @@ const createStoreToDB = async (ownerId: string, payload: any) => {
     );
   }
 
+  // Ensure owner user has hasSellerAccount = true and activeRole = "seller"
+  await User.findByIdAndUpdate(ownerId, {
+    hasSellerAccount: true,
+    activeRole: "seller",
+  });
+
   return { store, seller };
 };
 
@@ -430,6 +436,11 @@ const updateStoreInDB = async (ownerId: string, payload: any) => {
       status: "active",
     });
   }
+
+  // Ensure owner user has hasSellerAccount = true
+  await User.findByIdAndUpdate(ownerId, {
+    hasSellerAccount: true,
+  });
 
   return { store: updatedStore, seller };
 };

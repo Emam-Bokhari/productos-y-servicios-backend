@@ -18,7 +18,10 @@ import QueryBuilder from "../../builder/queryBuilder";
 import { Subscription } from "../subscription/subscription.model";
 import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
 import { Transaction } from "../transaction/transaction.model";
-import { PAYMENT_METHOD } from "../transaction/transaction.constant";
+import {
+  PAYMENT_METHOD,
+  TRANSACTION_TYPE,
+} from "../transaction/transaction.constant";
 import { DateTime } from "luxon";
 import { sendNotifications } from "../../../helpers/notificationsHelper";
 import { NOTIFICATION_TYPE } from "../notification/notification.constant";
@@ -222,10 +225,12 @@ const getSlotAvailabilityFromDB = async (
     );
   }
 
+  const defaultDurationMs =
+    (cityConfig.featuredDurationDays || 7) * 24 * 60 * 60 * 1000;
   const startDate = startDateStr ? new Date(startDateStr) : new Date();
   const endDate = endDateStr
     ? new Date(endDateStr)
-    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    : new Date(startDate.getTime() + defaultDurationMs);
 
   const totalSlots = cityConfig.featuredCapacity;
 
@@ -420,60 +425,27 @@ const createAdvertisementToDB = async (
       }
     }
 
-    // Check legacy post subscription if no direct transaction found
-    let legacyPostSub: any = null;
     if (!validTx) {
-      legacyPostSub = await Subscription.findOne({
-        userId: sellerId,
-        packageType: "post_add",
-        status: { $in: ["active", "trialing"] },
-        cityConfigId: cityConfig._id,
-        expiresAt: { $gt: new Date() },
-      }).populate("packageId");
-    }
-
-    if (!validTx && !legacyPostSub) {
       throw new ApiError(
         StatusCodes.PAYMENT_REQUIRED,
         `Payment required. Please purchase the advertisement slot for Position ${position} in ${cityConfig.city} before creating this campaign.`,
       );
     }
 
-    let calculatedEndDate: Date;
-    if (payload.endDate) {
-      calculatedEndDate = new Date(payload.endDate);
-    } else if (legacyPostSub?.packageId) {
-      const packageInfo = legacyPostSub.packageId as any;
-      calculatedEndDate = new Date(startDate);
-      if (legacyPostSub.status === "trialing" && packageInfo?.trialPeriodDays) {
-        calculatedEndDate.setDate(
-          calculatedEndDate.getDate() + packageInfo.trialPeriodDays,
-        );
-      } else {
-        switch (packageInfo.duration) {
-          case "seven_days":
-            calculatedEndDate.setDate(calculatedEndDate.getDate() + 7);
-            break;
-          case "one_month":
-            calculatedEndDate.setMonth(calculatedEndDate.getMonth() + 1);
-            break;
-          case "three_month":
-            calculatedEndDate.setMonth(calculatedEndDate.getMonth() + 3);
-            break;
-          case "six_month":
-            calculatedEndDate.setMonth(calculatedEndDate.getMonth() + 6);
-            break;
-          case "one_year":
-            calculatedEndDate.setFullYear(calculatedEndDate.getFullYear() + 1);
-            break;
-          default:
-            calculatedEndDate.setDate(calculatedEndDate.getDate() + 7);
-        }
-      }
-    } else {
-      calculatedEndDate = new Date(startDate);
-      calculatedEndDate.setDate(calculatedEndDate.getDate() + 7);
-    }
+    const positionPricingObj = (cityConfig.featuredPositionPricing || []).find(
+      (p) => p.position === position,
+    );
+
+    const durationDays = Number(
+      validTx.metadata?.durationDays ||
+        positionPricingObj?.durationDays ||
+        cityConfig.featuredDurationDays ||
+        7,
+    );
+
+    const calculatedEndDate = new Date(
+      startDate.getTime() + durationDays * 24 * 60 * 60 * 1000,
+    );
 
     // Check if the requested position is already booked inside the session transaction
     const conflictingAd = await Advertisement.findOne({
@@ -491,16 +463,8 @@ const createAdvertisementToDB = async (
       );
     }
 
-    const positionPricingObj = (cityConfig.featuredPositionPricing || []).find(
-      (p) => p.position === position,
-    );
     const resolvedPrice =
-      validTx?.amount ??
-      (positionPricingObj
-        ? positionPricingObj.price
-        : legacyPostSub?.packageId?.price || 0);
-
-    const isTrial = legacyPostSub?.status === "trialing";
+      validTx?.amount ?? (positionPricingObj ? positionPricingObj.price : 0);
 
     // Auto-populate coordinate and location details from the trusted backend config (preventing location spoofing)
     payload.position = position;
@@ -518,10 +482,8 @@ const createAdvertisementToDB = async (
     payload.latitude = cityConfig.latitude;
     payload.longitude = cityConfig.longitude;
     payload.status = ADVERTISEMENT_STATUS.ACTIVE;
-    payload.price = isTrial ? 0 : resolvedPrice;
-    if (validTx) {
-      payload.transactionId = validTx._id;
-    }
+    payload.price = resolvedPrice;
+    payload.transactionId = validTx._id;
 
     const [newAd] = await Advertisement.create([payload], { session });
 
@@ -911,7 +873,6 @@ const getAdvertisementPaymentsFromDB = async (
     status,
     startDate,
     endDate,
-    packageId,
     page = 1,
     limit = 10,
     sortBy = "createdAt",
@@ -919,39 +880,35 @@ const getAdvertisementPaymentsFromDB = async (
   } = query;
 
   const baseFilter: Record<string, any> = {
-    packageType: "post_add",
+    $or: [
+      { transactionType: TRANSACTION_TYPE.ADVERTISEMENT_PAYMENT },
+      { "metadata.bookingType": "advertisement" },
+    ],
   };
 
   // 1. Status Filter
   if (status && status !== "all") {
-    baseFilter.status = status;
+    baseFilter.paymentStatus = String(status).toUpperCase();
   }
 
   // 2. City Filter
   if (cityAdConfigId && Types.ObjectId.isValid(cityAdConfigId as string)) {
-    baseFilter.cityConfigId = new Types.ObjectId(cityAdConfigId as string);
+    baseFilter["metadata.cityConfigId"] = String(cityAdConfigId);
   } else if (city && typeof city === "string" && city.trim() !== "") {
     const matchingCities = await CityAdConfiguration.find({
       city: { $regex: city.trim(), $options: "i" },
     }).select("_id");
-    const cityIds = matchingCities.map((c) => c._id);
-    baseFilter.cityConfigId = { $in: cityIds };
+    const cityIds = matchingCities.map((c) => c._id.toString());
+    baseFilter["metadata.cityConfigId"] = { $in: cityIds };
   }
 
   // 3. Position Filter
   if (position !== undefined && position !== null && position !== "") {
-    const posNum = Number(position);
-    if (!isNaN(posNum)) {
-      baseFilter.position = posNum;
-    }
+    const posStr = String(position);
+    baseFilter["metadata.position"] = posStr;
   }
 
-  // 4. Package Filter
-  if (packageId && Types.ObjectId.isValid(packageId as string)) {
-    baseFilter.packageId = new Types.ObjectId(packageId as string);
-  }
-
-  // 5. Payment Date Range (createdAt)
+  // 4. Payment Date Range (createdAt)
   if (startDate || endDate) {
     baseFilter.createdAt = {};
     if (startDate) {
@@ -964,7 +921,7 @@ const getAdvertisementPaymentsFromDB = async (
     }
   }
 
-  // 6. Search Term (search user name, email, store displayName, trxId, package name, city name)
+  // 5. Search Term (search user name, email, store displayName, transactionId, etc.)
   if (
     searchTerm &&
     typeof searchTerm === "string" &&
@@ -972,13 +929,7 @@ const getAdvertisementPaymentsFromDB = async (
   ) {
     const searchRegex = new RegExp(searchTerm.trim(), "i");
 
-    const [
-      matchingUsers,
-      matchingStores,
-      matchingCities,
-      matchingPackages,
-      matchingAds,
-    ] = await Promise.all([
+    const [matchingUsers, matchingStores, matchingCities] = await Promise.all([
       User.find({
         $or: [
           { name: { $regex: searchRegex } },
@@ -1004,34 +955,27 @@ const getAdvertisementPaymentsFromDB = async (
       })
         .select("_id")
         .lean(),
-      SubscriptionPackage.find({
-        name: { $regex: searchRegex },
-      })
-        .select("_id")
-        .lean(),
-      Advertisement.find({
-        campaignName: { $regex: searchRegex },
-      })
-        .select("sellerId")
-        .lean(),
     ]);
 
     const userIds = matchingUsers.map((u: any) => u._id);
     const storeOwnerIds = matchingStores.map((s: any) => s.owner);
-    const cityIds = matchingCities.map((c: any) => c._id);
-    const packageIds = matchingPackages.map((p: any) => p._id);
-    const adSellerIds = matchingAds.map((a: any) => a.sellerId);
+    const cityIds = matchingCities.map((c: any) => c._id.toString());
 
     const combinedUserIds = [
-      ...new Set([...userIds, ...storeOwnerIds, ...adSellerIds]),
+      ...new Set([...userIds, ...storeOwnerIds]),
     ];
 
-    baseFilter.$or = [
-      { trxId: { $regex: searchRegex } },
-      { checkoutSessionId: { $regex: searchRegex } },
-      { userId: { $in: combinedUserIds } },
-      { cityConfigId: { $in: cityIds } },
-      { packageId: { $in: packageIds } },
+    baseFilter.$and = [
+      {
+        $or: [
+          { transactionId: { $regex: searchRegex } },
+          { gatewayTransactionId: { $regex: searchRegex } },
+          { checkoutSessionId: { $regex: searchRegex } },
+          { userId: { $in: combinedUserIds } },
+          { "metadata.cityConfigId": { $in: cityIds } },
+          { "metadata.cityName": { $regex: searchRegex } },
+        ],
+      },
     ];
   }
 
@@ -1045,35 +989,27 @@ const getAdvertisementPaymentsFromDB = async (
   const now = new Date();
 
   // Run paginated find, total count, and summary statistics concurrently
-  const [total, subscriptions, totalRevenueAgg, activeAdsCount, trialCount] =
+  const [total, transactions, totalRevenueAgg, activeAdsCount] =
     await Promise.all([
-      Subscription.countDocuments(baseFilter),
-      Subscription.find(baseFilter)
+      Transaction.countDocuments(baseFilter),
+      Transaction.find(baseFilter)
         .sort(sortObj)
         .skip(skip)
         .limit(limitNum)
         .populate("userId", "name email phone profileImage")
-        .populate(
-          "packageId",
-          "name duration price trialPeriodDays packageType",
-        )
-        .populate(
-          "cityConfigId",
-          "city country countryCode latitude longitude defaultFeaturedImage featuredCapacity",
-        )
         .lean(),
-      Subscription.aggregate([
-        { $match: { packageType: "post_add", amountPaid: { $gt: 0 } } },
-        { $group: { _id: null, total: { $sum: "$amountPaid" } } },
+      Transaction.aggregate([
+        {
+          $match: {
+            ...baseFilter,
+            paymentStatus: "PAID",
+          },
+        },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
       ]),
-      Subscription.countDocuments({
-        packageType: "post_add",
-        status: "active",
-        expiresAt: { $gt: now },
-      }),
-      Subscription.countDocuments({
-        packageType: "post_add",
-        status: "trialing",
+      Advertisement.countDocuments({
+        status: ADVERTISEMENT_STATUS.ACTIVE,
+        endDate: { $gt: now },
       }),
     ]);
 
@@ -1083,65 +1019,62 @@ const getAdvertisementPaymentsFromDB = async (
       ? Math.round(totalRevenueAgg[0].total * 100) / 100
       : 0;
 
-  // Batch fetch all related Stores, Ads, and Transactions for the items on this page
+  // Collect IDs for batch lookups
   const sellerIds = [
     ...new Set(
-      subscriptions
-        .map((s: any) => s.userId?._id?.toString() || s.userId?.toString())
+      transactions
+        .map((t: any) => t.userId?._id?.toString() || t.userId?.toString())
         .filter(Boolean),
     ),
   ];
 
-  const trxIds = [
-    ...new Set(subscriptions.map((s: any) => s.trxId).filter(Boolean)),
-  ];
-  const sessionIds = [
+  const cityConfigIds = [
     ...new Set(
-      subscriptions.map((s: any) => s.checkoutSessionId).filter(Boolean),
+      transactions
+        .map((t: any) => t.metadata?.cityConfigId)
+        .filter((id) => id && Types.ObjectId.isValid(id)),
     ),
   ];
 
-  const txConditions: any[] = [];
-  if (trxIds.length > 0) {
-    txConditions.push({ gatewayTransactionId: { $in: trxIds } });
-  }
-  if (sessionIds.length > 0) {
-    txConditions.push({ checkoutSessionId: { $in: sessionIds } });
-  }
+  const txIds = transactions.map((t: any) => t._id);
 
-  const [stores, ads, transactions] = await Promise.all([
+  const [stores, cities, ads] = await Promise.all([
     sellerIds.length > 0
       ? Store.find({ owner: { $in: sellerIds } })
-          .select(
-            "displayName logo storeType phone email address streetAddress owner",
-          )
+          .select("displayName logo storeType phone email address streetAddress owner")
           .lean()
       : [],
-    sellerIds.length > 0
+    cityConfigIds.length > 0
+      ? CityAdConfiguration.find({ _id: { $in: cityConfigIds } })
+          .select("city country countryCode latitude longitude defaultFeaturedImage featuredCapacity featuredDurationDays")
+          .lean()
+      : [],
+    txIds.length > 0
       ? Advertisement.find({
-          sellerId: { $in: sellerIds },
-          isDeleted: { $ne: true },
+          $or: [
+            { transactionId: { $in: txIds } },
+            { sellerId: { $in: sellerIds }, isDeleted: { $ne: true } },
+          ],
         })
           .sort({ createdAt: -1 })
           .lean()
       : [],
-    txConditions.length > 0
-      ? Transaction.find({ $or: txConditions })
-          .select(
-            "transactionId paymentMethod paymentStatus amount createdAt gatewayTransactionId checkoutSessionId",
-          )
-          .lean()
-      : [],
   ]);
 
-  // Index stores in a Map
   const storeMap = new Map<string, any>(
     stores.map((s: any) => [s.owner.toString(), s]),
   );
 
-  // Group ads by sellerId
+  const cityMap = new Map<string, any>(
+    cities.map((c: any) => [c._id.toString(), c]),
+  );
+
+  const adsByTx = new Map<string, any>();
   const adsBySeller = new Map<string, any[]>();
   for (const ad of ads) {
+    if (ad.transactionId) {
+      adsByTx.set(ad.transactionId.toString(), ad);
+    }
     const sId = (ad as any).sellerId.toString();
     if (!adsBySeller.has(sId)) {
       adsBySeller.set(sId, []);
@@ -1149,102 +1082,52 @@ const getAdvertisementPaymentsFromDB = async (
     adsBySeller.get(sId)!.push(ad);
   }
 
-  // Index transactions by identifier
-  const txMap = new Map<string, any>();
-  for (const tx of transactions) {
-    const txObj = tx as any;
-    if (txObj.gatewayTransactionId)
-      txMap.set(txObj.gatewayTransactionId, txObj);
-    if (txObj.checkoutSessionId) txMap.set(txObj.checkoutSessionId, txObj);
-  }
-
-  // Synchronously enrich each subscription record in memory
-  const enrichedData = subscriptions.map((sub: any) => {
-    const subObj = sub;
-    const seller = sub.userId;
-    const cityConfig = sub.cityConfigId;
-    const pkg = sub.packageId;
+  const enrichedData = transactions.map((tx: any) => {
+    const seller = tx.userId;
     const sellerIdStr = seller?._id?.toString() || seller?.toString() || "";
-
-    // 1. Store lookup
     const store = sellerIdStr ? storeMap.get(sellerIdStr) || null : null;
+    const cityConfigId = tx.metadata?.cityConfigId;
+    const cityConfig = cityConfigId ? cityMap.get(cityConfigId.toString()) || null : null;
 
-    // 2. Corresponding Advertisement campaign lookup
-    let ad = null;
-    if (sellerIdStr && adsBySeller.has(sellerIdStr)) {
+    let ad = adsByTx.get(tx._id.toString()) || null;
+    if (!ad && sellerIdStr && adsBySeller.has(sellerIdStr)) {
       const sellerAds = adsBySeller.get(sellerIdStr)!;
       ad =
         sellerAds.find((candidate) => {
           if (
-            cityConfig?._id &&
-            candidate.cityAdConfigId?.toString() !== cityConfig._id.toString()
+            cityConfigId &&
+            candidate.cityAdConfigId?.toString() !== cityConfigId.toString()
           ) {
             return false;
           }
-          if (sub.position && candidate.position !== sub.position) {
+          if (
+            tx.metadata?.position &&
+            candidate.position !== Number(tx.metadata.position)
+          ) {
             return false;
           }
           return true;
         }) || null;
     }
 
-    // 3. Transaction lookup (for invoice number, payment method)
-    let transaction = null;
-    if (sub.trxId && txMap.has(sub.trxId)) {
-      transaction = txMap.get(sub.trxId);
-    } else if (sub.checkoutSessionId && txMap.has(sub.checkoutSessionId)) {
-      transaction = txMap.get(sub.checkoutSessionId);
-    }
+    const position = Number(tx.metadata?.position) || ad?.position || 1;
+    const durationDays = Number(
+      tx.metadata?.durationDays ||
+        cityConfig?.featuredDurationDays ||
+        7,
+    );
 
-    // Calculate days remaining & expiry
-    const isExpired = subObj.expiresAt
-      ? new Date(subObj.expiresAt) <= now
-      : false;
-    const diffMs = subObj.expiresAt
-      ? new Date(subObj.expiresAt).getTime() - now.getTime()
-      : 0;
-    const remainingDays =
-      diffMs > 0 ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 0;
-
-    // Resolved position: from subscription or from linked advertisement
-    const position = subObj.position || ad?.position || null;
-
-    // Resolved amount: from subscription amountPaid, transaction amount, or package price
-    const amountPaid =
-      typeof subObj.amountPaid === "number"
-        ? subObj.amountPaid
-        : transaction?.amount ||
-          (subObj.status === "trialing" ? 0 : pkg?.price || 0);
-
-    const invoiceNumber =
-      transaction?.transactionId || subObj.invoiceNumber || null;
-    const safeInvoice = invoiceNumber
-      ? invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_")
-      : null;
+    const safeInvoice = (tx.transactionId || "").replace(/[^a-zA-Z0-9_-]/g, "_");
     const invoiceUrl =
-      transaction?.invoiceUrl ||
-      subObj.invoiceUrl ||
-      (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
+      tx.invoiceUrl || (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
     const invoiceDownloadUrl = safeInvoice
       ? `/api/v1/invoices/download/${safeInvoice}`
-      : subObj._id
-        ? `/api/v1/invoices/download/${subObj._id}`
-        : null;
-
-    let paymentMethod: string = PAYMENT_METHOD.DATAFAST;
-    if (transaction?.paymentMethod) {
-      paymentMethod = transaction.paymentMethod;
-    } else if (subObj.status === "trialing") {
-      paymentMethod = "Free Trial";
-    }
-
-    const paymentStatus =
-      transaction?.paymentStatus ||
-      (subObj.status === "trialing" ? "TRIAL" : "PAID");
+      : `/api/v1/invoices/download/${tx._id}`;
 
     return {
-      id: subObj._id,
-      subscriptionId: subObj._id,
+      id: tx._id,
+      subscriptionId: tx._id, // Backward-compatibility
+      transactionId: tx.transactionId,
       seller: seller
         ? {
             id: seller._id,
@@ -1282,33 +1165,28 @@ const getAdvertisementPaymentsFromDB = async (
               latitude: ad.latitude,
               longitude: ad.longitude,
             }
-          : null,
+          : tx.metadata?.cityName
+            ? {
+                id: tx.metadata?.cityConfigId || null,
+                name: tx.metadata?.cityName,
+                country: tx.metadata?.country || "",
+                countryCode: "",
+                latitude: 0,
+                longitude: 0,
+              }
+            : null,
       position,
-      amountPaid,
-      trxId: subObj.trxId || null,
-      checkoutSessionId: subObj.checkoutSessionId || null,
-      invoiceNumber,
+      amountPaid: tx.amount || 0,
+      trxId: tx.gatewayTransactionId || tx.transactionId || null,
+      checkoutSessionId: tx.checkoutSessionId || null,
+      invoiceNumber: tx.transactionId,
       invoiceUrl,
       invoiceDownloadUrl,
-      paymentMethod,
-      paymentStatus,
-      paymentDate: subObj.createdAt,
-      isTrial:
-        subObj.status === "trialing" || subObj.trxId === "trial_activated",
-      package: pkg
-        ? {
-            id: pkg._id,
-            name: pkg.name,
-            duration: pkg.duration,
-            price: pkg.price,
-          }
-        : null,
-      subscription: {
-        status: subObj.status,
-        expiresAt: subObj.expiresAt,
-        remainingDays,
-        isExpired,
-      },
+      paymentMethod: tx.paymentMethod || PAYMENT_METHOD.DATAFAST,
+      paymentStatus: tx.paymentStatus || "PENDING",
+      paymentDate: tx.createdAt,
+      durationDays,
+      isTrial: false,
       advertisement: ad
         ? {
             id: ad._id,
@@ -1338,7 +1216,7 @@ const getAdvertisementPaymentsFromDB = async (
     totalPayments: total,
     totalRevenue,
     activeAdsCount,
-    trialCount,
+    trialCount: 0,
   };
 
   return {
@@ -1355,6 +1233,123 @@ const getSingleAdvertisementPaymentFromDB = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid ID format");
   }
 
+  // First try to find by Transaction
+  const tx = await Transaction.findById(id)
+    .populate("userId", "name email phone profileImage")
+    .lean();
+
+  if (tx) {
+    const seller = tx.userId as any;
+    const cityConfigId = tx.metadata?.cityConfigId;
+    const cityConfig =
+      cityConfigId && Types.ObjectId.isValid(cityConfigId)
+        ? await CityAdConfiguration.findById(cityConfigId).lean()
+        : null;
+
+    const store = seller?._id
+      ? await Store.findOne({ owner: seller._id })
+          .select("displayName logo storeType phone email address streetAddress")
+          .lean()
+      : null;
+
+    let ad = await Advertisement.findOne({
+      transactionId: tx._id,
+      isDeleted: { $ne: true },
+    }).lean();
+
+    if (!ad && seller?._id) {
+      ad = await Advertisement.findOne({
+        sellerId: seller._id,
+        ...(cityConfigId ? { cityAdConfigId: cityConfigId } : {}),
+        isDeleted: { $ne: true },
+      })
+        .sort({ createdAt: -1 })
+        .lean();
+    }
+
+    const position = Number(tx.metadata?.position) || ad?.position || 1;
+    const durationDays = Number(
+      tx.metadata?.durationDays || cityConfig?.featuredDurationDays || 7,
+    );
+
+    const safeInvoice = (tx.transactionId || "").replace(/[^a-zA-Z0-9_-]/g, "_");
+    const invoiceUrl =
+      tx.invoiceUrl || (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
+    const invoiceDownloadUrl = safeInvoice
+      ? `/api/v1/invoices/download/${safeInvoice}`
+      : `/api/v1/invoices/download/${tx._id}`;
+
+    return {
+      id: tx._id,
+      subscriptionId: tx._id,
+      transactionId: tx.transactionId,
+      seller: seller
+        ? {
+            id: seller._id,
+            name: seller.name,
+            email: seller.email,
+            phone: seller.phone || null,
+            profileImage: seller.profileImage || null,
+          }
+        : null,
+      store: store
+        ? {
+            id: store._id,
+            displayName: store.displayName || null,
+            logo: store.logo || null,
+            storeType: store.storeType || null,
+            phone: store.phone || null,
+            email: store.email || null,
+            address: store.streetAddress || null,
+          }
+        : null,
+      city: cityConfig
+        ? {
+            id: cityConfig._id,
+            name: cityConfig.city,
+            country: cityConfig.country,
+            countryCode: cityConfig.countryCode,
+            latitude: cityConfig.latitude,
+            longitude: cityConfig.longitude,
+          }
+        : ad
+          ? {
+              id: ad.cityAdConfigId,
+              name: ad.city,
+              country: ad.country,
+              countryCode: ad.countryCode,
+              latitude: ad.latitude,
+              longitude: ad.longitude,
+            }
+          : null,
+      position,
+      amountPaid: tx.amount || 0,
+      trxId: tx.gatewayTransactionId || tx.transactionId || null,
+      checkoutSessionId: tx.checkoutSessionId || null,
+      invoiceNumber: tx.transactionId,
+      invoiceUrl,
+      invoiceDownloadUrl,
+      paymentMethod: tx.paymentMethod || PAYMENT_METHOD.DATAFAST,
+      paymentStatus: tx.paymentStatus || "PENDING",
+      paymentDate: tx.createdAt,
+      durationDays,
+      isTrial: false,
+      advertisement: ad
+        ? {
+            id: ad._id,
+            campaignName: ad.campaignName,
+            featuredImage: ad.featuredImage || null,
+            status: ad.status,
+            startDate: ad.startDate,
+            endDate: ad.endDate,
+            price: ad.price,
+          }
+        : null,
+      isAdSubmitted: Boolean(ad),
+    };
+  }
+
+  // Fallback for legacy Subscription record
   const sub = await Subscription.findOne({
     _id: id,
     packageType: "post_add",

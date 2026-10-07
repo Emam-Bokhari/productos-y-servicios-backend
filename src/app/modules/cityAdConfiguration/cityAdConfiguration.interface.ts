@@ -4,6 +4,7 @@ import { SLOT_CONFIG_STATUS } from "./cityAdConfiguration.constant";
 export interface IPositionPricing {
   position: number;
   price: number;
+  durationDays?: number;
 }
 
 export interface ICityAdConfiguration {
@@ -18,6 +19,7 @@ export interface ICityAdConfiguration {
   longitude: number;
   featuredCapacity: number;
   featuredEnabled: boolean;
+  featuredDurationDays: number;
   featuredPositionPricing?: IPositionPricing[];
   defaultFeaturedImage?: string;
   status: SLOT_CONFIG_STATUS;

@@ -309,6 +309,10 @@ class InvoiceService {
     } else if (isDirectAdBooking) {
       const pos =
         transaction?.metadata?.position || advertisement?.position || 1;
+      const durationDays =
+        transaction?.metadata?.durationDays ||
+        cityConfig?.featuredDurationDays ||
+        7;
       const locationParts = [
         transaction?.metadata?.neighborhood ||
           cityConfig?.neighborhood ||
@@ -333,7 +337,7 @@ class InvoiceService {
         description: `Featured Advertisement Slot - Position ${pos}`,
         details: `Location: ${locationName} | Featured Home Screen Slot #${pos}`,
         type: "Advertisement",
-        duration: "7 Days",
+        duration: `${durationDays} Days`,
         unitPrice: totalAmount,
         total: totalAmount,
       });
