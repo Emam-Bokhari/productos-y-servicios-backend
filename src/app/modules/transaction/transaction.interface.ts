@@ -28,6 +28,7 @@ export interface ITransaction {
   description?: string; // Optional description
   metadata?: Record<string, any>;
   invoiceUrl?: string; // Generated PDF invoice URL (e.g. /uploads/invoices/INV-2026-1001.pdf)
+  isDeleted?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

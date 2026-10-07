@@ -21,6 +21,7 @@ export type TSubscription = {
   trxId?: string;
   invoiceNumber?: string;
   invoiceUrl?: string;
+  isDeleted?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 };
