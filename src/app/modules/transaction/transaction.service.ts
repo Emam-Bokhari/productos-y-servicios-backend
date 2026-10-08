@@ -99,11 +99,7 @@ const getMyTransactionsFromDB = async (
   }
 
   // 2. Filter / Type mapping (subscription, post_add / advertisement, refund, all)
-  const rawFilter = (
-    queryOptions.type ||
-    queryOptions.filter ||
-    "all"
-  )
+  const rawFilter = (queryOptions.type || queryOptions.filter || "all")
     .toLowerCase()
     .trim();
 
@@ -241,19 +237,14 @@ const getMyTransactionsFromDB = async (
       ? CityAdConfiguration.find({ _id: { $in: cityConfigIds } }).lean()
       : [],
     Advertisement.find({
-      $or: [
-        { transactionId: { $in: txIds } },
-        { sellerId: userObjectId },
-      ],
+      $or: [{ transactionId: { $in: txIds } }, { sellerId: userObjectId }],
       isDeleted: { $ne: true },
     }).lean(),
     Subscription.find({
       userId: userObjectId,
       isDeleted: { $ne: true },
     }).lean(),
-    Store.findOne({ owner: userObjectId })
-      .select("displayName logo")
-      .lean(),
+    Store.findOne({ owner: userObjectId }).select("displayName logo").lean(),
   ]);
 
   const cityMap = new Map<string, any>(
@@ -300,7 +291,8 @@ const getMyTransactionsFromDB = async (
     // Resolve subscription doc (if subscription)
     const subDoc = subscriptions.find(
       (s: any) =>
-        (tx.checkoutSessionId && s.checkoutSessionId === tx.checkoutSessionId) ||
+        (tx.checkoutSessionId &&
+          s.checkoutSessionId === tx.checkoutSessionId) ||
         (tx.gatewayTransactionId && s.trxId === tx.gatewayTransactionId) ||
         (tx.transactionId && s.invoiceNumber === tx.transactionId) ||
         (pkg?._id && s.packageId?.toString() === pkg._id.toString()),
@@ -331,30 +323,18 @@ const getMyTransactionsFromDB = async (
     });
 
     const cityName =
-      cityConfig?.city ||
-      tx.metadata?.cityName ||
-      ad?.city ||
-      "";
+      cityConfig?.city || tx.metadata?.cityName || ad?.city || "";
     const province =
-      cityConfig?.province ||
-      tx.metadata?.province ||
-      ad?.province ||
-      "";
+      cityConfig?.province || tx.metadata?.province || ad?.province || "";
     const sector =
-      cityConfig?.sector ||
-      tx.metadata?.sector ||
-      ad?.sector ||
-      "";
+      cityConfig?.sector || tx.metadata?.sector || ad?.sector || "";
     const neighborhood =
       cityConfig?.neighborhood ||
       tx.metadata?.neighborhood ||
       ad?.neighborhood ||
       "";
     const country =
-      cityConfig?.country ||
-      tx.metadata?.country ||
-      ad?.country ||
-      "Ecuador";
+      cityConfig?.country || tx.metadata?.country || ad?.country || "Ecuador";
 
     const slotPosition = Number(tx.metadata?.position || ad?.position) || 1;
     const durationDays =
@@ -568,7 +548,10 @@ const getSingleTransactionFromDB = async (
         { checkoutSessionId: transaction.checkoutSessionId },
         { trxId: transaction.gatewayTransactionId },
         { invoiceNumber: transaction.transactionId },
-        { packageId: (transaction.packageId as any)?._id || transaction.packageId },
+        {
+          packageId:
+            (transaction.packageId as any)?._id || transaction.packageId,
+        },
       ],
       isDeleted: { $ne: true },
     }).lean(),
@@ -621,20 +604,14 @@ const getSingleTransactionFromDB = async (
   }
 
   const cityName =
-    cityConfig?.city ||
-    transaction.metadata?.cityName ||
-    ad?.city ||
-    "";
+    cityConfig?.city || transaction.metadata?.cityName || ad?.city || "";
   const province =
     cityConfig?.province ||
     transaction.metadata?.province ||
     ad?.province ||
     "";
   const sector =
-    cityConfig?.sector ||
-    transaction.metadata?.sector ||
-    ad?.sector ||
-    "";
+    cityConfig?.sector || transaction.metadata?.sector || ad?.sector || "";
   const neighborhood =
     cityConfig?.neighborhood ||
     transaction.metadata?.neighborhood ||
@@ -901,8 +878,7 @@ const getAllSubscriptionTransactions = async (queryOptions: {
   );
 
   const data = transactions.map((tx: any) => {
-    const userIdStr =
-      tx.userId?._id?.toString() || tx.userId?.toString() || "";
+    const userIdStr = tx.userId?._id?.toString() || tx.userId?.toString() || "";
     const store = storeMap.get(userIdStr);
 
     let method = "Datafast";

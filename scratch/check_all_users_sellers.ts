@@ -34,8 +34,12 @@ async function checkAll() {
     console.log(`  _id: ${u._id}`);
     console.log(`  role: ${u.role}, activeRole: ${u.activeRole}`);
     console.log(`  hasSellerAccount in user doc: ${u.hasSellerAccount}`);
-    console.log(`  store: ${store ? `YES ("${store.displayName}", _id: ${store._id}, status: ${store.status})` : 'NO'}`);
-    console.log(`  seller: ${seller ? `YES (_id: ${seller._id}, status: ${seller.status}, isDeleted: ${seller.isDeleted})` : 'NO'}`);
+    console.log(
+      `  store: ${store ? `YES ("${store.displayName}", _id: ${store._id}, status: ${store.status})` : "NO"}`,
+    );
+    console.log(
+      `  seller: ${seller ? `YES (_id: ${seller._id}, status: ${seller.status}, isDeleted: ${seller.isDeleted})` : "NO"}`,
+    );
     console.log(`  computed hasSeller: ${loginHasSeller}`);
     console.log(`-----------------------------------------------`);
   }

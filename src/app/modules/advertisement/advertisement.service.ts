@@ -16,13 +16,11 @@ import { Store } from "../store/store.model";
 import { User } from "../user/user.model";
 import QueryBuilder from "../../builder/queryBuilder";
 import { Subscription } from "../subscription/subscription.model";
-import { SubscriptionPackage } from "../subscriptionPackage/subscriptionPackage.model";
 import { Transaction } from "../transaction/transaction.model";
 import {
   PAYMENT_METHOD,
   TRANSACTION_TYPE,
 } from "../transaction/transaction.constant";
-import { DateTime } from "luxon";
 import { sendNotifications } from "../../../helpers/notificationsHelper";
 import { NOTIFICATION_TYPE } from "../notification/notification.constant";
 
@@ -961,9 +959,7 @@ const getAdvertisementPaymentsFromDB = async (
     const storeOwnerIds = matchingStores.map((s: any) => s.owner);
     const cityIds = matchingCities.map((c: any) => c._id.toString());
 
-    const combinedUserIds = [
-      ...new Set([...userIds, ...storeOwnerIds]),
-    ];
+    const combinedUserIds = [...new Set([...userIds, ...storeOwnerIds])];
 
     baseFilter.$and = [
       {
@@ -1041,12 +1037,16 @@ const getAdvertisementPaymentsFromDB = async (
   const [stores, cities, ads] = await Promise.all([
     sellerIds.length > 0
       ? Store.find({ owner: { $in: sellerIds } })
-          .select("displayName logo storeType phone email address streetAddress owner")
+          .select(
+            "displayName logo storeType phone email address streetAddress owner",
+          )
           .lean()
       : [],
     cityConfigIds.length > 0
       ? CityAdConfiguration.find({ _id: { $in: cityConfigIds } })
-          .select("city country countryCode latitude longitude defaultFeaturedImage featuredCapacity featuredDurationDays")
+          .select(
+            "city country countryCode latitude longitude defaultFeaturedImage featuredCapacity featuredDurationDays",
+          )
           .lean()
       : [],
     txIds.length > 0
@@ -1087,7 +1087,9 @@ const getAdvertisementPaymentsFromDB = async (
     const sellerIdStr = seller?._id?.toString() || seller?.toString() || "";
     const store = sellerIdStr ? storeMap.get(sellerIdStr) || null : null;
     const cityConfigId = tx.metadata?.cityConfigId;
-    const cityConfig = cityConfigId ? cityMap.get(cityConfigId.toString()) || null : null;
+    const cityConfig = cityConfigId
+      ? cityMap.get(cityConfigId.toString()) || null
+      : null;
 
     let ad = adsByTx.get(tx._id.toString()) || null;
     if (!ad && sellerIdStr && adsBySeller.has(sellerIdStr)) {
@@ -1112,14 +1114,16 @@ const getAdvertisementPaymentsFromDB = async (
 
     const position = Number(tx.metadata?.position) || ad?.position || 1;
     const durationDays = Number(
-      tx.metadata?.durationDays ||
-        cityConfig?.featuredDurationDays ||
-        7,
+      tx.metadata?.durationDays || cityConfig?.featuredDurationDays || 7,
     );
 
-    const safeInvoice = (tx.transactionId || "").replace(/[^a-zA-Z0-9_-]/g, "_");
+    const safeInvoice = (tx.transactionId || "").replace(
+      /[^a-zA-Z0-9_-]/g,
+      "_",
+    );
     const invoiceUrl =
-      tx.invoiceUrl || (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
+      tx.invoiceUrl ||
+      (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
     const invoiceDownloadUrl = safeInvoice
       ? `/api/v1/invoices/download/${safeInvoice}`
       : `/api/v1/invoices/download/${tx._id}`;
@@ -1248,7 +1252,9 @@ const getSingleAdvertisementPaymentFromDB = async (
 
     const store = seller?._id
       ? await Store.findOne({ owner: seller._id })
-          .select("displayName logo storeType phone email address streetAddress")
+          .select(
+            "displayName logo storeType phone email address streetAddress",
+          )
           .lean()
       : null;
 
@@ -1272,9 +1278,13 @@ const getSingleAdvertisementPaymentFromDB = async (
       tx.metadata?.durationDays || cityConfig?.featuredDurationDays || 7,
     );
 
-    const safeInvoice = (tx.transactionId || "").replace(/[^a-zA-Z0-9_-]/g, "_");
+    const safeInvoice = (tx.transactionId || "").replace(
+      /[^a-zA-Z0-9_-]/g,
+      "_",
+    );
     const invoiceUrl =
-      tx.invoiceUrl || (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
+      tx.invoiceUrl ||
+      (safeInvoice ? `/uploads/invoices/${safeInvoice}.pdf` : null);
     const invoiceDownloadUrl = safeInvoice
       ? `/api/v1/invoices/download/${safeInvoice}`
       : `/api/v1/invoices/download/${tx._id}`;

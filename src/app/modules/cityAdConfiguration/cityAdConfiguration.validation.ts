@@ -4,10 +4,7 @@ import { SLOT_CONFIG_STATUS } from "./cityAdConfiguration.constant";
 const positionPricingSchema = z.object({
   position: z.number().min(1, "Position must be at least 1"),
   price: z.number().min(0, "Price cannot be negative"),
-  durationDays: z
-    .number()
-    .min(1, "Duration must be at least 1 day")
-    .optional(),
+  durationDays: z.number().min(1, "Duration must be at least 1 day").optional(),
 });
 
 const createCityConfigSchema = z.object({

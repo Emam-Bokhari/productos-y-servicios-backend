@@ -8,27 +8,41 @@ async function syncAllTransactions() {
   const db = mongoose.connection.db!;
 
   // 1. Fetch SubscriptionPackages
-  const storePackage = await db.collection("subscriptionpackages").findOne({
-    packageType: "store_creation",
-    status: "active",
-  }) || await db.collection("subscriptionpackages").findOne({
-    status: "active",
-  });
+  const storePackage =
+    (await db.collection("subscriptionpackages").findOne({
+      packageType: "store_creation",
+      status: "active",
+    })) ||
+    (await db.collection("subscriptionpackages").findOne({
+      status: "active",
+    }));
 
   if (!storePackage) {
     throw new Error("No active store_creation package found!");
   }
-  console.log(`Using Store Package: "${storePackage.name}" ($${storePackage.price})`);
+  console.log(
+    `Using Store Package: "${storePackage.name}" ($${storePackage.price})`,
+  );
 
   // 2. Fetch City Configurations
-  const cityConfigs = await db.collection("cityadconfigurations").find({}).toArray();
-  const quitoCity = cityConfigs.find((c) => c.city.toLowerCase() === "quito") || cityConfigs[0];
-  const guayaquilCity = cityConfigs.find((c) => c.city.toLowerCase() === "guayaquil") || cityConfigs[1] || quitoCity;
+  const cityConfigs = await db
+    .collection("cityadconfigurations")
+    .find({})
+    .toArray();
+  const quitoCity =
+    cityConfigs.find((c) => c.city.toLowerCase() === "quito") || cityConfigs[0];
+  const guayaquilCity =
+    cityConfigs.find((c) => c.city.toLowerCase() === "guayaquil") ||
+    cityConfigs[1] ||
+    quitoCity;
   console.log(`Loaded ${cityConfigs.length} city ad configurations.`);
 
   // 3. Fix / Sync all existing advertisements and their transactions
   console.log("\n--- 1. Syncing Advertisements with Transactions ---");
-  const allAds = await db.collection("advertisements").find({ isDeleted: { $ne: true } }).toArray();
+  const allAds = await db
+    .collection("advertisements")
+    .find({ isDeleted: { $ne: true } })
+    .toArray();
   console.log(`Found ${allAds.length} active advertisements.`);
 
   let txInvoiceCounter = 2000;
@@ -38,7 +52,9 @@ async function syncAllTransactions() {
     let tx: any = null;
 
     if (ad.transactionId) {
-      tx = await db.collection("transactions").findOne({ _id: ad.transactionId });
+      tx = await db
+        .collection("transactions")
+        .findOne({ _id: ad.transactionId });
     }
 
     if (!tx) {
@@ -50,10 +66,12 @@ async function syncAllTransactions() {
 
     // Resolve city details
     let cityCfg = cityConfigs.find(
-      (c) => c._id.toString() === (ad.cityAdConfigId?.toString())
+      (c) => c._id.toString() === ad.cityAdConfigId?.toString(),
     );
     if (!cityCfg && ad.city) {
-      cityCfg = cityConfigs.find((c) => c.city.toLowerCase() === ad.city.toLowerCase());
+      cityCfg = cityConfigs.find(
+        (c) => c.city.toLowerCase() === ad.city.toLowerCase(),
+      );
     }
     const resolvedCity = cityCfg || quitoCity;
 
@@ -85,15 +103,22 @@ async function syncAllTransactions() {
             storeId: tx.storeId || ad.storeId,
             updatedAt: new Date(),
           },
-        }
+        },
       );
-      if (!ad.transactionId || ad.transactionId.toString() !== tx._id.toString()) {
-        await db.collection("advertisements").updateOne(
-          { _id: ad._id },
-          { $set: { transactionId: tx._id, updatedAt: new Date() } }
-        );
+      if (
+        !ad.transactionId ||
+        ad.transactionId.toString() !== tx._id.toString()
+      ) {
+        await db
+          .collection("advertisements")
+          .updateOne(
+            { _id: ad._id },
+            { $set: { transactionId: tx._id, updatedAt: new Date() } },
+          );
       }
-      console.log(`   ✔ Updated Transaction for Ad: "${ad.campaignName}" (TX: ${tx.transactionId})`);
+      console.log(
+        `   ✔ Updated Transaction for Ad: "${ad.campaignName}" (TX: ${tx.transactionId})`,
+      );
     } else {
       // Create new Transaction for Ad
       txInvoiceCounter++;
@@ -119,17 +144,29 @@ async function syncAllTransactions() {
         updatedAt: new Date(),
       });
 
-      await db.collection("advertisements").updateOne(
-        { _id: ad._id },
-        { $set: { transactionId: insertResult.insertedId, updatedAt: new Date() } }
+      await db
+        .collection("advertisements")
+        .updateOne(
+          { _id: ad._id },
+          {
+            $set: {
+              transactionId: insertResult.insertedId,
+              updatedAt: new Date(),
+            },
+          },
+        );
+      console.log(
+        `   ✔ Created new Transaction ${txId} for Ad: "${ad.campaignName}"`,
       );
-      console.log(`   ✔ Created new Transaction ${txId} for Ad: "${ad.campaignName}"`);
     }
   }
 
   // 4. Ensure EVERY Store has a Subscription and Transaction
   console.log("\n--- 2. Syncing Stores with Subscriptions & Transactions ---");
-  const allStores = await db.collection("stores").find({ isDeleted: { $ne: true } }).toArray();
+  const allStores = await db
+    .collection("stores")
+    .find({ isDeleted: { $ne: true } })
+    .toArray();
   console.log(`Found ${allStores.length} stores.`);
 
   const oneYearFromNow = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
@@ -165,14 +202,22 @@ async function syncAllTransactions() {
         createdAt: store.createdAt || new Date(),
         updatedAt: new Date(),
       });
-      sub = { _id: insertSub.insertedId, trxId: subTrxId, invoiceNumber: invNum };
-      console.log(`   ✔ Created Store Subscription for Store: "${store.displayName}"`);
+      sub = {
+        _id: insertSub.insertedId,
+        trxId: subTrxId,
+        invoiceNumber: invNum,
+      };
+      console.log(
+        `   ✔ Created Store Subscription for Store: "${store.displayName}"`,
+      );
     }
 
     // Check transaction
     let tx = await db.collection("transactions").findOne({
       userId: ownerId,
-      transactionType: { $in: ["subscription_payment", "subscription_renewal"] },
+      transactionType: {
+        $in: ["subscription_payment", "subscription_renewal"],
+      },
       isDeleted: { $ne: true },
     });
 
@@ -190,7 +235,8 @@ async function syncAllTransactions() {
         paymentMethod: "DATAFAST",
         paymentStatus: "PAID",
         transactionType: "subscription_payment",
-        gatewayTransactionId: sub.trxId || `gw_datafast_sub_${Date.now()}_${i + 1}`,
+        gatewayTransactionId:
+          sub.trxId || `gw_datafast_sub_${Date.now()}_${i + 1}`,
         description: `Compra de membresía de tienda: ${storePackage.name}`,
         invoiceUrl: `/uploads/invoices/${safeInvoice}.pdf`,
         metadata: {
@@ -215,12 +261,14 @@ async function syncAllTransactions() {
           subscriptionPackageId: storePackage._id,
           subscriptionExpiresAt: oneYearFromNow,
         },
-      }
+      },
     );
   }
 
   // 5. Ensure Developer and Admin Accounts also have Store, Subscription & Post Ad Transactions
-  console.log("\n--- 3. Ensuring Admin / Developer Accounts Have Complete Data ---");
+  console.log(
+    "\n--- 3. Ensuring Admin / Developer Accounts Have Complete Data ---",
+  );
   const testEmails = [
     "studentemam@gmail.com",
     "mdjowelahmed924@gmail.com",
@@ -236,16 +284,20 @@ async function syncAllTransactions() {
     console.log(`Processing Test/Admin User: ${user.name || email} (${email})`);
 
     // Ensure store exists
-    let store = await db.collection("stores").findOne({ owner: user._id, isDeleted: { $ne: true } });
+    let store = await db
+      .collection("stores")
+      .findOne({ owner: user._id, isDeleted: { $ne: true } });
     if (!store) {
       const storeInsert = await db.collection("stores").insertOne({
         owner: user._id,
         storeType: "product_store",
         displayName: `${user.name || "Oficial"} Tienda VIP`,
-        description: "Tienda oficial de productos y servicios premium en Ecuador.",
+        description:
+          "Tienda oficial de productos y servicios premium en Ecuador.",
         cityId: quitoCity._id,
         logo: "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=400&q=80",
-        coverImage: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80",
+        coverImage:
+          "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80",
         phone: "+593984123456",
         whatsapp: "+593984123456",
         email: user.email,
@@ -266,16 +318,21 @@ async function syncAllTransactions() {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      store = { _id: storeInsert.insertedId, displayName: `${user.name || "Oficial"} Tienda VIP` };
+      store = {
+        _id: storeInsert.insertedId,
+        displayName: `${user.name || "Oficial"} Tienda VIP`,
+      };
       console.log(`   ✔ Created Store for ${email}`);
     }
 
     // Ensure Seller document exists
-    await db.collection("sellers").updateOne(
-      { user: user._id },
-      { $set: { user: user._id, store: store._id, status: "active" } },
-      { upsert: true }
-    );
+    await db
+      .collection("sellers")
+      .updateOne(
+        { user: user._id },
+        { $set: { user: user._id, store: store._id, status: "active" } },
+        { upsert: true },
+      );
 
     // Ensure Store Subscription exists
     let sub = await db.collection("subscriptions").findOne({
@@ -347,7 +404,8 @@ async function syncAllTransactions() {
         storeId: store._id,
         advertisementType: "featured",
         campaignName: `Campaña Destacada - ${store.displayName || "Ecuador"}`,
-        featuredImage: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80",
+        featuredImage:
+          "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80",
         cityAdConfigId: quitoCity._id,
         city: quitoCity.city,
         position: 1,
@@ -404,10 +462,12 @@ async function syncAllTransactions() {
         updatedAt: new Date(),
       });
 
-      await db.collection("advertisements").updateOne(
-        { _id: ad._id },
-        { $set: { transactionId: insertAdTx.insertedId } }
-      );
+      await db
+        .collection("advertisements")
+        .updateOne(
+          { _id: ad._id },
+          { $set: { transactionId: insertAdTx.insertedId } },
+        );
       console.log(`   ✔ Created Advertisement Transaction for ${email}`);
     }
 
@@ -421,7 +481,7 @@ async function syncAllTransactions() {
           subscriptionPackageId: storePackage._id,
           subscriptionExpiresAt: oneYearFromNow,
         },
-      }
+      },
     );
   }
 

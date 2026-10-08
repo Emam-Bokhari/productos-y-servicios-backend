@@ -16,11 +16,7 @@ router.get(
 );
 
 // Alias for /my-transactions
-router.get(
-  "/me",
-  isAuthenticated,
-  TransactionController.getMyTransactions,
-);
+router.get("/me", isAuthenticated, TransactionController.getMyTransactions);
 
 // Get specific transaction for user
 router.get(

@@ -22,12 +22,17 @@ async function testAllStoreOwners() {
     const sellerForLogin = await db.collection("sellers").findOne({
       user: owner._id,
       status: "active",
-      $or: [{ isDeleted: { $exists: false } }, { isDeleted: false }]
+      $or: [{ isDeleted: { $exists: false } }, { isDeleted: false }],
     });
 
     console.log(`Owner: ${owner.email} (${owner.name})`);
     console.log(`  Store: "${s.displayName}" (${s._id})`);
-    console.log(`  Seller in DB:`, seller ? { id: seller._id, status: seller.status, isDeleted: seller.isDeleted } : 'MISSING');
+    console.log(
+      `  Seller in DB:`,
+      seller
+        ? { id: seller._id, status: seller.status, isDeleted: seller.isDeleted }
+        : "MISSING",
+    );
     console.log(`  HasSellerAccount computed: ${!!sellerForLogin}`);
   }
 

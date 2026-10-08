@@ -54,9 +54,7 @@ const updateSubscriptionPackageSchema = z.object({
         SUBSCRIPTION_PACKAGE_DURATION.ONE_YEAR,
       ])
       .optional(),
-    packageType: z
-      .enum([SUBSCRIPTION_PACKAGE_TYPE.STORE_CREATION])
-      .optional(),
+    packageType: z.enum([SUBSCRIPTION_PACKAGE_TYPE.STORE_CREATION]).optional(),
     listingLimit: z.number().nonnegative().optional(),
     isUnlimitedListings: z.boolean().optional(),
     trialEnabled: z.boolean().optional(),
