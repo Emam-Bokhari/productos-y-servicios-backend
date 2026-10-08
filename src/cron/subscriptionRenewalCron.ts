@@ -196,7 +196,6 @@ export const runSubscriptionRenewalCheck = async (): Promise<{
     { $set: { status: "expired" } },
   );
 
-
   // Expire past-due active advertisements
   await Advertisement.updateMany(
     {

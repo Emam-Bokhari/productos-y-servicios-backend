@@ -84,7 +84,7 @@ const getDashboardOverview = async (queryYear?: string) => {
       },
     ]),
 
-    // 7. Pending Reports Count
+    // 7. pending reports count
     Report.countDocuments({ status: REPORT_STATUS.PENDING }),
 
     // 8. Total Reports Count
